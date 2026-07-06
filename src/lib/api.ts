@@ -23,7 +23,7 @@ import type {
 export async function getDrivers(): Promise<Driver[]> {
   const { data, error } = await supabase
     .from("drivers")
-    .select("id, nama, no_hp, avatar_emoji, aktif")
+    .select("id, nama, no_hp, avatar_emoji, aktif, tier_id, email")
     .eq("aktif", true)
     .order("nama", { ascending: true });
   if (error) throw error;
@@ -596,6 +596,30 @@ export async function updateKantongBudget(input: KantongInput): Promise<void> {
       last_reset: input.lastReset,
     })
     .eq("period", input.period);
+  if (error) throw error;
+}
+
+/** Creates the very first Dana Operasional row for the current period —
+ *  needed because the table starts completely empty (the migration only
+ *  creates the table, it doesn't seed a row), so there was previously no
+ *  way to get past "no data yet" in the UI. */
+export async function createKantong(input: {
+  period: string;
+  totalBudget: number;
+  allocOpDriver: number;
+  allocEmergency: number;
+  cashAvailable: number;
+}): Promise<void> {
+  const { error } = await supabase.from("kantong").insert({
+    period: input.period,
+    total_budget: input.totalBudget,
+    alloc_op_driver: input.allocOpDriver,
+    alloc_emergency: input.allocEmergency,
+    cash_available: input.cashAvailable,
+    claim_submitted: 0,
+    claim_paid: 0,
+    last_reset: new Date().toISOString().slice(0, 10),
+  });
   if (error) throw error;
 }
 

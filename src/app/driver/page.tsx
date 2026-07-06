@@ -554,7 +554,7 @@ export default function DriverPanelPage() {
           }`}
         >
           <div className={styles.splashLogoWrap}>
-            <img src="/logo.svg" alt="CIKOPS" className={styles.splashLogo} />
+            <img src="/logo.png" alt="CIKOPS" className={styles.splashLogo} />
             <div className={styles.splashBrandName}>{t.appName}</div>
             <div className={styles.splashBrandSub}>{t.splashTagline}</div>
           </div>
@@ -592,7 +592,7 @@ export default function DriverPanelPage() {
           </div>
 
           <div className={styles.heroLogoWrap}>
-            <img src="/logo.svg" alt="CIKOPS" className={styles.logoBadgeImg} />
+            <img src="/logo.png" alt="CIKOPS" className={styles.logoBadgeImg} />
             <div className={styles.brandName}>{t.appName} Fleet</div>
             <div className={styles.brandSub}>Driver Operations</div>
           </div>
@@ -704,7 +704,7 @@ export default function DriverPanelPage() {
       <div className={`${styles.screen} ${styles.appScreen}`}>
         <div className={styles.header}>
           <div className={styles.headerTop}>
-            <img src="/logo.svg" alt="CIKOPS" className={styles.logoMarkImg} />
+            <img src="/logo.png" alt="CIKOPS" className={styles.logoMarkImg} />
             <div className={styles.headerInfo}>
               <div className={styles.headerLabel}>{t.appName}</div>
               <div className={styles.headerTitle}>{t.driverPanel}</div>

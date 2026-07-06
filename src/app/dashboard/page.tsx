@@ -29,6 +29,7 @@ import {
   getCurrentKantong,
   updateKantongBudget,
   resetKantong,
+  createKantong,
   getDriverTiers,
   addDriverTier,
   updateDriverTier,
@@ -261,7 +262,7 @@ export default function DashboardPage() {
   return (
     <div className={styles.page}>
       <div className={styles.topbar}>
-        <img src="/logo.svg" alt="CIKOPS" className={styles.topbarLogoImg} />
+        <img src="/logo.png" alt="CIKOPS" className={styles.topbarLogoImg} />
         <div className={styles.topbarTitleWrap}>
           <div className={styles.topbarEyebrow}>CIKOPS</div>
           <div className={styles.topbarTitle}>Fleet Dashboard</div>
@@ -1806,7 +1807,7 @@ function ClaimsTab() {
       </div>
 
       {showForm && (
-        <div onClick={() => setShowForm(false)} style={{ position: "fixed", inset: 0, background: "rgba(10,20,40,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 200, padding: 16 }}>
+        <div onClick={() => setShowForm(false)} style={{ position: "fixed", inset: 0, background: "rgba(10,20,40,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 2000, padding: 16 }}>
           <div onClick={(e) => e.stopPropagation()} style={{ ...cardStyle, padding: 24, width: "100%", maxWidth: 480, maxHeight: "90vh", overflowY: "auto" }}>
             <div style={{ fontSize: 16, fontWeight: 800, marginBottom: 18, color: "var(--t1)" }}>
               {lang === "en" ? "New Claim" : "Buat Klaim"}
@@ -1904,7 +1905,7 @@ function ClaimsTab() {
       )}
 
       {confirmDelete && (
-        <div onClick={() => setConfirmDelete(null)} style={{ position: "fixed", inset: 0, background: "rgba(10,20,40,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 200, padding: 16 }}>
+        <div onClick={() => setConfirmDelete(null)} style={{ position: "fixed", inset: 0, background: "rgba(10,20,40,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 2000, padding: 16 }}>
           <div onClick={(e) => e.stopPropagation()} style={{ ...cardStyle, padding: 24, width: "100%", maxWidth: 360, textAlign: "center" }}>
             <div style={{ fontSize: 15, fontWeight: 800, marginBottom: 8, color: "var(--t1)" }}>{lang === "en" ? "Delete this claim?" : "Hapus klaim ini?"}</div>
             <div style={{ fontSize: 13, color: "var(--t3)", marginBottom: 18 }}>
@@ -2156,7 +2157,7 @@ function OvertimeTab() {
       </div>
 
       {showForm && (
-        <div onClick={() => setShowForm(false)} style={{ position: "fixed", inset: 0, background: "rgba(10,20,40,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 200, padding: 16 }}>
+        <div onClick={() => setShowForm(false)} style={{ position: "fixed", inset: 0, background: "rgba(10,20,40,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 2000, padding: 16 }}>
           <div onClick={(e) => e.stopPropagation()} style={{ ...cardStyle, padding: 24, width: "100%", maxWidth: 440 }}>
             <div style={{ fontSize: 16, fontWeight: 800, marginBottom: 18, color: "var(--t1)" }}>{lang === "en" ? "Add Overtime" : "Tambah Overtime"}</div>
 
@@ -2227,7 +2228,7 @@ function OvertimeTab() {
       )}
 
       {confirmDelete && (
-        <div onClick={() => setConfirmDelete(null)} style={{ position: "fixed", inset: 0, background: "rgba(10,20,40,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 200, padding: 16 }}>
+        <div onClick={() => setConfirmDelete(null)} style={{ position: "fixed", inset: 0, background: "rgba(10,20,40,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 2000, padding: 16 }}>
           <div onClick={(e) => e.stopPropagation()} style={{ ...cardStyle, padding: 24, width: "100%", maxWidth: 360, textAlign: "center" }}>
             <div style={{ fontSize: 15, fontWeight: 800, marginBottom: 8, color: "var(--t1)" }}>{lang === "en" ? "Delete this OT entry?" : "Hapus entri OT ini?"}</div>
             <div style={{ fontSize: 13, color: "var(--t3)", marginBottom: 18 }}>
@@ -2308,7 +2309,7 @@ function LoginScreen() {
         }}
       >
         <div style={{ textAlign: "center", marginBottom: 26 }}>
-          <img src="/logo.svg" alt="CIKOPS" style={{ width: 52, height: 52, margin: "0 auto 12px" }} />
+          <img src="/logo.png" alt="CIKOPS" style={{ width: 52, height: 52, margin: "0 auto 12px" }} />
           <div style={{ fontSize: 18, fontWeight: 800, color: "var(--t1)" }}>{t.loginTitle}</div>
           <div style={{ fontSize: 12, color: "var(--t3)", marginTop: 3 }}>{t.loginSubtitle}</div>
         </div>
@@ -2530,7 +2531,7 @@ function DriverBudgetTab() {
       </div>
 
       {showForm && (
-        <div onClick={() => setShowForm(false)} style={{ position: "fixed", inset: 0, background: "rgba(10,20,40,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 200, padding: 16 }}>
+        <div onClick={() => setShowForm(false)} style={{ position: "fixed", inset: 0, background: "rgba(10,20,40,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 2000, padding: 16 }}>
           <div onClick={(e) => e.stopPropagation()} style={{ ...cardStyle, padding: 24, width: "100%", maxWidth: 380 }}>
             <div style={{ fontSize: 16, fontWeight: 800, marginBottom: 18, color: "var(--t1)" }}>{editing ? (lang === "en" ? "Edit Tier" : "Edit Tier") : (lang === "en" ? "Add Tier" : "Tambah Tier")}</div>
             <div style={{ marginBottom: 12 }}>
@@ -2558,7 +2559,7 @@ function DriverBudgetTab() {
       )}
 
       {confirmDelete && (
-        <div onClick={() => setConfirmDelete(null)} style={{ position: "fixed", inset: 0, background: "rgba(10,20,40,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 200, padding: 16 }}>
+        <div onClick={() => setConfirmDelete(null)} style={{ position: "fixed", inset: 0, background: "rgba(10,20,40,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 2000, padding: 16 }}>
           <div onClick={(e) => e.stopPropagation()} style={{ ...cardStyle, padding: 24, width: "100%", maxWidth: 360, textAlign: "center" }}>
             <div style={{ fontSize: 15, fontWeight: 800, marginBottom: 8, color: "var(--t1)" }}>{lang === "en" ? "Delete this tier?" : "Hapus tier ini?"}</div>
             <div style={{ fontSize: 13, color: "var(--t3)", marginBottom: 18 }}>
@@ -2590,6 +2591,13 @@ function OpFundTab() {
   const [ePaid, setEPaid] = useState("");
   const [saving, setSaving] = useState(false);
 
+  // First-time setup — shown only when no kantong row exists yet at all.
+  const [initBudget, setInitBudget] = useState("");
+  const [initOpDriver, setInitOpDriver] = useState("");
+  const [initEmergency, setInitEmergency] = useState("");
+  const [initCash, setInitCash] = useState("");
+  const [creating, setCreating] = useState(false);
+
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -2615,9 +2623,75 @@ function OpFundTab() {
     load();
   }, [load]);
 
-  if (loading) return <div style={{ padding: 60, textAlign: "center", color: "var(--t3)" }}>Memuat...</div>;
+  if (loading) return <div style={{ padding: 60, textAlign: "center", color: "var(--t3)" }}>{t.actionLoading}</div>;
   if (error) return <div style={{ padding: 30, margin: 20, borderRadius: 10, background: "var(--red-soft)", color: "var(--red)" }}>{error}</div>;
-  if (!kantong) return <div style={{ padding: 60, textAlign: "center", color: "var(--t3)" }}>Belum ada data Dana Operasional untuk periode ini.</div>;
+
+  const inputStyleInit: CSSProperties = { width: "100%", padding: "9px 12px", borderRadius: 10, border: "1px solid var(--border2)", background: "var(--bg2)", color: "var(--t1)", fontSize: 13, fontFamily: "var(--font)" };
+  const labelStyleInit: CSSProperties = { fontSize: 11, fontWeight: 700, color: "var(--t2)", marginBottom: 5, display: "block" };
+
+  async function handleCreateInitial() {
+    const budget = evalExpr(initBudget);
+    if (!budget) return;
+    setCreating(true);
+    try {
+      const now = new Date();
+      await createKantong({
+        period: `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`,
+        totalBudget: budget,
+        allocOpDriver: evalExpr(initOpDriver) || 0,
+        allocEmergency: evalExpr(initEmergency) || 0,
+        cashAvailable: evalExpr(initCash) || 0,
+      });
+      await load();
+    } catch (e) {
+      alert(e instanceof Error ? e.message : "Gagal membuat data Dana Operasional");
+    } finally {
+      setCreating(false);
+    }
+  }
+
+  if (!kantong) {
+    return (
+      <div style={{ padding: 20, display: "flex", justifyContent: "center" }}>
+        <div className="heroGlow" style={{ borderRadius: "var(--r2)", boxShadow: "var(--shadow-md)", padding: 28, width: "100%", maxWidth: 440 }}>
+          <div style={{ fontSize: 16, fontWeight: 800, color: "var(--t1)", marginBottom: 4 }}>
+            {lang === "en" ? "Set Up Operational Fund" : "Buat Data Dana Operasional"}
+          </div>
+          <div style={{ fontSize: 12, color: "var(--t3)", marginBottom: 20 }}>
+            {lang === "en"
+              ? "No data yet for this period — enter the starting numbers below."
+              : "Belum ada data untuk periode ini — isi angka awalnya di bawah."}
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 12, position: "relative", zIndex: 1 }}>
+            <div>
+              <label style={labelStyleInit}>{t.fieldTotalCashOp} *</label>
+              <input className="premiumInput" style={inputStyleInit} value={initBudget} onChange={(e) => setInitBudget(e.target.value)} placeholder="48000000" />
+            </div>
+            <div>
+              <label style={labelStyleInit}>OP DRIVER (A1)</label>
+              <input className="premiumInput" style={inputStyleInit} value={initOpDriver} onChange={(e) => setInitOpDriver(e.target.value)} placeholder="9000000" />
+            </div>
+            <div>
+              <label style={labelStyleInit}>EMERGENCY (A2)</label>
+              <input className="premiumInput" style={inputStyleInit} value={initEmergency} onChange={(e) => setInitEmergency(e.target.value)} placeholder="1500000" />
+            </div>
+            <div>
+              <label style={labelStyleInit}>CASH AVAILABLE (A4)</label>
+              <input className="premiumInput" style={inputStyleInit} value={initCash} onChange={(e) => setInitCash(e.target.value)} placeholder="20000000" />
+            </div>
+          </div>
+          <button
+            className="pillBtn"
+            onClick={handleCreateInitial}
+            disabled={!evalExpr(initBudget) || creating}
+            style={{ width: "100%", justifyContent: "center", marginTop: 20, opacity: evalExpr(initBudget) && !creating ? 1 : 0.5 }}
+          >
+            {creating ? t.actionSaving : (lang === "en" ? "Create" : "Buat Data")}
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   const totalAlokasi = kantong.allocOpDriver + kantong.allocEmergency;
   const outstanding = totalAlokasi + kantong.cashAvailable + kantong.claimSubmitted + kantong.claimPaid;
@@ -2721,7 +2795,7 @@ function OpFundTab() {
       </div>
 
       {showEdit && (
-        <div onClick={() => setShowEdit(false)} style={{ position: "fixed", inset: 0, background: "rgba(10,20,40,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 200, padding: 16 }}>
+        <div onClick={() => setShowEdit(false)} style={{ position: "fixed", inset: 0, background: "rgba(10,20,40,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 2000, padding: 16 }}>
           <div onClick={(e) => e.stopPropagation()} style={{ ...cardStyle, padding: 24, width: "100%", maxWidth: 420, maxHeight: "90vh", overflowY: "auto" }}>
             <div style={{ fontSize: 16, fontWeight: 800, marginBottom: 18, color: "var(--t1)" }}>Edit Dana Operasional</div>
             <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
@@ -2741,7 +2815,7 @@ function OpFundTab() {
       )}
 
       {showResetConfirm && (
-        <div onClick={() => setShowResetConfirm(false)} style={{ position: "fixed", inset: 0, background: "rgba(10,20,40,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 200, padding: 16 }}>
+        <div onClick={() => setShowResetConfirm(false)} style={{ position: "fixed", inset: 0, background: "rgba(10,20,40,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 2000, padding: 16 }}>
           <div onClick={(e) => e.stopPropagation()} style={{ ...cardStyle, padding: 24, width: "100%", maxWidth: 360, textAlign: "center" }}>
             <div style={{ fontSize: 15, fontWeight: 800, marginBottom: 8, color: "var(--t1)" }}>Reset Periode?</div>
             <div style={{ fontSize: 13, color: "var(--t3)", marginBottom: 18 }}>
@@ -2924,7 +2998,7 @@ function GasStationsTab() {
       )}
 
       {showForm && (
-        <div onClick={() => setShowForm(false)} style={{ position: "fixed", inset: 0, background: "rgba(10,20,40,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 200, padding: 16 }}>
+        <div onClick={() => setShowForm(false)} style={{ position: "fixed", inset: 0, background: "rgba(10,20,40,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 2000, padding: 16 }}>
           <div onClick={(e) => e.stopPropagation()} style={{ ...cardStyle, padding: 24, width: "100%", maxWidth: 460, maxHeight: "90vh", overflowY: "auto" }}>
             <div style={{ fontSize: 16, fontWeight: 800, marginBottom: 18, color: "var(--t1)" }}>{editing ? (lang === "en" ? "Edit Station" : "Edit SPBU") : (lang === "en" ? "Add Station" : "Tambah SPBU")}</div>
             <div style={{ marginBottom: 12 }}>
@@ -2967,7 +3041,7 @@ function GasStationsTab() {
       )}
 
       {confirmDelete && (
-        <div onClick={() => setConfirmDelete(null)} style={{ position: "fixed", inset: 0, background: "rgba(10,20,40,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 200, padding: 16 }}>
+        <div onClick={() => setConfirmDelete(null)} style={{ position: "fixed", inset: 0, background: "rgba(10,20,40,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 2000, padding: 16 }}>
           <div onClick={(e) => e.stopPropagation()} style={{ ...cardStyle, padding: 24, width: "100%", maxWidth: 360, textAlign: "center" }}>
             <div style={{ fontSize: 15, fontWeight: 800, marginBottom: 8, color: "var(--t1)" }}>{lang === "en" ? "Delete this station?" : "Hapus SPBU ini?"}</div>
             <div style={{ fontSize: 13, color: "var(--t3)", marginBottom: 18 }}><strong style={{ color: "var(--t1)" }}>{confirmDelete.name}</strong> akan dihapus permanen.</div>
@@ -3317,7 +3391,7 @@ function VehiclesTab() {
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            zIndex: 200,
+            zIndex: 2000,
             padding: 16,
           }}
         >
@@ -3420,7 +3494,7 @@ function VehiclesTab() {
       {confirmDelete && (
         <div
           onClick={() => setConfirmDelete(null)}
-          style={{ position: "fixed", inset: 0, background: "rgba(10,20,40,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 200, padding: 16 }}
+          style={{ position: "fixed", inset: 0, background: "rgba(10,20,40,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 2000, padding: 16 }}
         >
           <div onClick={(e) => e.stopPropagation()} style={{ ...cardStyle, padding: 24, width: "100%", maxWidth: 360, textAlign: "center" }}>
             <div style={{ fontSize: 15, fontWeight: 800, marginBottom: 8, color: "var(--t1)" }}>{lang === "en" ? "Delete this vehicle?" : "Hapus kendaraan?"}</div>

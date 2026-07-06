@@ -59,7 +59,7 @@ export default function GasStationMap({
   onMarkerClick: (station: GasStation) => void;
 }) {
   return (
-    <div style={{ height: 420, borderRadius: "var(--r2)", overflow: "hidden", border: "1px solid var(--border)", cursor: placing ? "crosshair" : "" }}>
+    <div style={{ height: 420, borderRadius: "var(--r2)", overflow: "hidden", border: "1px solid var(--border)", cursor: placing ? "crosshair" : "", position: "relative", zIndex: 0 }}>
       <MapContainer center={DEFAULT_CENTER} zoom={13} style={{ height: "100%", width: "100%" }}>
         <TileLayer
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
