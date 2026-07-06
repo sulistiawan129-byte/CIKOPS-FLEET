@@ -59,7 +59,7 @@
 
 /* ══════════ SPLASH ══════════ */
 .splashScreen {
-  background: linear-gradient(160deg, #0b1e4d 0%, #1c3fd6 55%, #2e5bff 100%);
+  background: linear-gradient(160deg, #0d2b52 0%, var(--brand2) 55%, var(--brand) 100%);
   align-items: center;
   justify-content: center;
   transition: opacity 0.4s ease;
@@ -154,7 +154,7 @@
   -webkit-overflow-scrolling: touch;
   justify-content: flex-start;
   padding-top: var(--safe-top);
-  background: linear-gradient(180deg, #2e5bff 0%, #1c3fd6 42%, #0b1e4d 100%);
+  background: linear-gradient(180deg, var(--brand) 0%, var(--brand2) 42%, #0d2b52 100%);
 }
 
 [data-theme="dark"] .landingScreen {
@@ -588,7 +588,7 @@
 .header {
   flex-shrink: 0;
   padding: 18px 20px 16px;
-  background: linear-gradient(135deg, #2e5bff 0%, #1c3fd6 100%);
+  background: linear-gradient(135deg, var(--brand) 0%, var(--brand2) 100%);
   position: relative;
   z-index: 100;
 }
@@ -604,10 +604,11 @@
 }
 
 .logoMarkImg {
-  width: 42px;
-  height: 42px;
+  width: 56px;
+  height: 56px;
   flex-shrink: 0;
   display: block;
+  filter: drop-shadow(0 6px 14px rgba(0, 174, 239, 0.3));
 }
 
 .headerInfo {
@@ -670,7 +671,7 @@
 .driverStrip {
   flex-shrink: 0;
   padding: 12px 20px;
-  background: linear-gradient(135deg, #1c3fd6 0%, #0b1e4d 100%);
+  background: linear-gradient(135deg, var(--brand2) 0%, #0d2b52 100%);
   display: flex;
   align-items: center;
   gap: 12px;

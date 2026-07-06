@@ -30,17 +30,22 @@
 }
 
 .topbarLogoImg {
-  width: 44px;
-  height: 44px;
+  width: 64px;
+  height: 64px;
   flex-shrink: 0;
-  filter: drop-shadow(0 6px 14px rgba(0, 174, 239, 0.35));
+  filter: drop-shadow(0 8px 18px rgba(0, 174, 239, 0.4));
   display: block;
+  transition: transform 0.25s ease, filter 0.25s ease;
+}
+.topbarLogoImg:hover {
+  transform: scale(1.06) rotate(-2deg);
+  filter: drop-shadow(0 10px 24px rgba(216, 169, 78, 0.5));
 }
 
 @media (max-width: 640px) {
   .topbarLogoImg {
-    width: 36px;
-    height: 36px;
+    width: 48px;
+    height: 48px;
   }
 }
 

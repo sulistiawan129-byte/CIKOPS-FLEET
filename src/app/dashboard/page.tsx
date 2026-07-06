@@ -41,6 +41,13 @@ import {
   deleteGasStation,
 } from "@/lib/api";
 import type { Claim, ClaimItem, Overtime, Plant, Kantong, DriverTier, GasStation, FuelEntry } from "@/lib/types";
+import {
+  buildFleetReportData,
+  exportFleetReportToCsv,
+  exportFleetReportToPdf,
+  periodLabel,
+  type ReportPeriod,
+} from "@/lib/fleetReport";
 
 // Leaflet touches `window` directly, so it must never be server-rendered.
 const GasStationMap = dynamic(() => import("./GasStationMap"), {
@@ -79,7 +86,8 @@ export type DashboardTab =
   | "overtime"
   | "driverbudget"
   | "opfund"
-  | "gasstations";
+  | "gasstations"
+  | "reports";
 
 const TAB_CONFIG: { id: DashboardTab; icon: string; labelId: string; labelEn: string }[] = [
   { id: "overview", icon: "📊", labelId: "Ringkasan", labelEn: "Overview" },
@@ -90,6 +98,7 @@ const TAB_CONFIG: { id: DashboardTab; icon: string; labelId: string; labelEn: st
   { id: "driverbudget", icon: "💳", labelId: "Budget Driver", labelEn: "Driver Budget" },
   { id: "opfund", icon: "💰", labelId: "Dana Operasional", labelEn: "Operational Fund" },
   { id: "gasstations", icon: "⛽", labelId: "Pom Bensin", labelEn: "Gas Stations" },
+  { id: "reports", icon: "📈", labelId: "Report", labelEn: "Reports" },
 ];
 
 /** Hook sederhana untuk deteksi viewport mobile vs desktop, dipakai untuk
@@ -350,7 +359,7 @@ export default function DashboardPage() {
       </div>
 
       {activeTab === "tasks" && (
-      <div className={styles.body}>
+      <div key="tasks" className={`${styles.body} tabContent`}>
         <div className={styles.statsRow}>
           <div className={`${styles.statCard} ${styles.statTotal}`}>
             <div className={styles.statCardTop}>
@@ -458,13 +467,18 @@ export default function DashboardPage() {
       </div>
       )}
 
-      {activeTab === "overview" && <OverviewTab />}
-      {activeTab === "vehicles" && <VehiclesTab />}
-      {activeTab === "claims" && <ClaimsTab />}
-      {activeTab === "overtime" && <OvertimeTab />}
-      {activeTab === "driverbudget" && <DriverBudgetTab />}
-      {activeTab === "opfund" && <OpFundTab />}
-      {activeTab === "gasstations" && <GasStationsTab />}
+      {activeTab !== "tasks" && (
+        <div key={activeTab} className="tabContent">
+          {activeTab === "overview" && <OverviewTab />}
+          {activeTab === "vehicles" && <VehiclesTab />}
+          {activeTab === "claims" && <ClaimsTab />}
+          {activeTab === "overtime" && <OvertimeTab />}
+          {activeTab === "driverbudget" && <DriverBudgetTab />}
+          {activeTab === "opfund" && <OpFundTab />}
+          {activeTab === "gasstations" && <GasStationsTab />}
+          {activeTab === "reports" && <ReportsTab />}
+        </div>
+      )}
 
       {modalOpen && (
         <CreateTaskModal
@@ -1472,7 +1486,7 @@ function OverviewTab() {
               </defs>
               <circle cx={70} cy={70} r={R} fill="none" stroke="var(--border)" strokeWidth={10} />
               <circle cx={70} cy={70} r={R} fill="none" stroke="url(#healthGrad)" strokeWidth={10} strokeLinecap="round" strokeDasharray={CIRC} strokeDashoffset={gaugeOffset} transform="rotate(-90 70 70)" />
-              <text x={70} y={66} textAnchor="middle" fontSize={34} fontWeight={800} fill="var(--t1)" fontFamily="var(--mono)">{healthScore}</text>
+              <text x={70} y={66} textAnchor="middle" fontSize={34} fontWeight={800} fill="url(#healthGrad)" fontFamily="var(--mono)">{healthScore}</text>
               <text x={70} y={84} textAnchor="middle" fontSize={10} fill="var(--t3)">/ 100</text>
             </svg>
             <div style={{ marginTop: 8, fontSize: 12, fontWeight: 800, color: healthColor }}>
@@ -1486,7 +1500,7 @@ function OverviewTab() {
               { label: lang === "en" ? "Urgent Documents" : "Dokumen Urgent", value: String(docBuckets.urgent + docBuckets.mid), sub: "≤30 hari" },
             ].map((k, i) => (
               <div key={i} style={{ padding: "0 22px", borderLeft: i > 0 ? "1px solid var(--border2)" : "none" }}>
-                <div style={{ fontSize: 30, fontWeight: 800, color: "var(--t1)", fontFamily: "var(--mono)", letterSpacing: -0.5 }}>{k.value}</div>
+                <div className="numGrad" style={{ fontSize: 30, fontWeight: 800, fontFamily: "var(--mono)", letterSpacing: -0.5 }}>{k.value}</div>
                 <div style={{ fontSize: 12, color: "var(--t2)", fontWeight: 600, marginTop: 4 }}>{k.label}</div>
                 <div style={{ fontSize: 10.5, color: "var(--t3)", marginTop: 2 }}>{k.sub}</div>
               </div>
@@ -1884,7 +1898,7 @@ function ClaimsTab() {
 
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 16px", background: "var(--gold-soft)", borderRadius: 10, marginBottom: 18 }}>
               <span style={{ fontSize: 12, fontWeight: 700, color: "var(--t2)" }}>TOTAL</span>
-              <span style={{ fontSize: 18, fontWeight: 800, color: "var(--gold2)" }}>Rp {fmtRp(grandTotal)}</span>
+              <span className="numGrad" style={{ fontSize: 18, fontWeight: 800 }}>Rp {fmtRp(grandTotal)}</span>
             </div>
 
             <div style={{ display: "flex", gap: 10 }}>
@@ -2832,6 +2846,265 @@ function OpFundTab() {
   );
 }
 const FUEL_TYPES_LIST = ["Pertalite", "Pertamax", "Pertamax Turbo", "Pertamax Green", "Solar", "Dexlite"];
+
+/* ── REPORTS TAB — comprehensive report across Claims, Overtime, Vehicles,
+   Dana Operasional, and Driver Budget, filterable by month / date range / year. ── */
+function ReportsTab() {
+  const { lang } = useLang();
+  const months = lang === "en" ? MONTHS_EN : MONTHS_ID;
+  const now = new Date();
+
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [allClaims, setAllClaims] = useState<Claim[]>([]);
+  const [allOvertimes, setAllOvertimes] = useState<Overtime[]>([]);
+  const [vehicles, setVehicles] = useState<Vehicle[]>([]);
+  const [kantong, setKantong] = useState<Kantong | null>(null);
+  const [tiers, setTiers] = useState<DriverTier[]>([]);
+
+  const [mode, setMode] = useState<"month" | "range" | "year">("month");
+  const [month, setMonth] = useState(now.getMonth());
+  const [year, setYear] = useState(now.getFullYear());
+  const [dateFrom, setDateFrom] = useState(() => {
+    const d = new Date(now.getFullYear(), now.getMonth(), 1);
+    return d.toISOString().slice(0, 10);
+  });
+  const [dateTo, setDateTo] = useState(now.toISOString().slice(0, 10));
+  const [exportingCsv, setExportingCsv] = useState(false);
+  const [exportingPdf, setExportingPdf] = useState(false);
+
+  useEffect(() => {
+    (async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const [c, ot, v, k, t] = await Promise.all([
+          getClaims(),
+          getOvertimes(),
+          getAllVehiclesFull(),
+          getCurrentKantong(),
+          getDriverTiers(),
+        ]);
+        setAllClaims(c);
+        setAllOvertimes(ot);
+        setVehicles(v);
+        setKantong(k);
+        setTiers(t);
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "Gagal memuat data laporan");
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, []);
+
+  const period: ReportPeriod = useMemo(
+    () => ({ mode, month, year, dateFrom, dateTo }),
+    [mode, month, year, dateFrom, dateTo]
+  );
+
+  const reportData = useMemo(
+    () => buildFleetReportData(period, allClaims, allOvertimes, vehicles, kantong, tiers),
+    [period, allClaims, allOvertimes, vehicles, kantong, tiers]
+  );
+
+  const label = periodLabel(period, months);
+  const totalClaims = reportData.claims.reduce((s, c) => s + c.total, 0);
+  const totalOtHours = reportData.overtimes.reduce((s, o) => s + o.hours, 0);
+  const totalOtAmount = reportData.overtimes.reduce((s, o) => s + o.amount, 0);
+  const activeVehicles = vehicles.filter((v) => v.aktif).length;
+
+  const byType = useMemo(() => {
+    const map = new Map<string, number>();
+    reportData.claims.forEach((c) => c.items.forEach((i) => map.set(i.type, (map.get(i.type) || 0) + i.total)));
+    return [...map.entries()].sort((a, b) => b[1] - a[1]);
+  }, [reportData.claims]);
+
+  const byDriverClaim = useMemo(() => {
+    const map = new Map<string, number>();
+    reportData.claims.forEach((c) => map.set(c.driverName, (map.get(c.driverName) || 0) + c.total));
+    return [...map.entries()].sort((a, b) => b[1] - a[1]).slice(0, 8);
+  }, [reportData.claims]);
+
+  const otByPlant = OT_PLANTS.map((p) => ({
+    plant: p,
+    hours: reportData.overtimes.filter((o) => o.plant === p).reduce((s, o) => s + o.hours, 0),
+    amount: reportData.overtimes.filter((o) => o.plant === p).reduce((s, o) => s + o.amount, 0),
+  }));
+
+  async function handleExportCsv() {
+    setExportingCsv(true);
+    try {
+      exportFleetReportToCsv(reportData, months);
+    } finally {
+      setExportingCsv(false);
+    }
+  }
+  async function handleExportPdf() {
+    setExportingPdf(true);
+    try {
+      await exportFleetReportToPdf(reportData, months);
+    } catch (e) {
+      alert(e instanceof Error ? e.message : "Gagal membuat PDF");
+    } finally {
+      setExportingPdf(false);
+    }
+  }
+
+  const cardStyle: CSSProperties = { background: "linear-gradient(180deg, var(--surface2), var(--surface))", border: "1px solid var(--border2)", borderRadius: "var(--r2)", boxShadow: "var(--shadow-md)" };
+  const inputStyle: CSSProperties = { width: "100%", padding: "9px 12px", borderRadius: 10, border: "1px solid var(--border2)", background: "var(--bg2)", color: "var(--t1)", fontSize: 13, fontFamily: "var(--font)" };
+
+  if (loading) return <div style={{ padding: 60, textAlign: "center", color: "var(--t3)" }}>Memuat data laporan...</div>;
+  if (error) return <div style={{ padding: 30, margin: 20, borderRadius: 10, background: "var(--red-soft)", color: "var(--red)" }}>{error}</div>;
+
+  return (
+    <div style={{ padding: 20 }}>
+      {/* ── Filter bar ── */}
+      <div className="statPop" style={{ ...cardStyle, padding: 16, marginBottom: 18 }}>
+        <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
+          {(["month", "range", "year"] as const).map((m) => (
+            <button
+              key={m}
+              className="tabPill"
+              onClick={() => setMode(m)}
+              style={{
+                padding: "7px 16px",
+                borderRadius: "var(--pill)",
+                border: mode === m ? "none" : "1px solid var(--border2)",
+                background: mode === m ? "linear-gradient(135deg, var(--brand), var(--brand2))" : "transparent",
+                color: mode === m ? "#fff" : "var(--t2)",
+                fontWeight: 700,
+                fontSize: 12.5,
+                cursor: "pointer",
+              }}
+            >
+              {m === "month" ? (lang === "en" ? "Monthly" : "Per Bulan") : m === "range" ? (lang === "en" ? "Date Range" : "Per Tanggal") : (lang === "en" ? "Yearly" : "Per Tahun")}
+            </button>
+          ))}
+        </div>
+
+        <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
+          {mode === "month" && (
+            <>
+              <select className="premiumInput" style={{ ...inputStyle, width: "auto" }} value={month} onChange={(e) => setMonth(Number(e.target.value))}>
+                {months.map((m, i) => <option key={i} value={i}>{m}</option>)}
+              </select>
+              <select className="premiumInput" style={{ ...inputStyle, width: "auto" }} value={year} onChange={(e) => setYear(Number(e.target.value))}>
+                {[now.getFullYear() - 1, now.getFullYear(), now.getFullYear() + 1].map((y) => <option key={y} value={y}>{y}</option>)}
+              </select>
+            </>
+          )}
+          {mode === "range" && (
+            <>
+              <input className="premiumInput" style={{ ...inputStyle, width: "auto" }} type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} />
+              <span style={{ color: "var(--t3)" }}>s/d</span>
+              <input className="premiumInput" style={{ ...inputStyle, width: "auto" }} type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
+            </>
+          )}
+          {mode === "year" && (
+            <select className="premiumInput" style={{ ...inputStyle, width: "auto" }} value={year} onChange={(e) => setYear(Number(e.target.value))}>
+              {[now.getFullYear() - 2, now.getFullYear() - 1, now.getFullYear(), now.getFullYear() + 1].map((y) => <option key={y} value={y}>{y}</option>)}
+            </select>
+          )}
+
+          <div style={{ flex: 1 }} />
+          <button
+            onClick={handleExportCsv}
+            disabled={exportingCsv}
+            style={{ padding: "9px 16px", borderRadius: "var(--pill)", border: "1px solid var(--green)", background: "var(--green-soft)", color: "var(--green)", fontWeight: 700, fontSize: 12.5, cursor: "pointer" }}
+          >
+            ⬇ {exportingCsv ? "..." : "CSV"}
+          </button>
+          <button className="pillBtn" onClick={handleExportPdf} disabled={exportingPdf}>
+            ⬇ {exportingPdf ? "..." : "PDF"}
+          </button>
+        </div>
+      </div>
+
+      <div style={{ fontSize: 12, color: "var(--t3)", marginBottom: 16 }}>
+        {lang === "en" ? "Showing report for" : "Menampilkan laporan untuk"}: <strong style={{ color: "var(--t1)" }}>{label}</strong>
+      </div>
+
+      {/* ── Summary stat cards ── */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(5,1fr)", gap: 13, marginBottom: 18 }}>
+        {[
+          { label: lang === "en" ? "Total Claims" : "Total Klaim", value: `Rp ${fmtRp(totalClaims)}`, color: "var(--brand)" },
+          { label: lang === "en" ? "OT Hours" : "Jam OT", value: `${fmtRp(totalOtHours)} jam`, color: "var(--gold2)" },
+          { label: lang === "en" ? "OT Amount" : "Nominal OT", value: `Rp ${fmtRp(totalOtAmount)}`, color: "var(--gold2)" },
+          { label: lang === "en" ? "Active Vehicles" : "Kendaraan Aktif", value: `${activeVehicles}/${vehicles.length}`, color: "var(--green)" },
+          { label: lang === "en" ? "Entries" : "Total Entri", value: String(reportData.claims.length + reportData.overtimes.length), color: "var(--t1)" },
+        ].map((s, i) => (
+          <div key={i} className="statPop" style={{ ...cardStyle, padding: 16, textAlign: "center" }}>
+            <div style={{ fontSize: 18, fontWeight: 800, color: s.color, fontFamily: "var(--mono)" }}>{s.value}</div>
+            <div style={{ fontSize: 10.5, color: "var(--t3)", marginTop: 4 }}>{s.label}</div>
+          </div>
+        ))}
+      </div>
+
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 18 }}>
+        <div className="statPop" style={{ ...cardStyle, overflow: "hidden" }}>
+          <div style={{ padding: "13px 16px", borderBottom: "1px solid var(--border)", fontWeight: 800, fontSize: 13, color: "var(--t1)" }}>
+            {lang === "en" ? "Claims by Type" : "Klaim per Jenis"}
+          </div>
+          {byType.length === 0 ? (
+            <div style={{ padding: 24, textAlign: "center", color: "var(--t3)", fontSize: 12 }}>-</div>
+          ) : (
+            <div style={{ padding: 16 }}>
+              {byType.map(([type, total]) => {
+                const max = byType[0][1] || 1;
+                return (
+                  <div key={type} style={{ marginBottom: 10 }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, marginBottom: 4 }}>
+                      <span style={{ color: "var(--t2)" }}>{type}</span>
+                      <span style={{ fontWeight: 700, color: "var(--t1)" }}>Rp {fmtRp(total)}</span>
+                    </div>
+                    <div style={{ height: 6, borderRadius: 4, background: "var(--border)", overflow: "hidden" }}>
+                      <div style={{ height: "100%", width: `${(total / max) * 100}%`, background: CLAIM_TYPE_COLOR[type] || "var(--brand)" }} />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        <div className="statPop" style={{ ...cardStyle, overflow: "hidden" }}>
+          <div style={{ padding: "13px 16px", borderBottom: "1px solid var(--border)", fontWeight: 800, fontSize: 13, color: "var(--t1)" }}>
+            {lang === "en" ? "Overtime — CIK vs PRB" : "Overtime — CIK vs PRB"}
+          </div>
+          <div style={{ padding: 16, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+            {otByPlant.map((p) => (
+              <div key={p.plant} style={{ padding: 12, borderRadius: 10, border: "1px solid var(--border2)", borderLeft: `3px solid ${PLANT_COLOR[p.plant]}` }}>
+                <div style={{ fontWeight: 800, color: PLANT_COLOR[p.plant], marginBottom: 6 }}>{p.plant}</div>
+                <div style={{ fontSize: 12, color: "var(--t2)" }}>{fmtRp(p.hours)} jam</div>
+                <div style={{ fontSize: 11, color: "var(--t3)" }}>Rp {fmtRp(p.amount)}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <div className="statPop" style={{ ...cardStyle, overflow: "hidden" }}>
+        <div style={{ padding: "13px 16px", borderBottom: "1px solid var(--border)", fontWeight: 800, fontSize: 13, color: "var(--t1)" }}>
+          {lang === "en" ? "Top Drivers by Claim Amount" : "Driver Terbanyak Klaim"}
+        </div>
+        {byDriverClaim.length === 0 ? (
+          <div style={{ padding: 24, textAlign: "center", color: "var(--t3)", fontSize: 12 }}>
+            {lang === "en" ? "No claim data for this period." : "Tidak ada data klaim pada periode ini."}
+          </div>
+        ) : (
+          byDriverClaim.map(([name, total], i) => (
+            <div key={name} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 16px", borderBottom: "1px solid var(--border)" }}>
+              <div style={{ width: 20, height: 20, borderRadius: 6, background: "var(--brand)", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, fontWeight: 700 }}>{i + 1}</div>
+              <div style={{ flex: 1, fontSize: 12.5, color: "var(--t1)" }}>{name}</div>
+              <div style={{ fontWeight: 700, fontSize: 12.5, color: "var(--t1)" }}>Rp {fmtRp(total)}</div>
+            </div>
+          ))
+        )}
+      </div>
+    </div>
+  );
+}
 
 function GasStationsTab() {
   const { lang, t } = useLang();

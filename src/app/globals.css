@@ -1,4 +1,4 @@
-@import url("https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&family=Space+Mono:wght@500;700&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;600;700;800;900&family=Space+Mono:wght@500;700&display=swap");
 @import "leaflet/dist/leaflet.css";
 
 *,
@@ -54,7 +54,7 @@
   --t2: #57708f;
   --t3: #93a8c2;
 
-  --font: "Plus Jakarta Sans", system-ui, sans-serif;
+  --font: "Roboto", "Segoe UI", -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
   --mono: "Space Mono", monospace;
   --r1: 16px;
   --r2: 22px;
@@ -221,6 +221,75 @@ select {
   outline: none;
   border-color: var(--brand) !important;
   box-shadow: 0 0 0 3px rgba(0, 174, 239, 0.15);
+}
+
+/* ── Subtle ambient background pattern — faint dot grid + soft glow spots,
+   applied once to <body> so every screen feels less "flat white/navy". ── */
+body {
+  background-image:
+    radial-gradient(circle at 8% 8%, rgba(0, 174, 239, 0.05), transparent 32%),
+    radial-gradient(circle at 92% 88%, rgba(216, 169, 78, 0.05), transparent 32%),
+    radial-gradient(circle, var(--border2) 1px, transparent 1px);
+  background-size: auto, auto, 26px 26px;
+  background-attachment: fixed;
+}
+[data-theme="dark"] body {
+  background-image:
+    radial-gradient(circle at 8% 8%, rgba(34, 193, 255, 0.07), transparent 32%),
+    radial-gradient(circle at 92% 88%, rgba(230, 188, 110, 0.06), transparent 32%),
+    radial-gradient(circle, rgba(255, 255, 255, 0.035) 1px, transparent 1px);
+  background-size: auto, auto, 26px 26px;
+}
+
+/* ── Gradient-text numbers — the "premium fintech dashboard" signature:
+   big KPI figures get a brand→gold gradient fill instead of flat color.
+   Apply via className="numGrad" on any large stat/number element. ── */
+.numGrad {
+  background: linear-gradient(120deg, var(--brand), var(--gold));
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+}
+
+/* ── Button shimmer sweep — a light diagonal gloss slides across pillBtn
+   on hover, on top of the existing lift/glow. ── */
+.pillBtn {
+  position: relative;
+  overflow: hidden;
+}
+.pillBtn::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -60%;
+  width: 40%;
+  height: 100%;
+  background: linear-gradient(120deg, transparent, rgba(255, 255, 255, 0.45), transparent);
+  transform: skewX(-20deg);
+  transition: left 0.5s ease;
+  pointer-events: none;
+}
+.pillBtn:hover::after {
+  left: 130%;
+}
+
+/* ── Card accent glow — the thin top color bar on module cards now bleeds
+   a soft matching glow downward instead of sitting as a flat stripe. ── */
+.cardAccentGlow {
+  box-shadow: 0 6px 16px -6px currentColor;
+}
+
+/* ── Staggered fade for lists — pair with an inline `animationDelay` per
+   item (e.g. driver rankings, claim rows) for a cascading reveal. ── */
+.staggerItem {
+  animation: fadeUp 0.4s ease both;
+}
+
+/* ── Tab content transition — the active tab's panel fades/slides in
+   instead of popping instantly when switching tabs. ── */
+.tabContent {
+  animation: fadeUp 0.28s ease both;
 }
 
 @keyframes spin {
