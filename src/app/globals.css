@@ -1,0 +1,228 @@
+@import url("https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&family=Space+Mono:wght@500;700&display=swap");
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
+  margin: 0;
+  padding: 0;
+}
+
+/* ════════════════════════════════════════════════
+   DESIGN TOKENS — "Sky & Gold", light-first
+   Direfresh mengikuti referensi web korporat (biru langit cerah,
+   navy untuk teks/brand, gold untuk aksen CTA/pill button). Nama
+   variable TETAP SAMA seperti sebelumnya (--brand, --navy, --neon,
+   dst) supaya seluruh CSS module (driver/dashboard) yang sudah ada
+   otomatis ikut ganti tanpa perlu diubah satu per satu — hanya
+   NILAI-nya yang diperbarui, plus beberapa token baru (--gold*)
+   untuk elemen yang butuh aksen gold eksplisit (pill button, ikon
+   sosial, badge) sesuai referensi.
+════════════════════════════════════════════════ */
+:root {
+  --bg: #f3f8fd;
+  --bg2: #e8f3fc;
+  --bg3: #dcedfa;
+  --surface: #ffffff;
+  --surface2: #f7fbfe;
+  --border: #dce8f5;
+  --border2: #c8dced;
+
+  /* "brand" = the sky blue used for hero/section backgrounds and links */
+  --brand: #00aeef;
+  --brand2: #0090c9;
+  --navy: #14315c;
+  --neon: #0090c9;
+  --green: #1aa06b;
+  --green-soft: #e5f7ef;
+  --orange: #e2861a;
+  --orange-soft: #fdf1e2;
+  --red: #e0483f;
+  --red-soft: #fbe9e8;
+  --purple: #6f5ec7;
+
+  /* New: gold accent — pill buttons, social badges, CTA highlights */
+  --gold: #d8a94e;
+  --gold2: #b8863a;
+  --gold-soft: #faf1de;
+  --gold-on: #14315c; /* text color placed ON TOP of gold (navy, matches reference) */
+
+  --t1: #14315c;
+  --t2: #57708f;
+  --t3: #93a8c2;
+
+  --font: "Plus Jakarta Sans", system-ui, sans-serif;
+  --mono: "Space Mono", monospace;
+  --r1: 16px;
+  --r2: 22px;
+  --r3: 30px;
+  --pill: 999px;
+
+  --shadow-sm: 0 2px 10px rgba(20, 49, 92, 0.06);
+  --shadow-md: 0 8px 28px rgba(20, 49, 92, 0.1);
+  --shadow-lg: 0 16px 44px rgba(20, 49, 92, 0.14);
+  --shadow-brand: 0 10px 26px rgba(0, 174, 239, 0.28);
+  --shadow-gold: 0 8px 22px rgba(184, 134, 58, 0.32);
+
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-top: env(safe-area-inset-top, 0px);
+}
+
+[data-theme="dark"] {
+  --bg: #081524;
+  --bg2: #0c1c30;
+  --bg3: #10233a;
+  --surface: #0f2138;
+  --surface2: #142a45;
+  --border: rgba(255, 255, 255, 0.08);
+  --border2: rgba(255, 255, 255, 0.14);
+
+  --brand: #22c1ff;
+  --brand2: #4dd0ff;
+  --navy: #d9e6fb;
+  --neon: #22c1ff;
+  --green: #2fd894;
+  --green-soft: rgba(47, 216, 148, 0.12);
+  --orange: #ffab5c;
+  --orange-soft: rgba(255, 171, 92, 0.12);
+  --red: #ff6b63;
+  --red-soft: rgba(255, 107, 99, 0.12);
+  --purple: #a793ff;
+
+  --gold: #e6bc6e;
+  --gold2: #f0cd8c;
+  --gold-soft: rgba(230, 188, 110, 0.14);
+  --gold-on: #14315c;
+
+  --t1: #f0f5fc;
+  --t2: rgba(217, 230, 251, 0.68);
+  --t3: rgba(170, 194, 230, 0.42);
+
+  --shadow-sm: 0 2px 10px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 8px 28px rgba(0, 0, 0, 0.36);
+  --shadow-lg: 0 16px 44px rgba(0, 0, 0, 0.45);
+  --shadow-brand: 0 10px 26px rgba(34, 193, 255, 0.32);
+  --shadow-gold: 0 8px 22px rgba(230, 188, 110, 0.28);
+}
+
+html {
+  font-size: 16px;
+  height: 100%;
+}
+
+body {
+  font-family: var(--font);
+  font-size: 16px;
+  line-height: 1.5;
+  background: var(--bg);
+  color: var(--t1);
+  -webkit-font-smoothing: antialiased;
+  transition: background 0.3s, color 0.3s;
+  min-height: 100%;
+  overscroll-behavior-y: none;
+}
+
+button {
+  font-family: inherit;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+input,
+select {
+  font-family: inherit;
+}
+
+::-webkit-scrollbar {
+  display: none;
+}
+
+/* ── Reusable gold pill button — the reference's signature CTA shape.
+   Available globally as .pillBtn for any new component (e.g. the merged
+   dashboard) without needing a CSS module. ── */
+.pillBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 22px;
+  border-radius: var(--pill);
+  background: var(--gold);
+  color: var(--gold-on);
+  font-weight: 700;
+  font-size: 13px;
+  border: none;
+  cursor: pointer;
+  box-shadow: var(--shadow-gold);
+  transition: background 0.15s, transform 0.15s;
+}
+.pillBtn:hover {
+  background: var(--gold2);
+  transform: translateY(-1px);
+}
+.pillBtn:active {
+  transform: translateY(0);
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.5;
+    transform: scale(0.7);
+  }
+}
+
+@keyframes cardIn {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes shake {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  25% {
+    transform: translateX(-6px);
+  }
+  75% {
+    transform: translateX(6px);
+  }
+}
+
+@keyframes fadeUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    transition-duration: 0.001ms !important;
+  }
+}
