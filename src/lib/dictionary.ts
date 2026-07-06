@@ -111,6 +111,53 @@ export interface Dict {
 
   // Language toggle (new)
   language: string;
+
+  // Admin/GA Login (new)
+  loginTitle: string;
+  loginSubtitle: string;
+  loginEmail: string;
+  loginPassword: string;
+  loginButton: string;
+  loginSigningIn: string;
+  loginErrorGeneric: string;
+  loginBackToDriver: string;
+
+  // Common actions (shared across FleetOS tabs)
+  actionCancel: string;
+  actionSave: string;
+  actionSaving: string;
+  actionDelete: string;
+  actionEdit: string;
+  actionAdd: string;
+  actionYesDelete: string;
+  actionLoading: string;
+  actionSignOut: string;
+  actionNoDataYet: string;
+
+  // Form field labels (FleetOS tabs)
+  fieldDriver: string;
+  fieldPlant: string;
+  fieldTierName: string;
+  fieldColor: string;
+  fieldAmountPerPersonMonth: string;
+  fieldTotalCashOp: string;
+  fieldStationName: string;
+  fieldLatitude: string;
+  fieldLongitude: string;
+  fieldAddress: string;
+  fieldFuelsAvailable: string;
+  fieldNotes: string;
+  fieldPlateNumber: string;
+  fieldType: string;
+  fieldYear: string;
+  fieldFuel: string;
+  fieldOdometer: string;
+  fieldDefaultDriver: string;
+  fieldDepartment: string;
+  fieldStatus: string;
+  fieldScheduleKir: string;
+  fieldScheduleService: string;
+  fieldScheduleStnk: string;
 }
 
 export const DICT: Record<Lang, Dict> = {
@@ -208,6 +255,53 @@ export const DICT: Record<Lang, Dict> = {
     gagalMengubahPin: "Gagal mengubah PIN",
 
     language: "Bahasa",
+
+    // Admin/GA Login (new)
+    loginTitle: "Masuk Admin/GA",
+    loginSubtitle: "Dashboard Fleet Management",
+    loginEmail: "Email",
+    loginPassword: "Kata Sandi",
+    loginButton: "Masuk",
+    loginSigningIn: "Masuk...",
+    loginErrorGeneric: "Email atau kata sandi salah",
+    loginBackToDriver: "← Ke Driver Panel",
+
+    // Common actions (shared across FleetOS tabs)
+    actionCancel: "Batal",
+    actionSave: "Simpan",
+    actionSaving: "Menyimpan...",
+    actionDelete: "Hapus",
+    actionEdit: "Edit",
+    actionAdd: "Tambah",
+    actionYesDelete: "Ya, Hapus",
+    actionLoading: "Memuat...",
+    actionSignOut: "Keluar",
+    actionNoDataYet: "Belum ada data.",
+
+    // Form field labels (FleetOS tabs)
+    fieldDriver: "DRIVER",
+    fieldPlant: "PLANT",
+    fieldTierName: "NAMA TIER",
+    fieldColor: "WARNA",
+    fieldAmountPerPersonMonth: "NOMINAL / ORANG / BULAN",
+    fieldTotalCashOp: "TOTAL CASH OPERATIONAL",
+    fieldStationName: "NAMA SPBU",
+    fieldLatitude: "LATITUDE",
+    fieldLongitude: "LONGITUDE",
+    fieldAddress: "ALAMAT",
+    fieldFuelsAvailable: "JENIS BBM TERSEDIA",
+    fieldNotes: "CATATAN",
+    fieldPlateNumber: "PLAT NOMOR",
+    fieldType: "TIPE",
+    fieldYear: "TAHUN",
+    fieldFuel: "BBM",
+    fieldOdometer: "ODOMETER (KM)",
+    fieldDefaultDriver: "DRIVER DEFAULT",
+    fieldDepartment: "DEPARTEMEN",
+    fieldStatus: "STATUS",
+    fieldScheduleKir: "JADWAL KIR",
+    fieldScheduleService: "JADWAL SERVICE",
+    fieldScheduleStnk: "JADWAL STNK",
   },
   en: {
     appName: "CIKOPS",
@@ -303,5 +397,52 @@ export const DICT: Record<Lang, Dict> = {
     gagalMengubahPin: "Failed to change PIN",
 
     language: "Language",
+
+    // Admin/GA Login (new)
+    loginTitle: "Admin/GA Sign In",
+    loginSubtitle: "Fleet Management Dashboard",
+    loginEmail: "Email",
+    loginPassword: "Password",
+    loginButton: "Sign In",
+    loginSigningIn: "Signing in...",
+    loginErrorGeneric: "Incorrect email or password",
+    loginBackToDriver: "← To Driver Panel",
+
+    // Common actions (shared across FleetOS tabs)
+    actionCancel: "Cancel",
+    actionSave: "Save",
+    actionSaving: "Saving...",
+    actionDelete: "Delete",
+    actionEdit: "Edit",
+    actionAdd: "Add",
+    actionYesDelete: "Yes, Delete",
+    actionLoading: "Loading...",
+    actionSignOut: "Sign Out",
+    actionNoDataYet: "No data yet.",
+
+    // Form field labels (FleetOS tabs)
+    fieldDriver: "DRIVER",
+    fieldPlant: "PLANT",
+    fieldTierName: "TIER NAME",
+    fieldColor: "COLOR",
+    fieldAmountPerPersonMonth: "AMOUNT / PERSON / MONTH",
+    fieldTotalCashOp: "TOTAL OPERATIONAL CASH",
+    fieldStationName: "STATION NAME",
+    fieldLatitude: "LATITUDE",
+    fieldLongitude: "LONGITUDE",
+    fieldAddress: "ADDRESS",
+    fieldFuelsAvailable: "AVAILABLE FUEL TYPES",
+    fieldNotes: "NOTES",
+    fieldPlateNumber: "PLATE NUMBER",
+    fieldType: "TYPE",
+    fieldYear: "YEAR",
+    fieldFuel: "FUEL",
+    fieldOdometer: "ODOMETER (KM)",
+    fieldDefaultDriver: "DEFAULT DRIVER",
+    fieldDepartment: "DEPARTMENT",
+    fieldStatus: "STATUS",
+    fieldScheduleKir: "KIR SCHEDULE",
+    fieldScheduleService: "SERVICE SCHEDULE",
+    fieldScheduleStnk: "STNK SCHEDULE",
   },
 };

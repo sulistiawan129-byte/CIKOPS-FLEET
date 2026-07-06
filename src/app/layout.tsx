@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { AppProviders } from "@/lib/providers";
+import { AuthProvider } from "@/lib/auth";
 
 export const metadata: Metadata = {
   title: "CIKOPS Fleet Ops",
@@ -47,7 +48,9 @@ export default function RootLayout({
         <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
       </head>
       <body>
-        <AppProviders>{children}</AppProviders>
+        <AppProviders>
+          <AuthProvider>{children}</AuthProvider>
+        </AppProviders>
       </body>
     </html>
   );

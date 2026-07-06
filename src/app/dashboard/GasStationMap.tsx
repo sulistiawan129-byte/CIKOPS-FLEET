@@ -1,0 +1,95 @@
+"use client";
+
+import { useEffect } from "react";
+import { MapContainer, TileLayer, Marker, Popup, useMapEvents } from "react-leaflet";
+import L from "leaflet";
+import type { GasStation } from "@/lib/types";
+
+// Custom gold pin icon (Sky & Gold theme) built as a DivIcon so it doesn't
+// depend on Leaflet's default marker image assets (which don't resolve
+// correctly under Next.js's bundler without extra config).
+function goldPinIcon(active = false) {
+  return L.divIcon({
+    className: "",
+    html: `<div style="
+      width:28px;height:28px;border-radius:50% 50% 50% 0;
+      background:${active ? "#e0a83c" : "#d8a94e"};
+      border:2px solid #ffffff;
+      transform:rotate(-45deg);
+      box-shadow:0 2px 6px rgba(0,0,0,0.35);
+      display:flex;align-items:center;justify-content:center;
+    "><div style="width:8px;height:8px;border-radius:50%;background:#fff;transform:rotate(45deg)"></div></div>`,
+    iconSize: [28, 28],
+    iconAnchor: [14, 28],
+    popupAnchor: [0, -26],
+  });
+}
+
+function ClickHandler({ enabled, onPick }: { enabled: boolean; onPick: (lat: number, lng: number) => void }) {
+  useMapEvents({
+    click(e) {
+      if (enabled) onPick(e.latlng.lat, e.latlng.lng);
+    },
+  });
+  return null;
+}
+
+/** Forces Leaflet to recompute its size after the container becomes visible
+ *  (e.g. after switching tabs) — otherwise the map can render at 0 height. */
+function InvalidateSizeOnMount() {
+  const map = useMapEvents({});
+  useEffect(() => {
+    const id = setTimeout(() => map.invalidateSize(), 150);
+    return () => clearTimeout(id);
+  }, [map]);
+  return null;
+}
+
+const DEFAULT_CENTER: [number, number] = [-6.2607, 107.1525]; // Cikarang area
+
+export default function GasStationMap({
+  stations,
+  placing,
+  onPick,
+  onMarkerClick,
+}: {
+  stations: GasStation[];
+  placing: boolean;
+  onPick: (lat: number, lng: number) => void;
+  onMarkerClick: (station: GasStation) => void;
+}) {
+  return (
+    <div style={{ height: 420, borderRadius: "var(--r2)", overflow: "hidden", border: "1px solid var(--border)", cursor: placing ? "crosshair" : "" }}>
+      <MapContainer center={DEFAULT_CENTER} zoom={13} style={{ height: "100%", width: "100%" }}>
+        <TileLayer
+          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+        />
+        <ClickHandler enabled={placing} onPick={onPick} />
+        <InvalidateSizeOnMount />
+        {stations.map((s) => (
+          <Marker
+            key={s.id}
+            position={[s.lat, s.lng]}
+            icon={goldPinIcon()}
+            eventHandlers={{ click: () => onMarkerClick(s) }}
+          >
+            <Popup>
+              <div style={{ minWidth: 160 }}>
+                <div style={{ fontWeight: 700, marginBottom: 3 }}>{s.name}</div>
+                {s.address && <div style={{ fontSize: 12, color: "#666", marginBottom: 6 }}>{s.address}</div>}
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+                  {s.fuels.filter((f) => f.available).map((f) => (
+                    <span key={f.type} style={{ fontSize: 10, fontWeight: 700, padding: "2px 7px", borderRadius: 5, background: "#eef4fb", color: "#0090c9" }}>
+                      {f.type}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            </Popup>
+          </Marker>
+        ))}
+      </MapContainer>
+    </div>
+  );
+}

@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { CSSProperties } from "react";
+import dynamic from "next/dynamic";
 import styles from "./dashboard.module.css";
 import {
   cancelTaskByAdmin,
@@ -39,6 +40,16 @@ import {
   deleteGasStation,
 } from "@/lib/api";
 import type { Claim, ClaimItem, Overtime, Plant, Kantong, DriverTier, GasStation, FuelEntry } from "@/lib/types";
+
+// Leaflet touches `window` directly, so it must never be server-rendered.
+const GasStationMap = dynamic(() => import("./GasStationMap"), {
+  ssr: false,
+  loading: () => (
+    <div style={{ height: 420, borderRadius: "var(--r2)", background: "var(--bg2)", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--t3)" }}>
+      Memuat peta...
+    </div>
+  ),
+});
 import { exportTasksToCsv, exportTasksToPdf } from "@/lib/report";
 import { computeReportAnalytics, formatMinutes } from "@/lib/analytics";
 import type {
@@ -51,6 +62,7 @@ import type {
 } from "@/lib/types";
 import { computeStats } from "@/lib/types";
 import { useLang, useTheme } from "@/lib/providers";
+import { useAuth } from "@/lib/auth";
 
 function todayStr() {
   return new Date().toISOString().split("T")[0];
@@ -99,6 +111,7 @@ function useIsMobile(breakpoint = 860) {
 export default function DashboardPage() {
   const { theme, toggleTheme } = useTheme();
   const { lang, setLang, t } = useLang();
+  const { session, loading: authLoading, signOut } = useAuth();
   const isMobile = useIsMobile();
   const [activeTab, setActiveTab] = useState<DashboardTab>("overview");
 
@@ -233,6 +246,18 @@ export default function DashboardPage() {
     }
   }
 
+  if (authLoading) {
+    return (
+      <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "var(--bg)", color: "var(--t3)" }}>
+        {t.actionLoading}
+      </div>
+    );
+  }
+
+  if (!session) {
+    return <LoginScreen />;
+  }
+
   return (
     <div className={styles.page}>
       <div className={styles.topbar}>
@@ -258,6 +283,14 @@ export default function DashboardPage() {
           <button className={styles.iconBtn} onClick={toggleTheme}>
             {theme === "dark" ? "☀️" : "🌙"}
           </button>
+          <button
+            className={styles.iconBtn}
+            onClick={() => signOut()}
+            aria-label={t.actionSignOut}
+            title={t.actionSignOut}
+          >
+            🚪
+          </button>
           {activeTab === "tasks" && (
             <>
               <button
@@ -282,21 +315,22 @@ export default function DashboardPage() {
         style={{
           display: "flex",
           gap: 8,
-          padding: "10px 20px",
+          padding: "12px 20px",
           overflowX: "auto",
           borderBottom: "1px solid var(--border)",
-          background: "var(--surface)",
+          background: "linear-gradient(180deg, var(--surface2), var(--surface))",
         }}
       >
         {TAB_CONFIG.map((tabItem) => (
           <button
             key={tabItem.id}
+            className={`tabPill ${activeTab === tabItem.id ? "tabPillActive" : ""}`}
             onClick={() => setActiveTab(tabItem.id)}
             style={{
               display: "flex",
               alignItems: "center",
               gap: 6,
-              padding: "8px 16px",
+              padding: "9px 17px",
               borderRadius: "var(--pill)",
               border: "none",
               cursor: "pointer",
@@ -304,9 +338,8 @@ export default function DashboardPage() {
               fontSize: 13,
               fontWeight: 700,
               fontFamily: "var(--font)",
-              background: activeTab === tabItem.id ? "var(--gold)" : "transparent",
+              background: activeTab === tabItem.id ? "linear-gradient(135deg, var(--gold), var(--gold2))" : "transparent",
               color: activeTab === tabItem.id ? "var(--gold-on)" : "var(--t2)",
-              transition: "background 0.15s, color 0.15s",
             }}
           >
             <span>{tabItem.icon}</span>
@@ -1332,7 +1365,7 @@ function ComingSoonTab({ title }: { title: string }) {
 }
 
 function OverviewTab() {
-  const { lang } = useLang();
+  const { lang, t } = useLang();
   const [loading, setLoading] = useState(true);
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [claims, setClaims] = useState<Claim[]>([]);
@@ -1407,58 +1440,63 @@ function OverviewTab() {
   const R = 62, CIRC = 2 * Math.PI * R;
   const gaugeOffset = CIRC * (1 - healthScore / 100);
 
-  const cardStyle: CSSProperties = { background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "var(--r2)", boxShadow: "var(--shadow-sm)" };
+  const cardStyle: CSSProperties = { background: "linear-gradient(180deg, var(--surface2), var(--surface))", border: "1px solid var(--border2)", borderRadius: "var(--r2)", boxShadow: "var(--shadow-md)" };
 
   return (
     <div style={{ padding: 20 }}>
       {/* Hero: Fleet Health Score */}
       <div
+        className="heroGlow"
         style={{
-          ...cardStyle,
-          padding: "26px 28px",
-          marginBottom: 18,
-          background: "linear-gradient(135deg, var(--surface2), var(--surface))",
-          display: "grid",
-          gridTemplateColumns: "auto 1fr",
-          gap: 32,
-          alignItems: "center",
+          padding: "30px 32px",
+          marginBottom: 20,
+          borderRadius: "var(--r3)",
+          boxShadow: "var(--shadow-lg)",
         }}
       >
-        <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
-          <svg viewBox="0 0 140 140" width={120} height={120}>
-            <defs>
-              <linearGradient id="healthGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-                <stop offset="0%" stopColor="var(--brand)" />
-                <stop offset="100%" stopColor="var(--gold)" />
-              </linearGradient>
-            </defs>
-            <circle cx={70} cy={70} r={R} fill="none" stroke="var(--border)" strokeWidth={9} />
-            <circle cx={70} cy={70} r={R} fill="none" stroke="url(#healthGrad)" strokeWidth={9} strokeLinecap="round" strokeDasharray={CIRC} strokeDashoffset={gaugeOffset} transform="rotate(-90 70 70)" />
-            <text x={70} y={68} textAnchor="middle" fontSize={28} fontWeight={800} fill="var(--t1)">{healthScore}</text>
-            <text x={70} y={84} textAnchor="middle" fontSize={9} fill="var(--t3)">/ 100</text>
-          </svg>
-          <div style={{ marginTop: 6, fontSize: 11, fontWeight: 700, color: healthColor }}>
-            {lang === "en" ? "Fleet Health Score" : "Skor Kesehatan Armada"}
-          </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 22 }}>
+          <span style={{ width: 7, height: 7, borderRadius: "50%", background: "var(--green)", animation: "pulse 1.6s infinite", display: "inline-block" }} />
+          <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: 1, color: "var(--t3)", textTransform: "uppercase" }}>
+            {lang === "en" ? "Executive Summary · Live" : "Ringkasan Eksekutif · Live"}
+          </span>
         </div>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)" }}>
-          {[
-            { label: lang === "en" ? "Total Vehicles" : "Total Kendaraan", value: String(vehicles.length), sub: `${activeV} aktif` },
-            { label: lang === "en" ? "Claims This Month" : "Klaim Bulan Ini", value: `Rp ${fmtRp(thisMonthTotal)}`, sub: `${thisMonthClaims.length} transaksi` },
-            { label: lang === "en" ? "Urgent Documents" : "Dokumen Urgent", value: String(docBuckets.urgent + docBuckets.mid), sub: "≤30 hari" },
-          ].map((k, i) => (
-            <div key={i} style={{ padding: "0 20px", borderLeft: i > 0 ? "1px solid var(--border)" : "none" }}>
-              <div style={{ fontSize: 26, fontWeight: 800, color: "var(--t1)" }}>{k.value}</div>
-              <div style={{ fontSize: 11.5, color: "var(--t3)" }}>{k.label}</div>
-              <div style={{ fontSize: 10.5, color: "var(--t3)", marginTop: 2 }}>{k.sub}</div>
+        <div style={{ display: "grid", gridTemplateColumns: "auto 1fr", gap: 36, alignItems: "center" }}>
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", position: "relative", zIndex: 1 }}>
+            <svg viewBox="0 0 140 140" width={140} height={140}>
+              <defs>
+                <linearGradient id="healthGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stopColor="var(--brand)" />
+                  <stop offset="100%" stopColor="var(--gold)" />
+                </linearGradient>
+              </defs>
+              <circle cx={70} cy={70} r={R} fill="none" stroke="var(--border)" strokeWidth={10} />
+              <circle cx={70} cy={70} r={R} fill="none" stroke="url(#healthGrad)" strokeWidth={10} strokeLinecap="round" strokeDasharray={CIRC} strokeDashoffset={gaugeOffset} transform="rotate(-90 70 70)" />
+              <text x={70} y={66} textAnchor="middle" fontSize={34} fontWeight={800} fill="var(--t1)" fontFamily="var(--mono)">{healthScore}</text>
+              <text x={70} y={84} textAnchor="middle" fontSize={10} fill="var(--t3)">/ 100</text>
+            </svg>
+            <div style={{ marginTop: 8, fontSize: 12, fontWeight: 800, color: healthColor }}>
+              {lang === "en" ? "Fleet Health Score" : "Skor Kesehatan Armada"}
             </div>
-          ))}
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", position: "relative", zIndex: 1 }}>
+            {[
+              { label: lang === "en" ? "Total Vehicles" : "Total Kendaraan", value: String(vehicles.length), sub: `${activeV} aktif` },
+              { label: lang === "en" ? "Claims This Month" : "Klaim Bulan Ini", value: `Rp ${fmtRp(thisMonthTotal)}`, sub: `${thisMonthClaims.length} transaksi` },
+              { label: lang === "en" ? "Urgent Documents" : "Dokumen Urgent", value: String(docBuckets.urgent + docBuckets.mid), sub: "≤30 hari" },
+            ].map((k, i) => (
+              <div key={i} style={{ padding: "0 22px", borderLeft: i > 0 ? "1px solid var(--border2)" : "none" }}>
+                <div style={{ fontSize: 30, fontWeight: 800, color: "var(--t1)", fontFamily: "var(--mono)", letterSpacing: -0.5 }}>{k.value}</div>
+                <div style={{ fontSize: 12, color: "var(--t2)", fontWeight: 600, marginTop: 4 }}>{k.label}</div>
+                <div style={{ fontSize: 10.5, color: "var(--t3)", marginTop: 2 }}>{k.sub}</div>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
 
       {/* 3 intelligence cards */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 16 }}>
-        <div style={{ ...cardStyle, overflow: "hidden" }}>
+        <div className="statPop" style={{ ...cardStyle, overflow: "hidden" }}>
           <div style={{ height: 3, background: "var(--brand)" }} />
           <div style={{ padding: 18 }}>
             <div style={{ fontSize: 11, fontWeight: 800, color: "var(--brand)", textTransform: "uppercase", marginBottom: 12 }}>
@@ -1475,7 +1513,7 @@ function OverviewTab() {
           </div>
         </div>
 
-        <div style={{ ...cardStyle, overflow: "hidden" }}>
+        <div className="statPop" style={{ ...cardStyle, overflow: "hidden" }}>
           <div style={{ height: 3, background: "var(--gold)" }} />
           <div style={{ padding: 18 }}>
             <div style={{ fontSize: 11, fontWeight: 800, color: "var(--gold2)", textTransform: "uppercase", marginBottom: 12 }}>
@@ -1495,7 +1533,7 @@ function OverviewTab() {
           </div>
         </div>
 
-        <div style={{ ...cardStyle, overflow: "hidden" }}>
+        <div className="statPop" style={{ ...cardStyle, overflow: "hidden" }}>
           <div style={{ height: 3, background: "var(--green)" }} />
           <div style={{ padding: 18 }}>
             <div style={{ fontSize: 11, fontWeight: 800, color: "var(--green)", textTransform: "uppercase", marginBottom: 12 }}>
@@ -1531,7 +1569,7 @@ const CLAIM_TYPE_COLOR: Record<string, string> = {
 type ClaimLineDraft = { id: number; type: string; expr: string };
 
 function ClaimsTab() {
-  const { lang } = useLang();
+  const { lang, t } = useLang();
   const [claims, setClaims] = useState<Claim[]>([]);
   const [drivers, setDrivers] = useState<Driver[]>([]);
   const [loading, setLoading] = useState(true);
@@ -1635,10 +1673,10 @@ function ClaimsTab() {
   }
 
   const cardStyle: CSSProperties = {
-    background: "var(--surface)",
-    border: "1px solid var(--border)",
+    background: "linear-gradient(180deg, var(--surface2), var(--surface))",
+    border: "1px solid var(--border2)",
     borderRadius: "var(--r2)",
-    boxShadow: "var(--shadow-sm)",
+    boxShadow: "var(--shadow-md)",
   };
   const inputStyle: CSSProperties = {
     width: "100%",
@@ -1705,9 +1743,9 @@ function ClaimsTab() {
 
       <div style={{ ...cardStyle, overflow: "hidden" }}>
         {loading ? (
-          <div style={{ textAlign: "center", padding: 40, color: "var(--t3)" }}>Memuat klaim...</div>
+          <div style={{ textAlign: "center", padding: 40, color: "var(--t3)" }}>{t.actionLoading}</div>
         ) : filtered.length === 0 ? (
-          <div style={{ textAlign: "center", padding: 40, color: "var(--t3)" }}>Tidak ada klaim.</div>
+          <div style={{ textAlign: "center", padding: 40, color: "var(--t3)" }}>{t.actionNoDataYet}</div>
         ) : (
           filtered
             .slice()
@@ -1777,17 +1815,17 @@ function ClaimsTab() {
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 14 }}>
               <div>
                 <label style={labelStyle}>{lang === "en" ? "SUBMISSION DATE" : "TANGGAL PENGAJUAN"}</label>
-                <input style={inputStyle} type="date" value={submissionDate} onChange={(e) => setSubmissionDate(e.target.value)} />
+                <input className="premiumInput" style={inputStyle} type="date" value={submissionDate} onChange={(e) => setSubmissionDate(e.target.value)} />
               </div>
               <div>
                 <label style={labelStyle}>{lang === "en" ? "PERIOD DATE" : "TANGGAL PERIODE"}</label>
-                <input style={inputStyle} type="date" value={periodDate} onChange={(e) => setPeriodDate(e.target.value)} />
+                <input className="premiumInput" style={inputStyle} type="date" value={periodDate} onChange={(e) => setPeriodDate(e.target.value)} />
               </div>
             </div>
 
             <div style={{ marginBottom: 14 }}>
-              <label style={labelStyle}>DRIVER *</label>
-              <select style={inputStyle} value={formDriverId} onChange={(e) => setFormDriverId(e.target.value)}>
+              <label style={labelStyle}>{t.fieldDriver} *</label>
+              <select className="premiumInput" style={inputStyle} value={formDriverId} onChange={(e) => setFormDriverId(e.target.value)}>
                 <option value="">{lang === "en" ? "Select driver" : "Pilih driver"}</option>
                 {drivers.map((d) => (
                   <option key={d.id} value={d.id}>{d.nama}</option>
@@ -1840,7 +1878,7 @@ function ClaimsTab() {
 
             <div style={{ marginBottom: 16 }}>
               <label style={labelStyle}>{lang === "en" ? "NOTE (optional)" : "CATATAN (opsional)"}</label>
-              <input style={inputStyle} value={note} onChange={(e) => setNote(e.target.value)} />
+              <input className="premiumInput" style={inputStyle} value={note} onChange={(e) => setNote(e.target.value)} />
             </div>
 
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 16px", background: "var(--gold-soft)", borderRadius: 10, marginBottom: 18 }}>
@@ -1858,7 +1896,7 @@ function ClaimsTab() {
                 disabled={!canSave || saving}
                 style={{ flex: 2, justifyContent: "center", opacity: canSave && !saving ? 1 : 0.5 }}
               >
-                {saving ? "Menyimpan..." : "Submit Klaim"}
+                {saving ? t.actionSaving : (lang === "en" ? "Submit Claim" : "Submit Klaim")}
               </button>
             </div>
           </div>
@@ -1868,7 +1906,7 @@ function ClaimsTab() {
       {confirmDelete && (
         <div onClick={() => setConfirmDelete(null)} style={{ position: "fixed", inset: 0, background: "rgba(10,20,40,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 200, padding: 16 }}>
           <div onClick={(e) => e.stopPropagation()} style={{ ...cardStyle, padding: 24, width: "100%", maxWidth: 360, textAlign: "center" }}>
-            <div style={{ fontSize: 15, fontWeight: 800, marginBottom: 8, color: "var(--t1)" }}>Hapus klaim ini?</div>
+            <div style={{ fontSize: 15, fontWeight: 800, marginBottom: 8, color: "var(--t1)" }}>{lang === "en" ? "Delete this claim?" : "Hapus klaim ini?"}</div>
             <div style={{ fontSize: 13, color: "var(--t3)", marginBottom: 18 }}>
               <strong style={{ color: "var(--t1)" }}>Rp {fmtRp(confirmDelete.total)}</strong> ({confirmDelete.driverName}) akan dihapus permanen.
             </div>
@@ -1892,7 +1930,7 @@ const MONTHS_ID = ["Januari","Februari","Maret","April","Mei","Juni","Juli","Agu
 const MONTHS_EN = ["January","February","March","April","May","June","July","August","September","October","November","December"];
 
 function OvertimeTab() {
-  const { lang } = useLang();
+  const { lang, t } = useLang();
   const months = lang === "en" ? MONTHS_EN : MONTHS_ID;
   const now = new Date();
 
@@ -2009,7 +2047,7 @@ function OvertimeTab() {
     }
   }
 
-  const cardStyle: CSSProperties = { background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "var(--r2)", boxShadow: "var(--shadow-sm)" };
+  const cardStyle: CSSProperties = { background: "linear-gradient(180deg, var(--surface2), var(--surface))", border: "1px solid var(--border2)", borderRadius: "var(--r2)", boxShadow: "var(--shadow-md)" };
   const inputStyle: CSSProperties = { width: "100%", padding: "9px 12px", borderRadius: 10, border: "1px solid var(--border2)", background: "var(--bg2)", color: "var(--t1)", fontSize: 13, fontFamily: "var(--font)" };
   const labelStyle: CSSProperties = { fontSize: 11, fontWeight: 700, color: "var(--t2)", marginBottom: 5, display: "block" };
 
@@ -2033,19 +2071,19 @@ function OvertimeTab() {
       {error && <div style={{ padding: 12, borderRadius: 10, background: "var(--red-soft)", color: "var(--red)", marginBottom: 14, fontSize: 13 }}>{error}</div>}
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 13, marginBottom: 18 }}>
-        <div style={{ ...cardStyle, padding: 16 }}>
+        <div className="statPop" style={{ ...cardStyle, padding: 16 }}>
           <div style={{ fontSize: 20, fontWeight: 800, color: "var(--t1)" }}>{filtered.length}</div>
           <div style={{ fontSize: 11, color: "var(--t3)" }}>{lang === "en" ? "Entries" : "Entri"}</div>
         </div>
-        <div style={{ ...cardStyle, padding: 16 }}>
+        <div className="statPop" style={{ ...cardStyle, padding: 16 }}>
           <div style={{ fontSize: 20, fontWeight: 800, color: "var(--t1)" }}>{fmtRp(totalHours)} jam</div>
           <div style={{ fontSize: 11, color: "var(--t3)" }}>Total Jam OT</div>
         </div>
-        <div style={{ ...cardStyle, padding: 16 }}>
+        <div className="statPop" style={{ ...cardStyle, padding: 16 }}>
           <div style={{ fontSize: 20, fontWeight: 800, color: "var(--gold2)" }}>Rp {fmtRp(totalAmount)}</div>
           <div style={{ fontSize: 11, color: "var(--t3)" }}>Total Nominal</div>
         </div>
-        <div style={{ ...cardStyle, padding: 16 }}>
+        <div className="statPop" style={{ ...cardStyle, padding: 16 }}>
           <div style={{ fontSize: 20, fontWeight: 800, color: topPlant ? PLANT_COLOR[topPlant.plant] : "var(--t1)" }}>{topPlant?.plant || "-"}</div>
           <div style={{ fontSize: 11, color: "var(--t3)" }}>Plant Terbanyak OT</div>
         </div>
@@ -2123,24 +2161,24 @@ function OvertimeTab() {
             <div style={{ fontSize: 16, fontWeight: 800, marginBottom: 18, color: "var(--t1)" }}>{lang === "en" ? "Add Overtime" : "Tambah Overtime"}</div>
 
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 12 }}>
-              <select style={inputStyle} value={formMonth} onChange={(e) => setFormMonth(Number(e.target.value))}>
+              <select className="premiumInput" style={inputStyle} value={formMonth} onChange={(e) => setFormMonth(Number(e.target.value))}>
                 {months.map((m, i) => <option key={i} value={i}>{m}</option>)}
               </select>
-              <select style={inputStyle} value={formYear} onChange={(e) => setFormYear(Number(e.target.value))}>
+              <select className="premiumInput" style={inputStyle} value={formYear} onChange={(e) => setFormYear(Number(e.target.value))}>
                 {[now.getFullYear() - 1, now.getFullYear(), now.getFullYear() + 1].map((y) => <option key={y} value={y}>{y}</option>)}
               </select>
             </div>
 
             <div style={{ marginBottom: 12 }}>
-              <label style={labelStyle}>DRIVER *</label>
-              <select style={inputStyle} value={formDriverId} onChange={(e) => setFormDriverId(e.target.value)}>
+              <label style={labelStyle}>{t.fieldDriver} *</label>
+              <select className="premiumInput" style={inputStyle} value={formDriverId} onChange={(e) => setFormDriverId(e.target.value)}>
                 <option value="">{lang === "en" ? "Select driver" : "Pilih driver"}</option>
                 {drivers.map((d) => <option key={d.id} value={d.id}>{d.nama}</option>)}
               </select>
             </div>
 
             <div style={{ marginBottom: 12 }}>
-              <label style={labelStyle}>PLANT *</label>
+              <label style={labelStyle}>{t.fieldPlant} *</label>
               <div style={{ display: "flex", gap: 8 }}>
                 {OT_PLANTS.map((p) => (
                   <button
@@ -2163,17 +2201,17 @@ function OvertimeTab() {
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 12 }}>
               <div>
                 <label style={labelStyle}>{lang === "en" ? "HOURS *" : "TOTAL JAM OT *"}</label>
-                <input style={inputStyle} type="number" step="0.5" value={formHours} onChange={(e) => setFormHours(e.target.value)} placeholder="4" />
+                <input className="premiumInput" style={inputStyle} type="number" step="0.5" value={formHours} onChange={(e) => setFormHours(e.target.value)} placeholder="4" />
               </div>
               <div>
                 <label style={labelStyle}>{lang === "en" ? "AMOUNT *" : "TOTAL NOMINAL *"}</label>
-                <input style={inputStyle} value={formAmount} onChange={(e) => setFormAmount(e.target.value)} placeholder="150000" />
+                <input className="premiumInput" style={inputStyle} value={formAmount} onChange={(e) => setFormAmount(e.target.value)} placeholder="150000" />
               </div>
             </div>
 
             <div style={{ marginBottom: 18 }}>
               <label style={labelStyle}>{lang === "en" ? "REASON" : "ALASAN OT"}</label>
-              <input style={inputStyle} value={formReason} onChange={(e) => setFormReason(e.target.value)} placeholder="Lembur closing bulanan" />
+              <input className="premiumInput" style={inputStyle} value={formReason} onChange={(e) => setFormReason(e.target.value)} placeholder="Lembur closing bulanan" />
             </div>
 
             <div style={{ display: "flex", gap: 10 }}>
@@ -2181,7 +2219,7 @@ function OvertimeTab() {
                 Batal
               </button>
               <button className="pillBtn" onClick={handleSave} disabled={!canSave || saving} style={{ flex: 2, justifyContent: "center", opacity: canSave && !saving ? 1 : 0.5 }}>
-                {saving ? "Menyimpan..." : "Simpan"}
+                {saving ? t.actionSaving : t.actionSave}
               </button>
             </div>
           </div>
@@ -2191,7 +2229,7 @@ function OvertimeTab() {
       {confirmDelete && (
         <div onClick={() => setConfirmDelete(null)} style={{ position: "fixed", inset: 0, background: "rgba(10,20,40,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 200, padding: 16 }}>
           <div onClick={(e) => e.stopPropagation()} style={{ ...cardStyle, padding: 24, width: "100%", maxWidth: 360, textAlign: "center" }}>
-            <div style={{ fontSize: 15, fontWeight: 800, marginBottom: 8, color: "var(--t1)" }}>Hapus entri OT ini?</div>
+            <div style={{ fontSize: 15, fontWeight: 800, marginBottom: 8, color: "var(--t1)" }}>{lang === "en" ? "Delete this OT entry?" : "Hapus entri OT ini?"}</div>
             <div style={{ fontSize: 13, color: "var(--t3)", marginBottom: 18 }}>
               <strong style={{ color: "var(--t1)" }}>{confirmDelete.driverName}</strong> ({confirmDelete.plant}) akan dihapus permanen.
             </div>
@@ -2211,8 +2249,126 @@ function OvertimeTab() {
 }
 const TIER_PALETTE = ["var(--brand)", "var(--green)", "var(--orange)", "var(--red)", "var(--purple)"];
 
+/* ════════════════════════════════════════════════════════════
+   LOGIN SCREEN — Admin/GA sign-in via Supabase Auth. Separate from
+   the driver PIN system on /driver, which is untouched.
+════════════════════════════════════════════════════════════ */
+function LoginScreen() {
+  const { t, lang, setLang } = useLang();
+  const { theme, toggleTheme } = useTheme();
+  const { signIn } = useAuth();
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setError("");
+    setBusy(true);
+    const { error: err } = await signIn(email, password);
+    setBusy(false);
+    if (err) setError(t.loginErrorGeneric);
+  }
+
+  return (
+    <div
+      style={{
+        minHeight: "100vh",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        background: "linear-gradient(135deg, var(--bg2), var(--bg))",
+        padding: 20,
+      }}
+    >
+      <div style={{ position: "fixed", top: 16, right: 16, display: "flex", gap: 8 }}>
+        <button
+          onClick={() => setLang(lang === "id" ? "en" : "id")}
+          style={{ padding: "6px 12px", borderRadius: "var(--pill)", border: "1px solid var(--border2)", background: "var(--surface)", color: "var(--t2)", fontWeight: 700, fontSize: 12, cursor: "pointer" }}
+        >
+          {lang === "id" ? "EN" : "ID"}
+        </button>
+        <button
+          onClick={toggleTheme}
+          style={{ padding: "6px 12px", borderRadius: "var(--pill)", border: "1px solid var(--border2)", background: "var(--surface)", cursor: "pointer" }}
+        >
+          {theme === "dark" ? "☀️" : "🌙"}
+        </button>
+      </div>
+
+      <div
+        className="heroGlow"
+        style={{
+          borderRadius: "var(--r3)",
+          boxShadow: "var(--shadow-lg)",
+          padding: 36,
+          width: "100%",
+          maxWidth: 380,
+        }}
+      >
+        <div style={{ textAlign: "center", marginBottom: 26 }}>
+          <img src="/logo.svg" alt="CIKOPS" style={{ width: 52, height: 52, margin: "0 auto 12px" }} />
+          <div style={{ fontSize: 18, fontWeight: 800, color: "var(--t1)" }}>{t.loginTitle}</div>
+          <div style={{ fontSize: 12, color: "var(--t3)", marginTop: 3 }}>{t.loginSubtitle}</div>
+        </div>
+
+        <form onSubmit={handleSubmit}>
+          <div style={{ marginBottom: 14 }}>
+            <label style={{ fontSize: 11, fontWeight: 700, color: "var(--t2)", marginBottom: 5, display: "block" }}>
+              {t.loginEmail.toUpperCase()}
+            </label>
+            <input
+              type="email"
+              required
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="premiumInput"
+              style={{ width: "100%", padding: "11px 14px", borderRadius: 10, border: "1px solid var(--border2)", background: "var(--bg2)", color: "var(--t1)", fontSize: 14 }}
+            />
+          </div>
+          <div style={{ marginBottom: 20 }}>
+            <label style={{ fontSize: 11, fontWeight: 700, color: "var(--t2)", marginBottom: 5, display: "block" }}>
+              {t.loginPassword.toUpperCase()}
+            </label>
+            <input
+              type="password"
+              required
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="premiumInput"
+              style={{ width: "100%", padding: "11px 14px", borderRadius: 10, border: "1px solid var(--border2)", background: "var(--bg2)", color: "var(--t1)", fontSize: 14 }}
+            />
+          </div>
+
+          {error && (
+            <div style={{ padding: 10, borderRadius: 10, background: "var(--red-soft)", color: "var(--red)", fontSize: 12.5, marginBottom: 16 }}>
+              {error}
+            </div>
+          )}
+
+          <button
+            type="submit"
+            className="pillBtn"
+            disabled={busy}
+            style={{ width: "100%", justifyContent: "center", padding: "12px", fontSize: 14, opacity: busy ? 0.7 : 1 }}
+          >
+            {busy ? t.loginSigningIn : t.loginButton}
+          </button>
+        </form>
+
+        <div style={{ textAlign: "center", marginTop: 20 }}>
+          <a href="/driver" style={{ fontSize: 12, color: "var(--t3)", textDecoration: "none" }}>
+            {t.loginBackToDriver}
+          </a>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function DriverBudgetTab() {
-  const { lang } = useLang();
+  const { lang, t } = useLang();
   const [tiers, setTiers] = useState<DriverTier[]>([]);
   const [drivers, setDrivers] = useState<Driver[]>([]);
   const [loading, setLoading] = useState(true);
@@ -2301,22 +2457,22 @@ function DriverBudgetTab() {
     }
   }
 
-  const cardStyle: CSSProperties = { background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "var(--r2)", boxShadow: "var(--shadow-sm)" };
+  const cardStyle: CSSProperties = { background: "linear-gradient(180deg, var(--surface2), var(--surface))", border: "1px solid var(--border2)", borderRadius: "var(--r2)", boxShadow: "var(--shadow-md)" };
   const inputStyle: CSSProperties = { width: "100%", padding: "9px 12px", borderRadius: 10, border: "1px solid var(--border2)", background: "var(--bg2)", color: "var(--t1)", fontSize: 13, fontFamily: "var(--font)" };
   const labelStyle: CSSProperties = { fontSize: 11, fontWeight: 700, color: "var(--t2)", marginBottom: 5, display: "block" };
 
   return (
     <div style={{ padding: 20 }}>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 13, marginBottom: 18 }}>
-        <div style={{ ...cardStyle, padding: 16, textAlign: "center" }}>
+        <div className="statPop" style={{ ...cardStyle, padding: 16, textAlign: "center" }}>
           <div style={{ fontSize: 20, fontWeight: 800, color: "var(--t1)" }}>{totalDrivers}</div>
           <div style={{ fontSize: 11, color: "var(--t3)" }}>{lang === "en" ? "Total Drivers" : "Total Driver"}</div>
         </div>
-        <div style={{ ...cardStyle, padding: 16, textAlign: "center" }}>
+        <div className="statPop" style={{ ...cardStyle, padding: 16, textAlign: "center" }}>
           <div style={{ fontSize: 20, fontWeight: 800, color: "var(--gold2)" }}>Rp {fmtRp(totalBudget)}</div>
           <div style={{ fontSize: 11, color: "var(--t3)" }}>{lang === "en" ? "Budget/Month" : "Budget/Bulan"}</div>
         </div>
-        <div style={{ ...cardStyle, padding: 16, textAlign: "center" }}>
+        <div className="statPop" style={{ ...cardStyle, padding: 16, textAlign: "center" }}>
           <div style={{ fontSize: 20, fontWeight: 800, color: "var(--t1)" }}>Rp {fmtRp(totalBudget * 12)}</div>
           <div style={{ fontSize: 11, color: "var(--t3)" }}>{lang === "en" ? "Per Year" : "Per Tahun"}</div>
         </div>
@@ -2333,7 +2489,7 @@ function DriverBudgetTab() {
           {loading ? (
             <div style={{ textAlign: "center", padding: 30, color: "var(--t3)" }}>Memuat...</div>
           ) : tiers.length === 0 ? (
-            <div style={{ textAlign: "center", padding: 30, color: "var(--t3)" }}>Belum ada tier.</div>
+            <div style={{ textAlign: "center", padding: 30, color: "var(--t3)" }}>{t.actionNoDataYet}</div>
           ) : (
             tiers.map((t) => (
               <div key={t.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", borderRadius: 10, background: "var(--bg2)", marginBottom: 8 }}>
@@ -2376,13 +2532,13 @@ function DriverBudgetTab() {
       {showForm && (
         <div onClick={() => setShowForm(false)} style={{ position: "fixed", inset: 0, background: "rgba(10,20,40,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 200, padding: 16 }}>
           <div onClick={(e) => e.stopPropagation()} style={{ ...cardStyle, padding: 24, width: "100%", maxWidth: 380 }}>
-            <div style={{ fontSize: 16, fontWeight: 800, marginBottom: 18, color: "var(--t1)" }}>{editing ? "Edit Tier" : "Tambah Tier"}</div>
+            <div style={{ fontSize: 16, fontWeight: 800, marginBottom: 18, color: "var(--t1)" }}>{editing ? (lang === "en" ? "Edit Tier" : "Edit Tier") : (lang === "en" ? "Add Tier" : "Tambah Tier")}</div>
             <div style={{ marginBottom: 12 }}>
-              <label style={labelStyle}>NAMA TIER</label>
-              <input style={inputStyle} value={formName} onChange={(e) => setFormName(e.target.value)} placeholder="Senior Driver" />
+              <label style={labelStyle}>{t.fieldTierName}</label>
+              <input className="premiumInput" style={inputStyle} value={formName} onChange={(e) => setFormName(e.target.value)} placeholder="Senior Driver" />
             </div>
             <div style={{ marginBottom: 12 }}>
-              <label style={labelStyle}>WARNA</label>
+              <label style={labelStyle}>{t.fieldColor}</label>
               <div style={{ display: "flex", gap: 8 }}>
                 {TIER_PALETTE.map((c) => (
                   <div key={c} onClick={() => setFormColor(c)} style={{ width: 26, height: 26, borderRadius: "50%", background: c, cursor: "pointer", border: formColor === c ? "2px solid var(--t1)" : "2px solid transparent" }} />
@@ -2390,12 +2546,12 @@ function DriverBudgetTab() {
               </div>
             </div>
             <div style={{ marginBottom: 18 }}>
-              <label style={labelStyle}>NOMINAL / ORANG / BULAN</label>
-              <input style={inputStyle} value={formAmount} onChange={(e) => setFormAmount(e.target.value)} placeholder="2000000" />
+              <label style={labelStyle}>{t.fieldAmountPerPersonMonth}</label>
+              <input className="premiumInput" style={inputStyle} value={formAmount} onChange={(e) => setFormAmount(e.target.value)} placeholder="2000000" />
             </div>
             <div style={{ display: "flex", gap: 10 }}>
-              <button onClick={() => setShowForm(false)} style={{ flex: 1, padding: "10px", borderRadius: 10, border: "1px solid var(--border2)", background: "var(--surface2)", color: "var(--t2)", fontWeight: 700, cursor: "pointer" }}>Batal</button>
-              <button className="pillBtn" onClick={handleSave} disabled={saving} style={{ flex: 1, justifyContent: "center" }}>{saving ? "Menyimpan..." : "Simpan"}</button>
+              <button onClick={() => setShowForm(false)} style={{ flex: 1, padding: "10px", borderRadius: 10, border: "1px solid var(--border2)", background: "var(--surface2)", color: "var(--t2)", fontWeight: 700, cursor: "pointer" }}>{t.actionCancel}</button>
+              <button className="pillBtn" onClick={handleSave} disabled={saving} style={{ flex: 1, justifyContent: "center" }}>{saving ? t.actionSaving : t.actionSave}</button>
             </div>
           </div>
         </div>
@@ -2404,13 +2560,13 @@ function DriverBudgetTab() {
       {confirmDelete && (
         <div onClick={() => setConfirmDelete(null)} style={{ position: "fixed", inset: 0, background: "rgba(10,20,40,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 200, padding: 16 }}>
           <div onClick={(e) => e.stopPropagation()} style={{ ...cardStyle, padding: 24, width: "100%", maxWidth: 360, textAlign: "center" }}>
-            <div style={{ fontSize: 15, fontWeight: 800, marginBottom: 8, color: "var(--t1)" }}>Hapus tier ini?</div>
+            <div style={{ fontSize: 15, fontWeight: 800, marginBottom: 8, color: "var(--t1)" }}>{lang === "en" ? "Delete this tier?" : "Hapus tier ini?"}</div>
             <div style={{ fontSize: 13, color: "var(--t3)", marginBottom: 18 }}>
               <strong style={{ color: "var(--t1)" }}>{confirmDelete.name}</strong> akan dihapus permanen.
             </div>
             <div style={{ display: "flex", gap: 10 }}>
-              <button onClick={() => setConfirmDelete(null)} style={{ flex: 1, padding: "10px", borderRadius: 10, border: "1px solid var(--border2)", background: "var(--surface2)", color: "var(--t2)", fontWeight: 700, cursor: "pointer" }}>Batal</button>
-              <button onClick={handleDelete} style={{ flex: 1, padding: "10px", borderRadius: 10, border: "none", background: "var(--red)", color: "#fff", fontWeight: 700, cursor: "pointer" }}>Ya, Hapus</button>
+              <button onClick={() => setConfirmDelete(null)} style={{ flex: 1, padding: "10px", borderRadius: 10, border: "1px solid var(--border2)", background: "var(--surface2)", color: "var(--t2)", fontWeight: 700, cursor: "pointer" }}>{t.actionCancel}</button>
+              <button onClick={handleDelete} style={{ flex: 1, padding: "10px", borderRadius: 10, border: "none", background: "var(--red)", color: "#fff", fontWeight: 700, cursor: "pointer" }}>{t.actionYesDelete}</button>
             </div>
           </div>
         </div>
@@ -2419,7 +2575,7 @@ function DriverBudgetTab() {
   );
 }
 function OpFundTab() {
-  const { lang } = useLang();
+  const { lang, t } = useLang();
   const [kantong, setKantong] = useState<Kantong | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -2506,7 +2662,7 @@ function OpFundTab() {
     }
   }
 
-  const cardStyle: CSSProperties = { background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "var(--r2)", boxShadow: "var(--shadow-sm)" };
+  const cardStyle: CSSProperties = { background: "linear-gradient(180deg, var(--surface2), var(--surface))", border: "1px solid var(--border2)", borderRadius: "var(--r2)", boxShadow: "var(--shadow-md)" };
   const inputStyle: CSSProperties = { width: "100%", padding: "9px 12px", borderRadius: 10, border: "1px solid var(--border2)", background: "var(--bg2)", color: "var(--t1)", fontSize: 13, fontFamily: "var(--font)" };
   const labelStyle: CSSProperties = { fontSize: 11, fontWeight: 700, color: "var(--t2)", marginBottom: 5, display: "block" };
   const row = (label: string, sub: string, value: number, color?: string) => (
@@ -2525,7 +2681,7 @@ function OpFundTab() {
         </div>
         <div style={{ display: "flex", gap: 8 }}>
           <button onClick={() => setShowEdit(true)} style={{ padding: "8px 14px", borderRadius: 10, border: "1px solid var(--border2)", background: "var(--surface2)", color: "var(--t2)", fontWeight: 700, fontSize: 12, cursor: "pointer" }}>
-            ✏️ Edit Nilai
+            ✏️ {lang === "en" ? "Edit Values" : "Edit Nilai"}
           </button>
           <button onClick={() => setShowResetConfirm(true)} style={{ padding: "8px 14px", borderRadius: 10, border: "1px solid var(--red)", background: "var(--red-soft)", color: "var(--red)", fontWeight: 700, fontSize: 12, cursor: "pointer" }}>
             🔄 Reset Periode
@@ -2569,16 +2725,16 @@ function OpFundTab() {
           <div onClick={(e) => e.stopPropagation()} style={{ ...cardStyle, padding: 24, width: "100%", maxWidth: 420, maxHeight: "90vh", overflowY: "auto" }}>
             <div style={{ fontSize: 16, fontWeight: 800, marginBottom: 18, color: "var(--t1)" }}>Edit Dana Operasional</div>
             <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-              <div><label style={labelStyle}>TOTAL CASH OPERATIONAL</label><input style={inputStyle} value={eBudget} onChange={(e) => setEBudget(e.target.value)} /></div>
-              <div><label style={labelStyle}>OP DRIVER (A1)</label><input style={inputStyle} value={eOpDriver} onChange={(e) => setEOpDriver(e.target.value)} /></div>
-              <div><label style={labelStyle}>EMERGENCY (A2)</label><input style={inputStyle} value={eEmergency} onChange={(e) => setEEmergency(e.target.value)} /></div>
-              <div><label style={labelStyle}>CASH AVAILABLE (A4)</label><input style={inputStyle} value={eCash} onChange={(e) => setECash(e.target.value)} /></div>
-              <div><label style={labelStyle}>CLAIM DIAJUKAN (A5)</label><input style={inputStyle} value={eSubmitted} onChange={(e) => setESubmitted(e.target.value)} /></div>
-              <div><label style={labelStyle}>CLAIM DIBAYAR (A6)</label><input style={inputStyle} value={ePaid} onChange={(e) => setEPaid(e.target.value)} /></div>
+              <div><label style={labelStyle}>{t.fieldTotalCashOp}</label><input className="premiumInput" style={inputStyle} value={eBudget} onChange={(e) => setEBudget(e.target.value)} /></div>
+              <div><label style={labelStyle}>OP DRIVER (A1)</label><input className="premiumInput" style={inputStyle} value={eOpDriver} onChange={(e) => setEOpDriver(e.target.value)} /></div>
+              <div><label style={labelStyle}>EMERGENCY (A2)</label><input className="premiumInput" style={inputStyle} value={eEmergency} onChange={(e) => setEEmergency(e.target.value)} /></div>
+              <div><label style={labelStyle}>CASH AVAILABLE (A4)</label><input className="premiumInput" style={inputStyle} value={eCash} onChange={(e) => setECash(e.target.value)} /></div>
+              <div><label style={labelStyle}>{lang === "en" ? "CLAIM SUBMITTED (A5)" : "CLAIM DIAJUKAN (A5)"}</label><input className="premiumInput" style={inputStyle} value={eSubmitted} onChange={(e) => setESubmitted(e.target.value)} /></div>
+              <div><label style={labelStyle}>{lang === "en" ? "CLAIM PAID (A6)" : "CLAIM DIBAYAR (A6)"}</label><input className="premiumInput" style={inputStyle} value={ePaid} onChange={(e) => setEPaid(e.target.value)} /></div>
             </div>
             <div style={{ display: "flex", gap: 10, marginTop: 18 }}>
-              <button onClick={() => setShowEdit(false)} style={{ flex: 1, padding: "10px", borderRadius: 10, border: "1px solid var(--border2)", background: "var(--surface2)", color: "var(--t2)", fontWeight: 700, cursor: "pointer" }}>Batal</button>
-              <button className="pillBtn" onClick={handleSaveEdit} disabled={saving} style={{ flex: 1, justifyContent: "center" }}>{saving ? "Menyimpan..." : "Simpan"}</button>
+              <button onClick={() => setShowEdit(false)} style={{ flex: 1, padding: "10px", borderRadius: 10, border: "1px solid var(--border2)", background: "var(--surface2)", color: "var(--t2)", fontWeight: 700, cursor: "pointer" }}>{t.actionCancel}</button>
+              <button className="pillBtn" onClick={handleSaveEdit} disabled={saving} style={{ flex: 1, justifyContent: "center" }}>{saving ? t.actionSaving : t.actionSave}</button>
             </div>
           </div>
         </div>
@@ -2592,7 +2748,7 @@ function OpFundTab() {
               Claim Diajukan (A5) dan Claim Dibayar (A6) akan direset ke 0 untuk periode baru. Total cash dan alokasi tetap sama. Data periode lama tetap tersimpan.
             </div>
             <div style={{ display: "flex", gap: 10 }}>
-              <button onClick={() => setShowResetConfirm(false)} style={{ flex: 1, padding: "10px", borderRadius: 10, border: "1px solid var(--border2)", background: "var(--surface2)", color: "var(--t2)", fontWeight: 700, cursor: "pointer" }}>Batal</button>
+              <button onClick={() => setShowResetConfirm(false)} style={{ flex: 1, padding: "10px", borderRadius: 10, border: "1px solid var(--border2)", background: "var(--surface2)", color: "var(--t2)", fontWeight: 700, cursor: "pointer" }}>{t.actionCancel}</button>
               <button onClick={handleReset} style={{ flex: 1, padding: "10px", borderRadius: 10, border: "none", background: "var(--red)", color: "#fff", fontWeight: 700, cursor: "pointer" }}>Ya, Reset</button>
             </div>
           </div>
@@ -2604,10 +2760,11 @@ function OpFundTab() {
 const FUEL_TYPES_LIST = ["Pertalite", "Pertamax", "Pertamax Turbo", "Pertamax Green", "Solar", "Dexlite"];
 
 function GasStationsTab() {
-  const { lang } = useLang();
+  const { lang, t } = useLang();
   const [stations, setStations] = useState<GasStation[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [placing, setPlacing] = useState(false);
 
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<GasStation | null>(null);
@@ -2663,6 +2820,22 @@ function GasStationsTab() {
     setFormFuels((p) => p.map((f) => (f.type === type ? { ...f, available: !f.available } : f)));
   }
 
+  function handleMapPick(lat: number, lng: number) {
+    setPlacing(false);
+    setEditing(null);
+    setFormName("");
+    setFormAddress("");
+    setFormLat(lat.toFixed(6));
+    setFormLng(lng.toFixed(6));
+    setFormFuels(FUEL_TYPES_LIST.map((f) => ({ type: f, available: true })));
+    setFormNotes("");
+    setShowForm(true);
+  }
+
+  function handleMarkerClick(s: GasStation) {
+    openEdit(s);
+  }
+
   const canSave = formName.trim() && formLat !== "" && formLng !== "" && !isNaN(Number(formLat)) && !isNaN(Number(formLng));
 
   async function handleSave() {
@@ -2692,20 +2865,36 @@ function GasStationsTab() {
     }
   }
 
-  const cardStyle: CSSProperties = { background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "var(--r2)", boxShadow: "var(--shadow-sm)" };
+  const cardStyle: CSSProperties = { background: "linear-gradient(180deg, var(--surface2), var(--surface))", border: "1px solid var(--border2)", borderRadius: "var(--r2)", boxShadow: "var(--shadow-md)" };
   const inputStyle: CSSProperties = { width: "100%", padding: "9px 12px", borderRadius: 10, border: "1px solid var(--border2)", background: "var(--bg2)", color: "var(--t1)", fontSize: 13, fontFamily: "var(--font)" };
   const labelStyle: CSSProperties = { fontSize: 11, fontWeight: 700, color: "var(--t2)", marginBottom: 5, display: "block" };
 
   return (
     <div style={{ padding: 20 }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16, gap: 10, flexWrap: "wrap" }}>
         <div style={{ fontSize: 16, fontWeight: 800, color: "var(--t1)" }}>{lang === "en" ? "Gas Stations" : "Pom Bensin"}</div>
-        <button className="pillBtn" onClick={openAdd}>+ {lang === "en" ? "Add Station" : "Tambah SPBU"}</button>
+        <div style={{ display: "flex", gap: 8 }}>
+          <button
+            onClick={() => setPlacing((p) => !p)}
+            style={{
+              padding: "9px 16px",
+              borderRadius: "var(--pill)",
+              border: placing ? "1px solid var(--orange)" : "1px solid var(--border2)",
+              background: placing ? "var(--orange-soft)" : "var(--surface2)",
+              color: placing ? "var(--orange)" : "var(--t2)",
+              fontWeight: 700,
+              fontSize: 12.5,
+              cursor: "pointer",
+            }}
+          >
+            {placing ? (lang === "en" ? "✕ Cancel — click the map" : "✕ Batal — klik di peta") : `📍 ${lang === "en" ? "Mark on Map" : "Tandai di Peta"}`}
+          </button>
+          <button className="pillBtn" onClick={openAdd}>+ {lang === "en" ? "Add Station" : "Tambah Manual"}</button>
+        </div>
       </div>
-      <div style={{ fontSize: 11, color: "var(--t3)", marginBottom: 16, fontStyle: "italic" }}>
-        {lang === "en"
-          ? "Note: interactive map view will follow in a later pass — showing as a list for now."
-          : "Catatan: tampilan peta interaktif menyusul di tahap berikutnya — untuk saat ini ditampilkan sebagai daftar."}
+
+      <div style={{ marginBottom: 18 }}>
+        <GasStationMap stations={stations} placing={placing} onPick={handleMapPick} onMarkerClick={handleMarkerClick} />
       </div>
 
       {error && <div style={{ padding: 12, borderRadius: 10, background: "var(--red-soft)", color: "var(--red)", marginBottom: 14, fontSize: 13 }}>{error}</div>}
@@ -2713,11 +2902,11 @@ function GasStationsTab() {
       {loading ? (
         <div style={{ textAlign: "center", padding: 40, color: "var(--t3)" }}>Memuat...</div>
       ) : stations.length === 0 ? (
-        <div style={{ textAlign: "center", padding: 40, color: "var(--t3)" }}>Belum ada SPBU tercatat.</div>
+        <div style={{ textAlign: "center", padding: 40, color: "var(--t3)" }}>{t.actionNoDataYet}</div>
       ) : (
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 14 }}>
           {stations.map((s) => (
-            <div key={s.id} style={{ ...cardStyle, padding: 16 }}>
+            <div key={s.id} className="statPop" style={{ ...cardStyle, padding: 16 }}>
               <div style={{ fontWeight: 700, fontSize: 14, color: "var(--t1)", marginBottom: 4 }}>{s.name}</div>
               <div style={{ fontSize: 11, color: "var(--t3)", marginBottom: 10 }}>{s.address || `${s.lat.toFixed(5)}, ${s.lng.toFixed(5)}`}</div>
               <div style={{ display: "flex", flexWrap: "wrap", gap: 5, marginBottom: 12 }}>
@@ -2726,7 +2915,7 @@ function GasStationsTab() {
                 ))}
               </div>
               <div style={{ display: "flex", gap: 8 }}>
-                <button onClick={() => openEdit(s)} style={{ flex: 1, padding: "7px", borderRadius: 8, border: "1px solid var(--border2)", background: "var(--surface2)", color: "var(--t2)", fontWeight: 600, fontSize: 12, cursor: "pointer" }}>✏️ Edit</button>
+                <button onClick={() => openEdit(s)} style={{ flex: 1, padding: "7px", borderRadius: 8, border: "1px solid var(--border2)", background: "var(--surface2)", color: "var(--t2)", fontWeight: 600, fontSize: 12, cursor: "pointer" }}>✏️ {t.actionEdit}</button>
                 <button onClick={() => setConfirmDelete(s)} style={{ padding: "7px 12px", borderRadius: 8, border: "1px solid var(--red)", background: "var(--red-soft)", color: "var(--red)", fontWeight: 600, fontSize: 12, cursor: "pointer" }}>🗑️</button>
               </div>
             </div>
@@ -2737,21 +2926,21 @@ function GasStationsTab() {
       {showForm && (
         <div onClick={() => setShowForm(false)} style={{ position: "fixed", inset: 0, background: "rgba(10,20,40,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 200, padding: 16 }}>
           <div onClick={(e) => e.stopPropagation()} style={{ ...cardStyle, padding: 24, width: "100%", maxWidth: 460, maxHeight: "90vh", overflowY: "auto" }}>
-            <div style={{ fontSize: 16, fontWeight: 800, marginBottom: 18, color: "var(--t1)" }}>{editing ? "Edit SPBU" : "Tambah SPBU"}</div>
+            <div style={{ fontSize: 16, fontWeight: 800, marginBottom: 18, color: "var(--t1)" }}>{editing ? (lang === "en" ? "Edit Station" : "Edit SPBU") : (lang === "en" ? "Add Station" : "Tambah SPBU")}</div>
             <div style={{ marginBottom: 12 }}>
-              <label style={labelStyle}>NAMA SPBU</label>
-              <input style={inputStyle} value={formName} onChange={(e) => setFormName(e.target.value)} />
+              <label style={labelStyle}>{t.fieldStationName}</label>
+              <input className="premiumInput" style={inputStyle} value={formName} onChange={(e) => setFormName(e.target.value)} />
             </div>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 12 }}>
-              <div><label style={labelStyle}>LATITUDE</label><input style={inputStyle} value={formLat} onChange={(e) => setFormLat(e.target.value)} placeholder="-6.2607" /></div>
-              <div><label style={labelStyle}>LONGITUDE</label><input style={inputStyle} value={formLng} onChange={(e) => setFormLng(e.target.value)} placeholder="107.1525" /></div>
+              <div><label style={labelStyle}>{t.fieldLatitude}</label><input className="premiumInput" style={inputStyle} value={formLat} onChange={(e) => setFormLat(e.target.value)} placeholder="-6.2607" /></div>
+              <div><label style={labelStyle}>{t.fieldLongitude}</label><input className="premiumInput" style={inputStyle} value={formLng} onChange={(e) => setFormLng(e.target.value)} placeholder="107.1525" /></div>
             </div>
             <div style={{ marginBottom: 14 }}>
-              <label style={labelStyle}>ALAMAT</label>
-              <input style={inputStyle} value={formAddress} onChange={(e) => setFormAddress(e.target.value)} />
+              <label style={labelStyle}>{t.fieldAddress}</label>
+              <input className="premiumInput" style={inputStyle} value={formAddress} onChange={(e) => setFormAddress(e.target.value)} />
             </div>
             <div style={{ marginBottom: 14 }}>
-              <label style={labelStyle}>JENIS BBM TERSEDIA</label>
+              <label style={labelStyle}>{t.fieldFuelsAvailable}</label>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 7 }}>
                 {formFuels.map((f) => (
                   <div
@@ -2766,12 +2955,12 @@ function GasStationsTab() {
               </div>
             </div>
             <div style={{ marginBottom: 18 }}>
-              <label style={labelStyle}>CATATAN</label>
-              <input style={inputStyle} value={formNotes} onChange={(e) => setFormNotes(e.target.value)} placeholder="dekat pintu tol, buka 24 jam..." />
+              <label style={labelStyle}>{t.fieldNotes}</label>
+              <input className="premiumInput" style={inputStyle} value={formNotes} onChange={(e) => setFormNotes(e.target.value)} placeholder="dekat pintu tol, buka 24 jam..." />
             </div>
             <div style={{ display: "flex", gap: 10 }}>
-              <button onClick={() => setShowForm(false)} style={{ flex: 1, padding: "10px", borderRadius: 10, border: "1px solid var(--border2)", background: "var(--surface2)", color: "var(--t2)", fontWeight: 700, cursor: "pointer" }}>Batal</button>
-              <button className="pillBtn" onClick={handleSave} disabled={!canSave || saving} style={{ flex: 1, justifyContent: "center", opacity: canSave && !saving ? 1 : 0.5 }}>{saving ? "Menyimpan..." : "Simpan"}</button>
+              <button onClick={() => setShowForm(false)} style={{ flex: 1, padding: "10px", borderRadius: 10, border: "1px solid var(--border2)", background: "var(--surface2)", color: "var(--t2)", fontWeight: 700, cursor: "pointer" }}>{t.actionCancel}</button>
+              <button className="pillBtn" onClick={handleSave} disabled={!canSave || saving} style={{ flex: 1, justifyContent: "center", opacity: canSave && !saving ? 1 : 0.5 }}>{saving ? t.actionSaving : t.actionSave}</button>
             </div>
           </div>
         </div>
@@ -2780,11 +2969,11 @@ function GasStationsTab() {
       {confirmDelete && (
         <div onClick={() => setConfirmDelete(null)} style={{ position: "fixed", inset: 0, background: "rgba(10,20,40,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 200, padding: 16 }}>
           <div onClick={(e) => e.stopPropagation()} style={{ ...cardStyle, padding: 24, width: "100%", maxWidth: 360, textAlign: "center" }}>
-            <div style={{ fontSize: 15, fontWeight: 800, marginBottom: 8, color: "var(--t1)" }}>Hapus SPBU ini?</div>
+            <div style={{ fontSize: 15, fontWeight: 800, marginBottom: 8, color: "var(--t1)" }}>{lang === "en" ? "Delete this station?" : "Hapus SPBU ini?"}</div>
             <div style={{ fontSize: 13, color: "var(--t3)", marginBottom: 18 }}><strong style={{ color: "var(--t1)" }}>{confirmDelete.name}</strong> akan dihapus permanen.</div>
             <div style={{ display: "flex", gap: 10 }}>
-              <button onClick={() => setConfirmDelete(null)} style={{ flex: 1, padding: "10px", borderRadius: 10, border: "1px solid var(--border2)", background: "var(--surface2)", color: "var(--t2)", fontWeight: 700, cursor: "pointer" }}>Batal</button>
-              <button onClick={handleDelete} style={{ flex: 1, padding: "10px", borderRadius: 10, border: "none", background: "var(--red)", color: "#fff", fontWeight: 700, cursor: "pointer" }}>Ya, Hapus</button>
+              <button onClick={() => setConfirmDelete(null)} style={{ flex: 1, padding: "10px", borderRadius: 10, border: "1px solid var(--border2)", background: "var(--surface2)", color: "var(--t2)", fontWeight: 700, cursor: "pointer" }}>{t.actionCancel}</button>
+              <button onClick={handleDelete} style={{ flex: 1, padding: "10px", borderRadius: 10, border: "none", background: "var(--red)", color: "#fff", fontWeight: 700, cursor: "pointer" }}>{t.actionYesDelete}</button>
             </div>
           </div>
         </div>
@@ -2828,7 +3017,7 @@ const BLANK_VEHICLE_FORM: VehicleFormState = {
 };
 
 function VehiclesTab() {
-  const { lang } = useLang();
+  const { lang, t } = useLang();
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [drivers, setDrivers] = useState<Driver[]>([]);
   const [loading, setLoading] = useState(true);
@@ -2931,10 +3120,10 @@ function VehiclesTab() {
   }
 
   const cardStyle: CSSProperties = {
-    background: "var(--surface)",
-    border: "1px solid var(--border)",
+    background: "linear-gradient(180deg, var(--surface2), var(--surface))",
+    border: "1px solid var(--border2)",
     borderRadius: "var(--r2)",
-    boxShadow: "var(--shadow-sm)",
+    boxShadow: "var(--shadow-md)",
   };
   const inputStyle: CSSProperties = {
     width: "100%",
@@ -3010,7 +3199,7 @@ function VehiclesTab() {
               ["STNK", v.stnk_date],
             ];
             return (
-              <div key={v.id} style={{ ...cardStyle, padding: 16, position: "relative" }}>
+              <div key={v.id} className="statPop" style={{ ...cardStyle, padding: 16, position: "relative" }}>
                 <div
                   style={{
                     position: "absolute",
@@ -3094,7 +3283,7 @@ function VehiclesTab() {
                       cursor: "pointer",
                     }}
                   >
-                    ✏️ {lang === "en" ? "Edit" : "Edit"}
+                    ✏️ {t.actionEdit}
                   </button>
                   <button
                     onClick={() => setConfirmDelete(v)}
@@ -3142,36 +3331,36 @@ function VehiclesTab() {
 
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
               <div>
-                <label style={labelStyle}>PLAT NOMOR *</label>
-                <input style={inputStyle} value={form.nopol} onChange={(e) => setForm({ ...form, nopol: e.target.value })} placeholder="B 1234 XY" />
+                <label style={labelStyle}>{t.fieldPlateNumber} *</label>
+                <input className="premiumInput" style={inputStyle} value={form.nopol} onChange={(e) => setForm({ ...form, nopol: e.target.value })} placeholder="B 1234 XY" />
               </div>
               <div>
-                <label style={labelStyle}>TIPE *</label>
-                <input style={inputStyle} value={form.jenis} onChange={(e) => setForm({ ...form, jenis: e.target.value })} placeholder="Toyota Avanza" />
+                <label style={labelStyle}>{t.fieldType} *</label>
+                <input className="premiumInput" style={inputStyle} value={form.jenis} onChange={(e) => setForm({ ...form, jenis: e.target.value })} placeholder="Toyota Avanza" />
               </div>
               <div>
-                <label style={labelStyle}>TAHUN</label>
-                <input style={inputStyle} type="number" value={form.year} onChange={(e) => setForm({ ...form, year: e.target.value })} />
+                <label style={labelStyle}>{t.fieldYear}</label>
+                <input className="premiumInput" style={inputStyle} type="number" value={form.year} onChange={(e) => setForm({ ...form, year: e.target.value })} />
               </div>
               <div>
-                <label style={labelStyle}>WARNA</label>
-                <input style={inputStyle} value={form.color} onChange={(e) => setForm({ ...form, color: e.target.value })} />
+                <label style={labelStyle}>{t.fieldColor}</label>
+                <input className="premiumInput" style={inputStyle} value={form.color} onChange={(e) => setForm({ ...form, color: e.target.value })} />
               </div>
               <div>
-                <label style={labelStyle}>BBM</label>
-                <select style={inputStyle} value={form.fuel} onChange={(e) => setForm({ ...form, fuel: e.target.value })}>
+                <label style={labelStyle}>{t.fieldFuel}</label>
+                <select className="premiumInput" style={inputStyle} value={form.fuel} onChange={(e) => setForm({ ...form, fuel: e.target.value })}>
                   {FUEL_OPTIONS.map((f) => (
                     <option key={f} value={f}>{f}</option>
                   ))}
                 </select>
               </div>
               <div>
-                <label style={labelStyle}>ODOMETER (KM)</label>
-                <input style={inputStyle} type="number" value={form.odometer} onChange={(e) => setForm({ ...form, odometer: e.target.value })} />
+                <label style={labelStyle}>{t.fieldOdometer}</label>
+                <input className="premiumInput" style={inputStyle} type="number" value={form.odometer} onChange={(e) => setForm({ ...form, odometer: e.target.value })} />
               </div>
               <div>
-                <label style={labelStyle}>DRIVER DEFAULT</label>
-                <select style={inputStyle} value={form.default_driver_id} onChange={(e) => setForm({ ...form, default_driver_id: e.target.value })}>
+                <label style={labelStyle}>{t.fieldDefaultDriver}</label>
+                <select className="premiumInput" style={inputStyle} value={form.default_driver_id} onChange={(e) => setForm({ ...form, default_driver_id: e.target.value })}>
                   <option value="">-</option>
                   {drivers.map((d) => (
                     <option key={d.id} value={d.id}>{d.nama}</option>
@@ -3179,13 +3368,13 @@ function VehiclesTab() {
                 </select>
               </div>
               <div>
-                <label style={labelStyle}>DEPARTEMEN</label>
-                <input style={inputStyle} value={form.dept} onChange={(e) => setForm({ ...form, dept: e.target.value })} />
+                <label style={labelStyle}>{t.fieldDepartment}</label>
+                <input className="premiumInput" style={inputStyle} value={form.dept} onChange={(e) => setForm({ ...form, dept: e.target.value })} />
               </div>
               <div>
-                <label style={labelStyle}>STATUS</label>
+                <label style={labelStyle}>{t.fieldStatus}</label>
                 <select
-                  style={inputStyle}
+                  className="premiumInput" style={inputStyle}
                   value={form.aktif ? "active" : "maintenance"}
                   onChange={(e) => setForm({ ...form, aktif: e.target.value === "active" })}
                 >
@@ -3195,16 +3384,16 @@ function VehiclesTab() {
               </div>
               <div />
               <div>
-                <label style={labelStyle}>JADWAL KIR</label>
-                <input style={inputStyle} type="date" value={form.kir_date} onChange={(e) => setForm({ ...form, kir_date: e.target.value })} />
+                <label style={labelStyle}>{t.fieldScheduleKir}</label>
+                <input className="premiumInput" style={inputStyle} type="date" value={form.kir_date} onChange={(e) => setForm({ ...form, kir_date: e.target.value })} />
               </div>
               <div>
-                <label style={labelStyle}>JADWAL SERVICE</label>
-                <input style={inputStyle} type="date" value={form.service_date} onChange={(e) => setForm({ ...form, service_date: e.target.value })} />
+                <label style={labelStyle}>{t.fieldScheduleService}</label>
+                <input className="premiumInput" style={inputStyle} type="date" value={form.service_date} onChange={(e) => setForm({ ...form, service_date: e.target.value })} />
               </div>
               <div>
-                <label style={labelStyle}>JADWAL STNK</label>
-                <input style={inputStyle} type="date" value={form.stnk_date} onChange={(e) => setForm({ ...form, stnk_date: e.target.value })} />
+                <label style={labelStyle}>{t.fieldScheduleStnk}</label>
+                <input className="premiumInput" style={inputStyle} type="date" value={form.stnk_date} onChange={(e) => setForm({ ...form, stnk_date: e.target.value })} />
               </div>
             </div>
 
@@ -3221,7 +3410,7 @@ function VehiclesTab() {
                 disabled={saving}
                 style={{ flex: 2, justifyContent: "center", opacity: saving ? 0.6 : 1 }}
               >
-                {saving ? "Menyimpan..." : "Simpan"}
+                {saving ? t.actionSaving : t.actionSave}
               </button>
             </div>
           </div>
@@ -3234,7 +3423,7 @@ function VehiclesTab() {
           style={{ position: "fixed", inset: 0, background: "rgba(10,20,40,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 200, padding: 16 }}
         >
           <div onClick={(e) => e.stopPropagation()} style={{ ...cardStyle, padding: 24, width: "100%", maxWidth: 360, textAlign: "center" }}>
-            <div style={{ fontSize: 15, fontWeight: 800, marginBottom: 8, color: "var(--t1)" }}>Hapus kendaraan?</div>
+            <div style={{ fontSize: 15, fontWeight: 800, marginBottom: 8, color: "var(--t1)" }}>{lang === "en" ? "Delete this vehicle?" : "Hapus kendaraan?"}</div>
             <div style={{ fontSize: 13, color: "var(--t3)", marginBottom: 18 }}>
               <strong style={{ color: "var(--t1)" }}>{confirmDelete.nopol}</strong> akan dihapus permanen.
             </div>
