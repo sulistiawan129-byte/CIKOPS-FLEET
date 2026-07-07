@@ -337,7 +337,7 @@ export default function DashboardPage() {
           <img src="/logo.png" alt="CIKOPS" style={{ width: 38, height: 38, filter: "drop-shadow(0 4px 10px rgba(61,111,242,0.35))" }} />
           <div>
             <div style={{ fontWeight: 800, fontSize: 14, color: "var(--t1)" }}>{t.appName}</div>
-            <div style={{ fontSize: 10, color: "var(--t3)" }}>Fleet Dashboard</div>
+            <div style={{ fontSize: 10, color: "var(--t3)" }}>Dashboard Fleet Management</div>
           </div>
         </div>
         <nav style={{ flex: 1, overflowY: "auto", padding: "10px 10px" }}>
@@ -450,7 +450,7 @@ export default function DashboardPage() {
                   {myProfile?.fullName || user?.email?.split("@")[0] || "-"}
                 </div>
                 <div style={{ fontSize: 10, color: "var(--t3)" }}>
-                  {myProfile?.role === "admin" ? "Admin" : "GA Manager"}
+                  {myProfile?.role === "admin" ? "Admin" : "Facility Management"}
                 </div>
               </div>
             )}
