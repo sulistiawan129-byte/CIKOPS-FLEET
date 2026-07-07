@@ -756,3 +756,99 @@ export async function getMyProfile(userId: string): Promise<MyProfile | null> {
     return null;
   }
 }
+
+/* ════════════════════════════════════════════════════════════
+   MASTER DATA — Drivers, Employees, Job Types.
+   Unlike getDrivers()/getEmployees()/getJobTypes() above (which filter
+   to only what the Task-assignment dropdowns need), these return
+   everything for a management/admin view, plus full CRUD.
+════════════════════════════════════════════════════════════ */
+
+export async function getAllDriversFull(): Promise<Driver[]> {
+  const { data, error } = await supabase
+    .from("drivers")
+    .select("id, nama, no_hp, avatar_emoji, aktif, tier_id, email")
+    .order("nama", { ascending: true });
+  if (error) throw error;
+  return data ?? [];
+}
+
+export interface DriverInput {
+  nama: string;
+  no_hp: string | null;
+  email: string | null;
+  avatar_emoji: string | null;
+  aktif: boolean;
+}
+
+export async function addDriver(input: DriverInput, initialPin?: string): Promise<Driver> {
+  const { data, error } = await supabase.from("drivers").insert(input).select().single();
+  if (error) throw error;
+  if (initialPin) {
+    await supabase.rpc("admin_set_driver_pin", { p_driver_id: data.id, p_new_pin: initialPin });
+  }
+  return data;
+}
+
+export async function updateDriver(id: string, input: DriverInput): Promise<void> {
+  const { error } = await supabase.from("drivers").update(input).eq("id", id);
+  if (error) throw error;
+}
+
+export async function resetDriverPin(id: string, newPin: string): Promise<void> {
+  const { error } = await supabase.rpc("admin_set_driver_pin", { p_driver_id: id, p_new_pin: newPin });
+  if (error) throw error;
+}
+
+export async function deleteDriver(id: string): Promise<void> {
+  const { error } = await supabase.from("drivers").delete().eq("id", id);
+  if (error) throw error;
+}
+
+export async function getAllEmployeesFull(): Promise<Employee[]> {
+  const { data, error } = await supabase.from("employees").select("*").order("nama", { ascending: true });
+  if (error) throw error;
+  return data ?? [];
+}
+
+export interface EmployeeInput {
+  nik: string | null;
+  nama: string;
+  departement: string | null;
+}
+
+export async function addEmployee(input: EmployeeInput): Promise<void> {
+  const { error } = await supabase.from("employees").insert(input);
+  if (error) throw error;
+}
+
+export async function updateEmployee(id: string, input: EmployeeInput): Promise<void> {
+  const { error } = await supabase.from("employees").update(input).eq("id", id);
+  if (error) throw error;
+}
+
+export async function deleteEmployee(id: string): Promise<void> {
+  const { error } = await supabase.from("employees").delete().eq("id", id);
+  if (error) throw error;
+}
+
+export async function getAllJobTypesFull(): Promise<JobType[]> {
+  const { data, error } = await supabase.from("job_types").select("*").order("label", { ascending: true });
+  if (error) throw error;
+  return data ?? [];
+}
+
+export async function addJobType(label: string): Promise<void> {
+  const { error } = await supabase.from("job_types").insert({ label });
+  if (error) throw error;
+}
+
+export async function updateJobType(id: string, label: string): Promise<void> {
+  const { error } = await supabase.from("job_types").update({ label }).eq("id", id);
+  if (error) throw error;
+}
+
+export async function deleteJobType(id: string): Promise<void> {
+  const { error } = await supabase.from("job_types").delete().eq("id", id);
+  if (error) throw error;
+}

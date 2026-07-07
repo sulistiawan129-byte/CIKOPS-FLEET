@@ -11,6 +11,21 @@ import {
   getDrivers,
   getMyProfile,
   type MyProfile,
+  getAllDriversFull,
+  addDriver,
+  updateDriver,
+  resetDriverPin,
+  deleteDriver,
+  type DriverInput,
+  getAllEmployeesFull,
+  addEmployee,
+  updateEmployee,
+  deleteEmployee,
+  type EmployeeInput,
+  getAllJobTypesFull,
+  addJobType,
+  updateJobType,
+  deleteJobType,
   getEmployees,
   getJobTypes,
   getTasksByDate,
@@ -95,7 +110,8 @@ export type DashboardTab =
   | "driverbudget"
   | "opfund"
   | "gasstations"
-  | "reports";
+  | "reports"
+  | "masterdata";
 
 const TAB_CONFIG: { id: DashboardTab; icon: string; labelId: string; labelEn: string }[] = [
   { id: "overview", icon: "📊", labelId: "Ringkasan", labelEn: "Overview" },
@@ -107,6 +123,7 @@ const TAB_CONFIG: { id: DashboardTab; icon: string; labelId: string; labelEn: st
   { id: "opfund", icon: "💰", labelId: "Dana Operasional", labelEn: "Operational Fund" },
   { id: "gasstations", icon: "⛽", labelId: "Pom Bensin", labelEn: "Gas Stations" },
   { id: "reports", icon: "📈", labelId: "Report", labelEn: "Reports" },
+  { id: "masterdata", icon: "🗄️", labelId: "Master Data", labelEn: "Master Data" },
 ];
 
 /** Hook sederhana untuk deteksi viewport mobile vs desktop, dipakai untuk
@@ -337,7 +354,7 @@ export default function DashboardPage() {
           <img src="/logo.png" alt="CIKOPS" style={{ width: 38, height: 38, filter: "drop-shadow(0 4px 10px rgba(61,111,242,0.35))" }} />
           <div>
             <div style={{ fontWeight: 800, fontSize: 14, color: "var(--t1)" }}>{t.appName}</div>
-            <div style={{ fontSize: 10, color: "var(--t3)" }}>Dashboard Fleet Management</div>
+            <div style={{ fontSize: 12, color: "var(--t3)" }}>Fleet Dashboard</div>
           </div>
         </div>
         <nav style={{ flex: 1, overflowY: "auto", padding: "10px 10px" }}>
@@ -449,8 +466,8 @@ export default function DashboardPage() {
                 <div style={{ fontSize: 12, fontWeight: 700, color: "var(--t1)" }}>
                   {myProfile?.fullName || user?.email?.split("@")[0] || "-"}
                 </div>
-                <div style={{ fontSize: 10, color: "var(--t3)" }}>
-                  {myProfile?.role === "admin" ? "Admin" : "Facility Management"}
+                <div style={{ fontSize: 12, color: "var(--t3)" }}>
+                  {myProfile?.role === "admin" ? "Admin" : "GA Manager"}
                 </div>
               </div>
             )}
@@ -578,6 +595,7 @@ export default function DashboardPage() {
           {activeTab === "opfund" && <OpFundTab />}
           {activeTab === "gasstations" && <GasStationsTab />}
           {activeTab === "reports" && <ReportsTab />}
+          {activeTab === "masterdata" && <MasterDataTab />}
         </div>
       )}
         </div>
@@ -1217,6 +1235,43 @@ function InsightCard({
    CREATE TASK MODAL
 ════════════════════════════════════════════════ */
 
+/** Builds a formatted WhatsApp share message for a newly-assigned driver
+ *  task — greeting adapts to time of day, uses WhatsApp's own *bold*
+ *  markup so it renders nicely once shared. */
+function buildTaskWhatsAppMessage(params: {
+  tanggal: string;
+  driverName: string;
+  vehicleLabel: string;
+  jenisPekerjaan: string;
+  tujuan: string;
+  requestor: string;
+  departement: string;
+  perihal: string;
+}): string {
+  const hour = new Date().getHours();
+  const greeting = hour < 11 ? "Selamat Pagi" : hour < 15 ? "Selamat Siang" : hour < 18 ? "Selamat Sore" : "Selamat Malam";
+  const tanggalFormatted = new Date(params.tanggal).toLocaleDateString("id-ID", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
+
+  const lines = [
+    `${greeting},`,
+    "",
+    "Berikut informasi penugasan driver:",
+    "",
+    `📅 *Tanggal* : ${tanggalFormatted}`,
+    `🧑‍✈️ *Driver* : ${params.driverName}`,
+    `🚗 *Kendaraan* : ${params.vehicleLabel}`,
+    `🧰 *Jenis Pekerjaan* : ${params.jenisPekerjaan}`,
+    `📍 *Tujuan* : ${params.tujuan}`,
+    `👤 *Requestor* : ${params.requestor}${params.departement ? ` (${params.departement})` : ""}`,
+  ];
+  if (params.perihal.trim()) {
+    lines.push(`📝 *Perihal* : ${params.perihal.trim()}`);
+  }
+  lines.push("", "Mohon dapat ditindaklanjuti. Terima kasih 🙏", "", "_Pesan otomatis — CIKOPS Fleet Ops_");
+
+  return lines.join("\n");
+}
+
 function CreateTaskModal({
   drivers,
   vehicles,
@@ -1244,6 +1299,7 @@ function CreateTaskModal({
   const [perihal, setPerihal] = useState("");
   const [formError, setFormError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [waMessage, setWaMessage] = useState<string | null>(null);
 
   function handleRequestorPick(name: string) {
     setRequestor(name);
@@ -1272,7 +1328,24 @@ function CreateTaskModal({
         departement,
         perihal,
       });
-      onCreated();
+      const driverName = drivers.find((d) => d.id === driverId)?.nama || "-";
+      const vehicle = vehicles.find((v) => v.id === vehicleId);
+      const vehicleLabel = vehicle ? `${vehicle.nopol}${vehicle.jenis ? ` (${vehicle.jenis})` : ""}` : "-";
+      setWaMessage(
+        buildTaskWhatsAppMessage({
+          tanggal,
+          driverName,
+          vehicleLabel,
+          jenisPekerjaan,
+          tujuan,
+          requestor,
+          departement,
+          perihal,
+        })
+      );
+      // Don't call onCreated() yet — that would close this modal immediately
+      // (parent unmounts it), before the admin ever sees the WhatsApp share
+      // screen below. onCreated() fires when they click "Selesai" instead.
     } catch (err) {
       onError(err instanceof Error ? err.message : "Gagal membuat tugas");
     } finally {
@@ -1281,8 +1354,64 @@ function CreateTaskModal({
   }
 
   return (
-    <div className={`${styles.modalOverlay} modalOverlayAnim`} onClick={onClose}>
+    <div className={`${styles.modalOverlay} modalOverlayAnim`} onClick={waMessage ? undefined : onClose}>
       <div className={`${styles.modalBox} modalPop`} onClick={(e) => e.stopPropagation()}>
+        {waMessage ? (
+          <>
+            <div className={styles.modalHeader}>
+              <div className={styles.modalTitle}>✅ Tugas Berhasil Dibuat</div>
+            </div>
+            <div style={{ padding: "0 24px 20px" }}>
+              <div style={{ fontSize: 12.5, color: "var(--t3)", marginBottom: 10 }}>
+                Bagikan detail penugasan ini ke driver/grup terkait via WhatsApp:
+              </div>
+              <div
+                style={{
+                  background: "var(--bg2)",
+                  border: "1px solid var(--border2)",
+                  borderRadius: 12,
+                  padding: 16,
+                  fontSize: 13,
+                  color: "var(--t1)",
+                  whiteSpace: "pre-wrap",
+                  lineHeight: 1.6,
+                  marginBottom: 16,
+                  maxHeight: 260,
+                  overflowY: "auto",
+                  fontFamily: "var(--font)",
+                }}
+              >
+                {waMessage}
+              </div>
+              <div style={{ display: "flex", gap: 10 }}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setWaMessage(null);
+                    onCreated();
+                  }}
+                  style={{ flex: 1, padding: "11px", borderRadius: 10, border: "1px solid var(--border2)", background: "var(--surface2)", color: "var(--t2)", fontWeight: 700, cursor: "pointer" }}
+                >
+                  Selesai
+                </button>
+                <a
+                  href={`https://wa.me/?text=${encodeURIComponent(waMessage)}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={() => {
+                    setWaMessage(null);
+                    onCreated();
+                  }}
+                  className="pillBtn"
+                  style={{ flex: 2, justifyContent: "center", textDecoration: "none", background: "linear-gradient(135deg, #25d366, #128c7e)" }}
+                >
+                  💬 Kirim via WhatsApp
+                </a>
+              </div>
+            </div>
+          </>
+        ) : (
+          <>
         <div className={styles.modalHeader}>
           <div className={styles.modalTitle}>Tugaskan Driver</div>
           <button className={styles.modalClose} onClick={onClose}>
@@ -1410,6 +1539,8 @@ function CreateTaskModal({
             </button>
           </div>
         </form>
+          </>
+        )}
       </div>
     </div>
   );
@@ -1894,13 +2025,31 @@ const CLAIM_TYPE_COLOR: Record<string, string> = {
 
 type ClaimLineDraft = { id: number; type: string; expr: string };
 
+/** Monday–Sunday range (as formatted "D Mon" strings) containing the given
+ *  date — used both for the Claims table's "Period: X – Y" display and for
+ *  the per-week filter. */
+function weekRangeOf(dateStr: string, lang: string): { from: Date; to: Date; label: string } {
+  const d = new Date(dateStr);
+  const day = d.getDay();
+  const diffToMonday = day === 0 ? -6 : 1 - day;
+  const monday = new Date(d);
+  monday.setDate(d.getDate() + diffToMonday);
+  const sunday = new Date(monday);
+  sunday.setDate(monday.getDate() + 6);
+  const fmt = (dt: Date) => dt.toLocaleDateString(lang === "en" ? "en-GB" : "id-ID", { day: "numeric", month: "short" });
+  return { from: monday, to: sunday, label: `${fmt(monday)} – ${fmt(sunday)}` };
+}
+
 function ClaimsTab() {
   const { lang, t } = useLang();
+  const isMobileClaims = useIsMobile(768);
   const [claims, setClaims] = useState<Claim[]>([]);
   const [drivers, setDrivers] = useState<Driver[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [driverFilter, setDriverFilter] = useState<string>("all");
+  const [periodMode, setPeriodMode] = useState<"all" | "week" | "date">("all");
+  const [filterDate, setFilterDate] = useState(todayStr());
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<Claim | null>(null);
 
@@ -1932,10 +2081,19 @@ function ClaimsTab() {
     load();
   }, [load]);
 
-  const filtered = useMemo(
-    () => (driverFilter === "all" ? claims : claims.filter((c) => c.driver_id === driverFilter)),
-    [claims, driverFilter]
-  );
+  const filtered = useMemo(() => {
+    let list = driverFilter === "all" ? claims : claims.filter((c) => c.driver_id === driverFilter);
+    if (periodMode === "date") {
+      list = list.filter((c) => c.periodDate === filterDate);
+    } else if (periodMode === "week") {
+      const { from, to } = weekRangeOf(filterDate, lang);
+      list = list.filter((c) => {
+        const d = new Date(c.periodDate);
+        return d >= from && d <= to;
+      });
+    }
+    return list;
+  }, [claims, driverFilter, periodMode, filterDate, lang]);
   const totalFiltered = filtered.reduce((s, c) => s + c.total, 0);
   const uniqueDriversFiltered = new Set(filtered.map((c) => c.driver_id)).size;
 
@@ -2015,7 +2173,7 @@ function ClaimsTab() {
     fontFamily: "var(--font)",
   };
   const labelStyle: CSSProperties = {
-    fontSize: 11,
+    fontSize: 13,
     fontWeight: 700,
     color: "var(--t2)",
     marginBottom: 5,
@@ -2023,7 +2181,7 @@ function ClaimsTab() {
   };
   const tagStyle = (color: string): CSSProperties => ({
     display: "inline-block",
-    fontSize: 11,
+    fontSize: 13,
     fontWeight: 700,
     padding: "2px 9px",
     borderRadius: 6,
@@ -2034,40 +2192,90 @@ function ClaimsTab() {
 
   return (
     <div style={{ padding: 20 }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16, gap: 10, flexWrap: "wrap" }}>
-        <select
-          value={driverFilter}
-          onChange={(e) => setDriverFilter(e.target.value)}
-          style={{ ...inputStyle, width: "auto", minWidth: 180 }}
-        >
-          <option value="all">{lang === "en" ? "All Drivers" : "Semua Driver"}</option>
-          {drivers.map((d) => (
-            <option key={d.id} value={d.id}>{d.nama}</option>
-          ))}
-        </select>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14, gap: 10, flexWrap: "wrap" }}>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+          <select
+            value={driverFilter}
+            onChange={(e) => setDriverFilter(e.target.value)}
+            className="premiumInput"
+            style={{ ...inputStyle, width: "auto", minWidth: 160 }}
+          >
+            <option value="all">{lang === "en" ? "All Drivers" : "Semua Driver"}</option>
+            {drivers.map((d) => (
+              <option key={d.id} value={d.id}>{d.nama}</option>
+            ))}
+          </select>
+
+          <div style={{ display: "flex", borderRadius: "var(--pill)", border: "1px solid var(--border2)", padding: 3, gap: 2 }}>
+            {(["all", "week", "date"] as const).map((m) => (
+              <button
+                key={m}
+                onClick={() => setPeriodMode(m)}
+                className="tabPill"
+                style={{
+                  padding: "6px 14px",
+                  borderRadius: "var(--pill)",
+                  border: "none",
+                  cursor: "pointer",
+                  fontSize: 12,
+                  fontWeight: 700,
+                  background: periodMode === m ? "linear-gradient(135deg, var(--brand), var(--brand2))" : "transparent",
+                  color: periodMode === m ? "#fff" : "var(--t2)",
+                }}
+              >
+                {m === "all" ? (lang === "en" ? "All Time" : "Semua") : m === "week" ? (lang === "en" ? "Per Week" : "Per Minggu") : (lang === "en" ? "Per Date" : "Per Tanggal")}
+              </button>
+            ))}
+          </div>
+
+          {periodMode !== "all" && (
+            <input
+              type="date"
+              className="premiumInput"
+              style={{ ...inputStyle, width: "auto" }}
+              value={filterDate}
+              onChange={(e) => setFilterDate(e.target.value)}
+            />
+          )}
+          {periodMode === "week" && (
+            <span style={{ fontSize: 13.5, color: "var(--t3)", fontWeight: 600 }}>
+              {weekRangeOf(filterDate, lang).label}
+            </span>
+          )}
+        </div>
         <button className="pillBtn" onClick={openAdd}>
           + {lang === "en" ? "New Claim" : "Buat Klaim"}
         </button>
       </div>
 
-      <div style={{ display: "flex", gap: 24, padding: "12px 18px", marginBottom: 16, ...cardStyle, background: "var(--gold-soft)", border: "1px solid var(--gold)" }}>
+      <div className="statPop" style={{ display: "flex", gap: 28, padding: "14px 20px", marginBottom: 16, ...cardStyle, borderLeft: "3px solid var(--gold)" }}>
         <div>
-          <div style={{ fontSize: 10, color: "var(--t3)" }}>{lang === "en" ? "Claims" : "Klaim"}</div>
-          <div style={{ fontSize: 18, fontWeight: 800, color: "var(--gold2)" }}>{filtered.length}</div>
+          <div style={{ fontSize: 13, color: "var(--t3)", fontWeight: 600 }}>{lang === "en" ? "Claims" : "Klaim"}</div>
+          <div className="numGrad" style={{ fontSize: 20, fontWeight: 800 }}>{filtered.length}</div>
         </div>
-        <div>
-          <div style={{ fontSize: 10, color: "var(--t3)" }}>Total</div>
-          <div style={{ fontSize: 18, fontWeight: 800, color: "var(--t1)" }}>Rp {fmtRp(totalFiltered)}</div>
+        <div style={{ borderLeft: "1px solid var(--border)", paddingLeft: 28 }}>
+          <div style={{ fontSize: 13, color: "var(--t3)", fontWeight: 600 }}>Total</div>
+          <div style={{ fontSize: 20, fontWeight: 800, color: "var(--t1)" }}>Rp {fmtRp(totalFiltered)}</div>
         </div>
-        <div>
-          <div style={{ fontSize: 10, color: "var(--t3)" }}>{lang === "en" ? "Drivers" : "Driver"}</div>
-          <div style={{ fontSize: 18, fontWeight: 800, color: "var(--t1)" }}>{uniqueDriversFiltered}</div>
+        <div style={{ borderLeft: "1px solid var(--border)", paddingLeft: 28 }}>
+          <div style={{ fontSize: 13, color: "var(--t3)", fontWeight: 600 }}>{lang === "en" ? "Active Drivers" : "Driver Aktif"}</div>
+          <div style={{ fontSize: 20, fontWeight: 800, color: "var(--t1)" }}>{uniqueDriversFiltered}</div>
         </div>
       </div>
 
       {error && <div style={{ padding: 12, borderRadius: 10, background: "var(--red-soft)", color: "var(--red)", marginBottom: 14, fontSize: 13 }}>{error}</div>}
 
-      <div style={{ ...cardStyle, overflow: "hidden" }}>
+      <div className="statPop" style={{ ...cardStyle, overflow: "hidden" }}>
+        {!loading && filtered.length > 0 && !isMobileClaims && (
+          <div style={{ display: "grid", gridTemplateColumns: "140px 110px 1fr 1fr 120px 40px", gap: 14, padding: "10px 18px", borderBottom: "1px solid var(--border)", background: "var(--bg2)" }}>
+            <div style={{ fontSize: 12.5, fontWeight: 700, color: "var(--t3)", textTransform: "uppercase" }}>{lang === "en" ? "Claim Period" : "Periode Klaim"}</div>
+            <div style={{ fontSize: 12.5, fontWeight: 700, color: "var(--t3)", textTransform: "uppercase" }}>{lang === "en" ? "Submitted" : "Diajukan"}</div>
+            <div style={{ fontSize: 12.5, fontWeight: 700, color: "var(--t3)", textTransform: "uppercase" }}>Driver</div>
+            <div style={{ fontSize: 12.5, fontWeight: 700, color: "var(--t3)", textTransform: "uppercase" }}>{lang === "en" ? "Claim Details" : "Rincian"}</div>
+            <div style={{ fontSize: 12.5, fontWeight: 700, color: "var(--t3)", textTransform: "uppercase", textAlign: "right" }}>Total</div>
+            <div />
+          </div>
+        )}
         {loading ? (
           <div style={{ textAlign: "center", padding: 40, color: "var(--t3)" }}>{t.actionLoading}</div>
         ) : filtered.length === 0 ? (
@@ -2078,51 +2286,72 @@ function ClaimsTab() {
             .sort((a, b) => (a.periodDate < b.periodDate ? 1 : -1))
             .map((c) => {
               const isOpen = expandedId === c.id;
+              const wk = weekRangeOf(c.periodDate, lang);
               return (
                 <div key={c.id} style={{ borderBottom: "1px solid var(--border)" }}>
                   <div
                     onClick={() => setExpandedId(isOpen ? null : c.id)}
-                    style={{ display: "flex", alignItems: "center", gap: 14, padding: "12px 18px", cursor: "pointer" }}
+                    className="rowHover"
+                    style={{
+                      display: isMobileClaims ? "flex" : "grid",
+                      gridTemplateColumns: "140px 110px 1fr 1fr 120px 40px",
+                      flexDirection: isMobileClaims ? "column" : undefined,
+                      gap: 14, alignItems: "center", padding: "13px 18px", cursor: "pointer",
+                    }}
                   >
-                    <div style={{ minWidth: 90, fontSize: 11, color: "var(--t3)" }}>
-                      Minggu {weekOfMonth(c.periodDate)}
-                      <div style={{ fontSize: 10 }}>{c.periodDate}</div>
+                    <div style={{ fontSize: 12.5, fontWeight: 700, color: "var(--t1)" }}>
+                      {lang === "en" ? "Week" : "Minggu"} {weekOfMonth(c.periodDate)}
+                      <div style={{ fontSize: 13, fontWeight: 400, color: "var(--t3)" }}>{new Date(c.periodDate).toLocaleDateString(lang === "en" ? "en-GB" : "id-ID", { day: "numeric", month: "short", year: "numeric" })}</div>
                     </div>
-                    <div style={{ flex: 1, fontWeight: 700, fontSize: 13, color: "var(--t1)" }}>{c.driverName || "-"}</div>
-                    <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>
-                      {[...new Set(c.items.map((i) => i.type))].map((t) => (
-                        <span key={t} style={tagStyle(CLAIM_TYPE_COLOR[t] || "var(--t3)")}>{t}</span>
-                      ))}
+                    <div style={{ fontSize: 12, color: "var(--t3)" }}>{new Date(c.submissionDate).toLocaleDateString(lang === "en" ? "en-GB" : "id-ID", { day: "numeric", month: "short", year: "numeric" })}</div>
+                    <div style={{ fontWeight: 700, fontSize: 13, color: "var(--t1)" }}>{c.driverName || "-"}</div>
+                    <div>
+                      <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>
+                        {[...new Set(c.items.map((i) => i.type))].map((tp) => (
+                          <span key={tp} style={tagStyle(CLAIM_TYPE_COLOR[tp] || "var(--t3)")}>{tp}</span>
+                        ))}
+                      </div>
+                      <div style={{ fontSize: 12.5, color: "var(--t3)", marginTop: 3 }}>{c.items.length} {lang === "en" ? "items" : "item"}</div>
                     </div>
-                    <div style={{ fontWeight: 800, fontSize: 14, color: "var(--t1)", whiteSpace: "nowrap" }}>Rp {fmtRp(c.total)}</div>
+                    <div style={{ fontWeight: 800, fontSize: 14, color: "var(--t1)", whiteSpace: "nowrap", textAlign: isMobileClaims ? "left" : "right" }}>Rp {fmtRp(c.total)}</div>
                     <button
                       onClick={(e) => { e.stopPropagation(); setConfirmDelete(c); }}
-                      style={{ padding: "5px 10px", borderRadius: 8, border: "1px solid var(--red)", background: "var(--red-soft)", color: "var(--red)", fontSize: 11, cursor: "pointer" }}
+                      style={{ padding: "5px 10px", borderRadius: 8, border: "1px solid var(--red)", background: "var(--red-soft)", color: "var(--red)", fontSize: 13, cursor: "pointer", justifySelf: "end" }}
                     >
                       🗑️
                     </button>
                   </div>
                   {isOpen && (
-                    <div style={{ padding: "0 18px 16px 118px", background: "var(--bg2)" }}>
-                      <table style={{ width: "100%", fontSize: 12, borderCollapse: "collapse" }}>
-                        <thead>
-                          <tr style={{ color: "var(--t3)", textAlign: "left" }}>
-                            <th style={{ paddingBottom: 6 }}>{lang === "en" ? "Type" : "Jenis"}</th>
-                            <th style={{ paddingBottom: 6 }}>{lang === "en" ? "Detail" : "Rincian"}</th>
-                            <th style={{ paddingBottom: 6, textAlign: "right" }}>Nominal</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {c.items.map((item, idx) => (
-                            <tr key={idx} style={{ borderTop: "1px solid var(--border)" }}>
-                              <td style={{ padding: "6px 0" }}><span style={tagStyle(CLAIM_TYPE_COLOR[item.type] || "var(--t3)")}>{item.type}</span></td>
-                              <td style={{ padding: "6px 0", fontFamily: "var(--mono)", color: "var(--t3)" }}>{item.expr}</td>
-                              <td style={{ padding: "6px 0", textAlign: "right", fontWeight: 700 }}>Rp {fmtRp(item.total)}</td>
+                    <div className="tabContent" style={{ padding: "0 18px 18px", background: "var(--bg2)" }}>
+                      <div style={{ display: "flex", gap: 20, fontSize: 13.5, color: "var(--t3)", marginBottom: 10, paddingLeft: isMobileClaims ? 0 : 154 }}>
+                        <span><strong style={{ color: "var(--t2)" }}>{lang === "en" ? "Period" : "Periode"}:</strong> {wk.label}</span>
+                        <span><strong style={{ color: "var(--t2)" }}>{lang === "en" ? "Submitted" : "Diajukan"}:</strong> {new Date(c.submissionDate).toLocaleDateString(lang === "en" ? "en-GB" : "id-ID", { day: "numeric", month: "short", year: "numeric" })}</span>
+                      </div>
+                      <div style={{ paddingLeft: isMobileClaims ? 0 : 154 }}>
+                        <table style={{ width: "100%", fontSize: 12, borderCollapse: "collapse" }}>
+                          <thead>
+                            <tr style={{ color: "var(--t3)", textAlign: "left" }}>
+                              <th style={{ paddingBottom: 6, fontSize: 12.5, fontWeight: 700, textTransform: "uppercase" }}>{lang === "en" ? "Type" : "Jenis"}</th>
+                              <th style={{ paddingBottom: 6, fontSize: 12.5, fontWeight: 700, textTransform: "uppercase" }}>{lang === "en" ? "Claim Details" : "Rincian"}</th>
+                              <th style={{ paddingBottom: 6, textAlign: "right", fontSize: 12.5, fontWeight: 700, textTransform: "uppercase" }}>{lang === "en" ? "Amount" : "Nominal"}</th>
                             </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                      {c.note && <div style={{ marginTop: 8, fontSize: 11, color: "var(--t3)", fontStyle: "italic" }}>Catatan: {c.note}</div>}
+                          </thead>
+                          <tbody>
+                            {c.items.map((item, idx) => (
+                              <tr key={idx} style={{ borderTop: "1px solid var(--border)" }}>
+                                <td style={{ padding: "7px 0" }}><span style={tagStyle(CLAIM_TYPE_COLOR[item.type] || "var(--t3)")}>{item.type}</span></td>
+                                <td style={{ padding: "7px 0", fontFamily: "var(--mono)", color: "var(--t3)", fontSize: 11.5 }}>{item.expr}</td>
+                                <td style={{ padding: "7px 0", textAlign: "right", fontWeight: 700, color: "var(--t1)" }}>Rp {fmtRp(item.total)}</td>
+                              </tr>
+                            ))}
+                            <tr style={{ borderTop: "2px solid var(--border2)" }}>
+                              <td colSpan={2} style={{ padding: "8px 0", fontWeight: 800, color: "var(--t1)" }}>TOTAL</td>
+                              <td className="numGrad" style={{ padding: "8px 0", textAlign: "right", fontWeight: 800 }}>Rp {fmtRp(c.total)}</td>
+                            </tr>
+                          </tbody>
+                        </table>
+                        {c.note && <div style={{ marginTop: 10, fontSize: 13.5, color: "var(--t3)", fontStyle: "italic" }}>{lang === "en" ? "Note" : "Catatan"}: {c.note}</div>}
+                      </div>
                     </div>
                   )}
                 </div>
@@ -2162,7 +2391,7 @@ function ClaimsTab() {
             <div style={{ marginBottom: 14 }}>
               <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
                 <label style={{ ...labelStyle, marginBottom: 0 }}>{lang === "en" ? "CLAIM LINES" : "RINCIAN KLAIM"}</label>
-                <button onClick={addLine} style={{ fontSize: 11, fontWeight: 700, color: "var(--brand)", background: "none", border: "none", cursor: "pointer" }}>
+                <button onClick={addLine} style={{ fontSize: 13, fontWeight: 700, color: "var(--brand)", background: "none", border: "none", cursor: "pointer" }}>
                   + {lang === "en" ? "Add Line" : "Tambah Baris"}
                 </button>
               </div>
@@ -2184,7 +2413,7 @@ function ClaimsTab() {
                           onChange={(e) => updateLine(line.id, "expr", e.target.value)}
                         />
                         {line.expr && (
-                          <span style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", fontSize: 11, fontWeight: 700, color: val !== null ? "var(--brand)" : "var(--red)" }}>
+                          <span style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", fontSize: 13, fontWeight: 700, color: val !== null ? "var(--brand)" : "var(--red)" }}>
                             {val !== null ? `Rp ${fmtRp(val)}` : "invalid"}
                           </span>
                         )}
@@ -2375,7 +2604,7 @@ function OvertimeTab() {
 
   const cardStyle: CSSProperties = { background: "linear-gradient(180deg, var(--surface2), var(--surface))", border: "1px solid var(--border2)", borderRadius: "var(--r2)", boxShadow: "var(--shadow-md)" };
   const inputStyle: CSSProperties = { width: "100%", padding: "9px 12px", borderRadius: 10, border: "1px solid var(--border2)", background: "var(--bg2)", color: "var(--t1)", fontSize: 13, fontFamily: "var(--font)" };
-  const labelStyle: CSSProperties = { fontSize: 11, fontWeight: 700, color: "var(--t2)", marginBottom: 5, display: "block" };
+  const labelStyle: CSSProperties = { fontSize: 13, fontWeight: 700, color: "var(--t2)", marginBottom: 5, display: "block" };
 
   return (
     <div style={{ padding: 20 }}>
@@ -2399,19 +2628,19 @@ function OvertimeTab() {
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(120px, 1fr))", gap: 13, marginBottom: 18 }}>
         <div className="statPop" style={{ ...cardStyle, padding: 16 }}>
           <div style={{ fontSize: 20, fontWeight: 800, color: "var(--t1)" }}>{filtered.length}</div>
-          <div style={{ fontSize: 11, color: "var(--t3)" }}>{lang === "en" ? "Entries" : "Entri"}</div>
+          <div style={{ fontSize: 13, color: "var(--t3)" }}>{lang === "en" ? "Entries" : "Entri"}</div>
         </div>
         <div className="statPop" style={{ ...cardStyle, padding: 16 }}>
           <div style={{ fontSize: 20, fontWeight: 800, color: "var(--t1)" }}>{fmtRp(totalHours)} jam</div>
-          <div style={{ fontSize: 11, color: "var(--t3)" }}>Total Jam OT</div>
+          <div style={{ fontSize: 13, color: "var(--t3)" }}>Total Jam OT</div>
         </div>
         <div className="statPop" style={{ ...cardStyle, padding: 16 }}>
           <div style={{ fontSize: 20, fontWeight: 800, color: "var(--gold2)" }}>Rp {fmtRp(totalAmount)}</div>
-          <div style={{ fontSize: 11, color: "var(--t3)" }}>Total Nominal</div>
+          <div style={{ fontSize: 13, color: "var(--t3)" }}>Total Nominal</div>
         </div>
         <div className="statPop" style={{ ...cardStyle, padding: 16 }}>
           <div style={{ fontSize: 20, fontWeight: 800, color: topPlant ? PLANT_COLOR[topPlant.plant] : "var(--t1)" }}>{topPlant?.plant || "-"}</div>
-          <div style={{ fontSize: 11, color: "var(--t3)" }}>Plant Terbanyak OT</div>
+          <div style={{ fontSize: 13, color: "var(--t3)" }}>Plant Terbanyak OT</div>
         </div>
       </div>
 
@@ -2419,13 +2648,13 @@ function OvertimeTab() {
         <div style={{ fontSize: 13, fontWeight: 800, color: "var(--t1)", marginBottom: 4 }}>
           {lang === "en" ? "Plant Comparison" : "Perbandingan Plant"}
         </div>
-        <div style={{ fontSize: 11, color: "var(--t3)", marginBottom: 16 }}>CIK vs PRB</div>
+        <div style={{ fontSize: 13, color: "var(--t3)", marginBottom: 16 }}>CIK vs PRB</div>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
           {byPlant.map((p) => (
             <div key={p.plant} style={{ padding: 14, borderRadius: 12, border: `1px solid var(--border2)`, borderLeft: `3px solid ${PLANT_COLOR[p.plant]}` }}>
               <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 10 }}>
                 <span style={{ fontWeight: 800, color: PLANT_COLOR[p.plant] }}>{p.plant}</span>
-                <span style={{ fontSize: 11, color: "var(--t3)" }}>{p.count} entri</span>
+                <span style={{ fontSize: 13, color: "var(--t3)" }}>{p.count} entri</span>
               </div>
               <div style={{ fontSize: 12, color: "var(--t3)", marginBottom: 4 }}>Jam OT</div>
               <div style={{ fontWeight: 700, color: "var(--t1)", marginBottom: 6 }}>{fmtRp(p.hours)} jam ({p.hoursPct.toFixed(0)}%)</div>
@@ -2449,11 +2678,11 @@ function OvertimeTab() {
           ) : (
             byDriver.map((d, i) => (
               <div key={d.driver} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 16px", borderBottom: "1px solid var(--border)" }}>
-                <div style={{ width: 20, height: 20, borderRadius: 6, background: "var(--brand)", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, fontWeight: 700 }}>{i + 1}</div>
+                <div style={{ width: 20, height: 20, borderRadius: 6, background: "var(--brand)", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 700 }}>{i + 1}</div>
                 <div style={{ flex: 1, fontSize: 12.5, fontWeight: 600, color: "var(--t1)" }}>{d.driver}</div>
                 <div style={{ textAlign: "right" }}>
                   <div style={{ fontSize: 12.5, fontWeight: 700, color: "var(--t1)" }}>{fmtRp(d.hours)} jam</div>
-                  <div style={{ fontSize: 10, color: "var(--t3)" }}>Rp {fmtRp(d.amount)}</div>
+                  <div style={{ fontSize: 12, color: "var(--t3)" }}>Rp {fmtRp(d.amount)}</div>
                 </div>
               </div>
             ))
@@ -2471,7 +2700,7 @@ function OvertimeTab() {
           ) : (
             filtered.map((o) => (
               <div key={o.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 16px", borderBottom: "1px solid var(--border)" }}>
-                <span style={{ fontSize: 10, fontWeight: 700, color: PLANT_COLOR[o.plant], padding: "2px 8px", borderRadius: 6, background: "var(--bg2)" }}>{o.plant}</span>
+                <span style={{ fontSize: 12, fontWeight: 700, color: PLANT_COLOR[o.plant], padding: "2px 8px", borderRadius: 6, background: "var(--bg2)" }}>{o.plant}</span>
                 <div style={{ flex: 1, fontSize: 12, color: "var(--t1)" }}>{o.driverName}</div>
                 <div style={{ fontSize: 12, fontWeight: 700, color: "var(--t1)" }}>{fmtRp(o.hours)}j</div>
                 <button onClick={() => setConfirmDelete(o)} style={{ border: "none", background: "none", color: "var(--red)", cursor: "pointer" }}>🗑️</button>
@@ -2599,7 +2828,7 @@ function LoginScreen() {
   }
 
   const inputStyle: CSSProperties = { width: "100%", padding: "11px 14px", borderRadius: 10, border: "1px solid var(--border2)", background: "var(--bg2)", color: "var(--t1)", fontSize: 14 };
-  const labelStyle: CSSProperties = { fontSize: 11, fontWeight: 700, color: "var(--t2)", marginBottom: 5, display: "block" };
+  const labelStyle: CSSProperties = { fontSize: 13, fontWeight: 700, color: "var(--t2)", marginBottom: 5, display: "block" };
 
   return (
     <div style={{ minHeight: "100vh", display: "flex" }}>
@@ -2626,7 +2855,7 @@ function LoginScreen() {
             <img src="/logo.png" alt="CIKOPS" style={{ width: 48, height: 48 }} />
             <div>
               <div style={{ fontSize: 17, fontWeight: 800, color: "#fff" }}>{t.appName}</div>
-              <div style={{ fontSize: 11, color: "rgba(255,255,255,0.7)" }}>Integrated Facility Management</div>
+              <div style={{ fontSize: 13, color: "rgba(255,255,255,0.7)" }}>Integrated Facility Management</div>
             </div>
           </div>
 
@@ -2643,7 +2872,7 @@ function LoginScreen() {
             </div>
           </div>
 
-          <div style={{ position: "relative", zIndex: 1, fontSize: 11, color: "rgba(255,255,255,0.5)" }}>
+          <div style={{ position: "relative", zIndex: 1, fontSize: 13, color: "rgba(255,255,255,0.5)" }}>
             © {new Date().getFullYear()} {t.appName}. All rights reserved.
           </div>
         </div>
@@ -2805,22 +3034,22 @@ function DriverBudgetTab() {
 
   const cardStyle: CSSProperties = { background: "linear-gradient(180deg, var(--surface2), var(--surface))", border: "1px solid var(--border2)", borderRadius: "var(--r2)", boxShadow: "var(--shadow-md)" };
   const inputStyle: CSSProperties = { width: "100%", padding: "9px 12px", borderRadius: 10, border: "1px solid var(--border2)", background: "var(--bg2)", color: "var(--t1)", fontSize: 13, fontFamily: "var(--font)" };
-  const labelStyle: CSSProperties = { fontSize: 11, fontWeight: 700, color: "var(--t2)", marginBottom: 5, display: "block" };
+  const labelStyle: CSSProperties = { fontSize: 13, fontWeight: 700, color: "var(--t2)", marginBottom: 5, display: "block" };
 
   return (
     <div style={{ padding: 20 }}>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 13, marginBottom: 18 }}>
         <div className="statPop" style={{ ...cardStyle, padding: 16, textAlign: "center" }}>
           <div style={{ fontSize: 20, fontWeight: 800, color: "var(--t1)" }}>{totalDrivers}</div>
-          <div style={{ fontSize: 11, color: "var(--t3)" }}>{lang === "en" ? "Total Drivers" : "Total Driver"}</div>
+          <div style={{ fontSize: 13, color: "var(--t3)" }}>{lang === "en" ? "Total Drivers" : "Total Driver"}</div>
         </div>
         <div className="statPop" style={{ ...cardStyle, padding: 16, textAlign: "center" }}>
           <div style={{ fontSize: 20, fontWeight: 800, color: "var(--gold2)" }}>Rp {fmtRp(totalBudget)}</div>
-          <div style={{ fontSize: 11, color: "var(--t3)" }}>{lang === "en" ? "Budget/Month" : "Budget/Bulan"}</div>
+          <div style={{ fontSize: 13, color: "var(--t3)" }}>{lang === "en" ? "Budget/Month" : "Budget/Bulan"}</div>
         </div>
         <div className="statPop" style={{ ...cardStyle, padding: 16, textAlign: "center" }}>
           <div style={{ fontSize: 20, fontWeight: 800, color: "var(--t1)" }}>Rp {fmtRp(totalBudget * 12)}</div>
-          <div style={{ fontSize: 11, color: "var(--t3)" }}>{lang === "en" ? "Per Year" : "Per Tahun"}</div>
+          <div style={{ fontSize: 13, color: "var(--t3)" }}>{lang === "en" ? "Per Year" : "Per Tahun"}</div>
         </div>
       </div>
 
@@ -2842,7 +3071,7 @@ function DriverBudgetTab() {
                 <div style={{ width: 8, height: 8, borderRadius: "50%", background: t.color, flexShrink: 0 }} />
                 <div style={{ flex: 1 }}>
                   <div style={{ fontSize: 12.5, fontWeight: 700, color: "var(--t1)" }}>{t.name}</div>
-                  <div style={{ fontSize: 10.5, color: "var(--t3)" }}>{t.activeDriverCount} driver · Rp {fmtRp(t.amountPerMonth)}/orang</div>
+                  <div style={{ fontSize: 12.5, color: "var(--t3)" }}>{t.activeDriverCount} driver · Rp {fmtRp(t.amountPerMonth)}/orang</div>
                 </div>
                 <div style={{ fontWeight: 800, fontSize: 13, color: t.color }}>Rp {fmtRp(t.amountPerMonth * t.activeDriverCount)}</div>
                 <button onClick={() => openEdit(t)} style={{ border: "none", background: "none", cursor: "pointer" }}>✏️</button>
@@ -2856,14 +3085,14 @@ function DriverBudgetTab() {
           <div style={{ fontSize: 13, fontWeight: 800, color: "var(--t1)", marginBottom: 4 }}>
             {lang === "en" ? "Assign Tier per Driver" : "Assign Tier per Driver"}
           </div>
-          <div style={{ fontSize: 11, color: "var(--t3)", marginBottom: 14 }}>
+          <div style={{ fontSize: 13, color: "var(--t3)", marginBottom: 14 }}>
             {lang === "en" ? "New — links each driver to their allowance tier." : "Baru — hubungkan tiap driver ke tier uang operasionalnya."}
           </div>
           {drivers.map((d) => (
             <div key={d.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 0", borderBottom: "1px solid var(--border)" }}>
               <div style={{ flex: 1, fontSize: 12.5, color: "var(--t1)" }}>{d.nama}</div>
               <select
-                style={{ ...inputStyle, width: "auto", fontSize: 11, padding: "6px 10px" }}
+                style={{ ...inputStyle, width: "auto", fontSize: 13, padding: "6px 10px" }}
                 value={d.tier_id || ""}
                 onChange={(e) => handleAssignTier(d.id, e.target.value)}
               >
@@ -2972,7 +3201,7 @@ function OpFundTab() {
   if (error) return <div style={{ padding: 30, margin: 20, borderRadius: 10, background: "var(--red-soft)", color: "var(--red)" }}>{error}</div>;
 
   const inputStyleInit: CSSProperties = { width: "100%", padding: "9px 12px", borderRadius: 10, border: "1px solid var(--border2)", background: "var(--bg2)", color: "var(--t1)", fontSize: 13, fontFamily: "var(--font)" };
-  const labelStyleInit: CSSProperties = { fontSize: 11, fontWeight: 700, color: "var(--t2)", marginBottom: 5, display: "block" };
+  const labelStyleInit: CSSProperties = { fontSize: 13, fontWeight: 700, color: "var(--t2)", marginBottom: 5, display: "block" };
 
   async function handleCreateInitial() {
     const budget = evalExpr(initBudget);
@@ -3083,11 +3312,11 @@ function OpFundTab() {
 
   const cardStyle: CSSProperties = { background: "linear-gradient(180deg, var(--surface2), var(--surface))", border: "1px solid var(--border2)", borderRadius: "var(--r2)", boxShadow: "var(--shadow-md)" };
   const inputStyle: CSSProperties = { width: "100%", padding: "9px 12px", borderRadius: 10, border: "1px solid var(--border2)", background: "var(--bg2)", color: "var(--t1)", fontSize: 13, fontFamily: "var(--font)" };
-  const labelStyle: CSSProperties = { fontSize: 11, fontWeight: 700, color: "var(--t2)", marginBottom: 5, display: "block" };
+  const labelStyle: CSSProperties = { fontSize: 13, fontWeight: 700, color: "var(--t2)", marginBottom: 5, display: "block" };
   const row = (label: string, sub: string, value: number, color?: string) => (
     <div style={{ padding: "15px 22px" }}>
-      <div style={{ fontSize: 10.5, fontWeight: 700, color: "var(--t3)", textTransform: "uppercase" as const }}>{label}</div>
-      <div style={{ fontSize: 10, color: "var(--t3)", marginTop: 1 }}>{sub}</div>
+      <div style={{ fontSize: 12.5, fontWeight: 700, color: "var(--t3)", textTransform: "uppercase" as const }}>{label}</div>
+      <div style={{ fontSize: 12, color: "var(--t3)", marginTop: 1 }}>{sub}</div>
       <div style={{ fontWeight: 800, fontSize: 18, color: color || "var(--t1)", marginTop: 6 }}>Rp {fmtRp(value)}</div>
     </div>
   );
@@ -3110,7 +3339,7 @@ function OpFundTab() {
 
       <div style={{ ...cardStyle, borderRadius: 16, overflow: "hidden" }}>
         <div style={{ padding: "19px 22px", borderBottom: "1px solid var(--border)" }}>
-          <div style={{ fontSize: 11, fontWeight: 700, color: "var(--t3)", textTransform: "uppercase" }}>Total Cash Operational (A)</div>
+          <div style={{ fontSize: 13, fontWeight: 700, color: "var(--t3)", textTransform: "uppercase" }}>Total Cash Operational (A)</div>
           <div style={{ fontWeight: 800, fontSize: 28, color: "var(--brand)" }}>Rp {fmtRp(kantong.totalBudget)}</div>
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", borderBottom: "1px solid var(--border)" }}>
@@ -3118,7 +3347,7 @@ function OpFundTab() {
           {row("Emergency (A2)", "Alokasi", kantong.allocEmergency, "var(--red)")}
         </div>
         <div style={{ padding: "13px 22px", background: "var(--bg2)", borderBottom: "1px solid var(--border)", display: "flex", justifyContent: "space-between" }}>
-          <div style={{ fontSize: 10.5, fontWeight: 700, color: "var(--t3)" }}>TOTAL ALOKASI (A3)</div>
+          <div style={{ fontSize: 12.5, fontWeight: 700, color: "var(--t3)" }}>TOTAL ALOKASI (A3)</div>
           <div style={{ fontWeight: 700, fontSize: 15, color: "var(--t2)" }}>Rp {fmtRp(totalAlokasi)}</div>
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", borderBottom: "1px solid var(--border)" }}>
@@ -3127,13 +3356,13 @@ function OpFundTab() {
           {row("Claim Dibayar (A6)", "Oleh Finance", kantong.claimPaid, "var(--t3)")}
         </div>
         <div style={{ padding: "16px 22px", background: "var(--gold-soft)", borderBottom: "1px solid var(--border)", display: "flex", justifyContent: "space-between" }}>
-          <div style={{ fontSize: 10.5, fontWeight: 700, color: "var(--gold2)" }}>OUTSTANDING (B) = A3+A4+A5+A6</div>
+          <div style={{ fontSize: 12.5, fontWeight: 700, color: "var(--gold2)" }}>OUTSTANDING (B) = A3+A4+A5+A6</div>
           <div style={{ fontWeight: 800, fontSize: 18, color: "var(--gold2)" }}>Rp {fmtRp(outstanding)}</div>
         </div>
         <div style={{ padding: "18px 22px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <div>
-            <div style={{ fontSize: 11, fontWeight: 700, color: "var(--t3)" }}>GAP = B − A</div>
-            <div style={{ fontSize: 11, color: "var(--t3)", marginTop: 3 }}>{gapText}</div>
+            <div style={{ fontSize: 13, fontWeight: 700, color: "var(--t3)" }}>GAP = B − A</div>
+            <div style={{ fontSize: 13, color: "var(--t3)", marginTop: 3 }}>{gapText}</div>
           </div>
           <div style={{ fontWeight: 800, fontSize: 22, color: gapColor }}>{gap >= 0 ? "+" : ""}Rp {fmtRp(gap)}</div>
         </div>
@@ -3465,7 +3694,7 @@ function ReportsTab() {
             ].map((s, i) => (
               <div key={i} className="statPop" style={{ ...cardStyle, padding: 14, textAlign: "center", animationDelay: `${i * 0.05}s` }}>
                 <div className="numGrad" style={{ fontSize: 16, fontWeight: 800, fontFamily: "var(--mono)" }}>{s.value}</div>
-                <div style={{ fontSize: 10, color: "var(--t3)", marginTop: 4 }}>{s.label}</div>
+                <div style={{ fontSize: 12, color: "var(--t3)", marginTop: 4 }}>{s.label}</div>
               </div>
             ))}
           </div>
@@ -3507,16 +3736,16 @@ function ReportsTab() {
                 ].map((s, i) => (
                   <div key={i} style={{ textAlign: "center" }}>
                     <div style={{ fontSize: 18, fontWeight: 800, color: s.color }}>{s.value}</div>
-                    <div style={{ fontSize: 10, color: "var(--t3)" }}>{s.label}</div>
+                    <div style={{ fontSize: 12, color: "var(--t3)" }}>{s.label}</div>
                   </div>
                 ))}
               </div>
               <div style={{ padding: 8 }}>
                 {byDriverTask.map(([name, v], i) => (
                   <div key={name} style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 12px" }}>
-                    <div style={{ width: 20, height: 20, borderRadius: 6, background: "var(--navy)", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, fontWeight: 700, flexShrink: 0 }}>{i + 1}</div>
+                    <div style={{ width: 20, height: 20, borderRadius: 6, background: "var(--navy)", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 700, flexShrink: 0 }}>{i + 1}</div>
                     <div style={{ flex: 1, fontSize: 12.5, color: "var(--t1)" }}>{name}</div>
-                    <div style={{ fontSize: 11.5, color: "var(--t3)" }}>{v.done}/{v.total} {lang === "en" ? "done" : "selesai"}</div>
+                    <div style={{ fontSize: 13.5, color: "var(--t3)" }}>{v.done}/{v.total} {lang === "en" ? "done" : "selesai"}</div>
                   </div>
                 ))}
               </div>
@@ -3559,7 +3788,7 @@ function ReportsTab() {
                   <div key={p.plant} style={{ padding: 12, borderRadius: 10, border: "1px solid var(--border2)", borderLeft: `3px solid ${PLANT_COLOR[p.plant]}` }}>
                     <div style={{ fontWeight: 800, color: PLANT_COLOR[p.plant], marginBottom: 6 }}>{p.plant}</div>
                     <div style={{ fontSize: 12, color: "var(--t2)" }}>{fmtRp(p.hours)} jam</div>
-                    <div style={{ fontSize: 11, color: "var(--t3)" }}>Rp {fmtRp(p.amount)}</div>
+                    <div style={{ fontSize: 13, color: "var(--t3)" }}>Rp {fmtRp(p.amount)}</div>
                   </div>
                 ))}
               </div>
@@ -3577,7 +3806,7 @@ function ReportsTab() {
             ) : (
               byDriverClaim.map(([name, total], i) => (
                 <div key={name} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 16px", borderBottom: "1px solid var(--border)" }}>
-                  <div style={{ width: 20, height: 20, borderRadius: 6, background: "var(--brand)", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, fontWeight: 700 }}>{i + 1}</div>
+                  <div style={{ width: 20, height: 20, borderRadius: 6, background: "var(--brand)", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 700 }}>{i + 1}</div>
                   <div style={{ flex: 1, fontSize: 12.5, color: "var(--t1)" }}>{name}</div>
                   <div style={{ fontWeight: 700, fontSize: 12.5, color: "var(--t1)" }}>Rp {fmtRp(total)}</div>
                 </div>
@@ -3698,61 +3927,185 @@ function GasStationsTab() {
 
   const cardStyle: CSSProperties = { background: "linear-gradient(180deg, var(--surface2), var(--surface))", border: "1px solid var(--border2)", borderRadius: "var(--r2)", boxShadow: "var(--shadow-md)" };
   const inputStyle: CSSProperties = { width: "100%", padding: "9px 12px", borderRadius: 10, border: "1px solid var(--border2)", background: "var(--bg2)", color: "var(--t1)", fontSize: 13, fontFamily: "var(--font)" };
-  const labelStyle: CSSProperties = { fontSize: 11, fontWeight: 700, color: "var(--t2)", marginBottom: 5, display: "block" };
+  const labelStyle: CSSProperties = { fontSize: 13, fontWeight: 700, color: "var(--t2)", marginBottom: 5, display: "block" };
+
+  // ── Derived analytics for the stat cards / charts below ──
+  const totalStations = stations.length;
+  const fuelTypesTracked = new Set(stations.flatMap((s) => s.fuels.filter((f) => f.available).map((f) => f.type))).size;
+  const avgFuelTypesPerStation = totalStations > 0 ? stations.reduce((sum, s) => sum + s.fuels.filter((f) => f.available).length, 0) / totalStations : 0;
+  const noFuelDataYet = stations.filter((s) => s.fuels.every((f) => !f.available)).length;
+
+  const fuelDistribution = FUEL_TYPES_LIST.map((type) => {
+    const count = stations.filter((s) => s.fuels.find((f) => f.type === type)?.available).length;
+    return { type, count, pct: totalStations > 0 ? (count / totalStations) * 100 : 0 };
+  }).sort((a, b) => b.count - a.count);
+
+  const completeness = { complete: 0, partial: 0, notFilled: 0 };
+  stations.forEach((s) => {
+    const fuelCount = s.fuels.filter((f) => f.available).length;
+    const hasAddress = !!s.address.trim();
+    if (fuelCount === 0) completeness.notFilled++;
+    else if (fuelCount >= 3 && hasAddress) completeness.complete++;
+    else completeness.partial++;
+  });
+
+  const growthByMonth = (() => {
+    const map = new Map<string, number>();
+    stations
+      .slice()
+      .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
+      .forEach((s) => {
+        const d = new Date(s.createdAt);
+        const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+        map.set(key, (map.get(key) || 0) + 1);
+      });
+    let running = 0;
+    return [...map.entries()].map(([key, count]) => {
+      running += count;
+      const [y, m] = key.split("-");
+      const label = new Date(Number(y), Number(m) - 1, 1).toLocaleDateString(lang === "en" ? "en-GB" : "id-ID", { month: "short", year: "2-digit" });
+      return { label, cumulative: running };
+    });
+  })();
+  const maxGrowth = Math.max(...growthByMonth.map((g) => g.cumulative), 1);
 
   return (
     <div style={{ padding: 20 }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16, gap: 10, flexWrap: "wrap" }}>
-        <div style={{ fontSize: 16, fontWeight: 800, color: "var(--t1)" }}>{lang === "en" ? "Gas Stations" : "Pom Bensin"}</div>
-        <div style={{ display: "flex", gap: 8 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 18, gap: 10, flexWrap: "wrap" }}>
+        <div>
+          <div style={{ fontSize: 18, fontWeight: 800, color: "var(--t1)" }}>{lang === "en" ? "Gas Stations" : "Pom Bensin"}</div>
+          <div style={{ fontSize: 12, color: "var(--t3)", marginTop: 2 }}>
+            {new Date().toLocaleDateString(lang === "en" ? "en-GB" : "id-ID", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
+          </div>
+        </div>
+        <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+          <span style={{ fontSize: 13.5, color: "var(--t3)", marginRight: 4 }}>{totalStations} {lang === "en" ? "stations saved" : "SPBU tersimpan"}</span>
           <button
             onClick={() => setPlacing((p) => !p)}
+            className="pillBtn"
             style={{
-              padding: "9px 16px",
-              borderRadius: "var(--pill)",
-              border: placing ? "1px solid var(--orange)" : "1px solid var(--border2)",
-              background: placing ? "var(--orange-soft)" : "var(--surface2)",
-              color: placing ? "var(--orange)" : "var(--t2)",
-              fontWeight: 700,
-              fontSize: 12.5,
-              cursor: "pointer",
+              background: placing ? "linear-gradient(135deg, var(--orange), #c96a10)" : "linear-gradient(135deg, var(--brand), var(--brand2))",
+              boxShadow: placing ? "none" : "var(--shadow-brand)",
             }}
           >
-            {placing ? (lang === "en" ? "✕ Cancel — click the map" : "✕ Batal — klik di peta") : `📍 ${lang === "en" ? "Mark on Map" : "Tandai di Peta"}`}
+            {placing ? `✕ ${lang === "en" ? "Cancel" : "Batal"}` : `📍 ${lang === "en" ? "Mark on Map" : "Tandai di Peta"}`}
           </button>
-          <button className="pillBtn" onClick={openAdd}>+ {lang === "en" ? "Add Station" : "Tambah Manual"}</button>
+          <button
+            onClick={openAdd}
+            style={{ padding: "10px 18px", borderRadius: "var(--pill)", border: "1px solid var(--border2)", background: "var(--surface2)", color: "var(--t2)", fontWeight: 700, fontSize: 13, cursor: "pointer" }}
+          >
+            + {lang === "en" ? "Manual Input" : "Input Manual"}
+          </button>
         </div>
-      </div>
-
-      <div style={{ marginBottom: 18 }}>
-        <GasStationMap stations={stations} placing={placing} onPick={handleMapPick} onMarkerClick={handleMarkerClick} />
       </div>
 
       {error && <div style={{ padding: 12, borderRadius: 10, background: "var(--red-soft)", color: "var(--red)", marginBottom: 14, fontSize: 13 }}>{error}</div>}
 
-      {loading ? (
-        <div style={{ textAlign: "center", padding: 40, color: "var(--t3)" }}>Memuat...</div>
-      ) : stations.length === 0 ? (
-        <div style={{ textAlign: "center", padding: 40, color: "var(--t3)" }}>{t.actionNoDataYet}</div>
-      ) : (
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 14 }}>
-          {stations.map((s) => (
-            <div key={s.id} className="statPop" style={{ ...cardStyle, padding: 16 }}>
-              <div style={{ fontWeight: 700, fontSize: 14, color: "var(--t1)", marginBottom: 4 }}>{s.name}</div>
-              <div style={{ fontSize: 11, color: "var(--t3)", marginBottom: 10 }}>{s.address || `${s.lat.toFixed(5)}, ${s.lng.toFixed(5)}`}</div>
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 5, marginBottom: 12 }}>
-                {s.fuels.filter((f) => f.available).map((f) => (
-                  <span key={f.type} style={{ fontSize: 10, fontWeight: 700, padding: "2px 8px", borderRadius: 6, background: "var(--bg2)", color: "var(--brand)" }}>{f.type}</span>
-                ))}
+      {/* ── Stat cards ── */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 13, marginBottom: 18 }}>
+        {[
+          { label: lang === "en" ? "Total Stations" : "Total SPBU", sub: lang === "en" ? "points saved" : "titik tersimpan", value: String(totalStations), color: "var(--brand)" },
+          { label: lang === "en" ? "Fuel Types Tracked" : "Jenis BBM Terlacak", sub: lang === "en" ? "types at ≥1 station" : "jenis di ≥1 SPBU", value: `${fuelTypesTracked}/${FUEL_TYPES_LIST.length}`, color: "var(--gold2)" },
+          { label: lang === "en" ? "Avg Fuel Types/Station" : "Rata BBM/SPBU", sub: lang === "en" ? "types per point" : "jenis per titik", value: avgFuelTypesPerStation.toFixed(1), color: "var(--purple)" },
+          { label: lang === "en" ? "No Fuel Data Yet" : "Belum Ada Data BBM", sub: lang === "en" ? "needs completing" : "perlu dilengkapi", value: String(noFuelDataYet), color: noFuelDataYet > 0 ? "var(--red)" : "var(--green)" },
+        ].map((s, i) => (
+          <div key={i} className="statPop" style={{ ...cardStyle, padding: 16, animationDelay: `${i * 0.05}s` }}>
+            <div className="numGrad" style={{ fontSize: 24, fontWeight: 800, fontFamily: "var(--mono)" }}>{s.value}</div>
+            <div style={{ fontSize: 12, fontWeight: 700, color: "var(--t2)", marginTop: 6 }}>{s.label}</div>
+            <div style={{ fontSize: 12.5, color: "var(--t3)", marginTop: 1 }}>{s.sub}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* ── Fuel distribution + Data completeness + Growth trend ── */}
+      <div style={{ display: "grid", gridTemplateColumns: "1.3fr 1fr", gap: 16, marginBottom: 18 }}>
+        <div className="statPop" style={{ ...cardStyle, padding: 20 }}>
+          <div style={{ fontSize: 13, fontWeight: 800, color: "var(--t1)", marginBottom: 16 }}>{lang === "en" ? "Fuel Type Distribution" : "Distribusi Jenis BBM"}</div>
+          {fuelDistribution.map((f, i) => (
+            <div key={f.type} style={{ marginBottom: i === fuelDistribution.length - 1 ? 0 : 12 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, marginBottom: 4 }}>
+                <span style={{ color: "var(--t2)", fontWeight: 600 }}>{f.type}{i === 0 && f.count > 0 ? " ★" : ""}</span>
+                <span style={{ color: "var(--t3)" }}>{f.count} {lang === "en" ? "stations" : "SPBU"} · {f.pct.toFixed(0)}%</span>
               </div>
-              <div style={{ display: "flex", gap: 8 }}>
-                <button onClick={() => openEdit(s)} style={{ flex: 1, padding: "7px", borderRadius: 8, border: "1px solid var(--border2)", background: "var(--surface2)", color: "var(--t2)", fontWeight: 600, fontSize: 12, cursor: "pointer" }}>✏️ {t.actionEdit}</button>
-                <button onClick={() => setConfirmDelete(s)} style={{ padding: "7px 12px", borderRadius: 8, border: "1px solid var(--red)", background: "var(--red-soft)", color: "var(--red)", fontWeight: 600, fontSize: 12, cursor: "pointer" }}>🗑️</button>
+              <div style={{ height: 7, borderRadius: 4, background: "var(--border)", overflow: "hidden" }}>
+                <div style={{ height: "100%", width: `${f.pct}%`, background: "linear-gradient(90deg, var(--brand), var(--gold2))", borderRadius: 4, transition: "width 0.8s cubic-bezier(0.16,1,0.3,1)" }} />
               </div>
             </div>
           ))}
         </div>
-      )}
+
+        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+          <div className="statPop" style={{ ...cardStyle, padding: 20 }}>
+            <div style={{ fontSize: 13, fontWeight: 800, color: "var(--t1)", marginBottom: 14 }}>{lang === "en" ? "Data Completeness" : "Kelengkapan Data"}</div>
+            {[
+              { label: lang === "en" ? "Complete" : "Lengkap", value: completeness.complete, color: "var(--green)" },
+              { label: lang === "en" ? "Partial" : "Sebagian", value: completeness.partial, color: "var(--orange)" },
+              { label: lang === "en" ? "Not Filled" : "Belum Diisi", value: completeness.notFilled, color: "var(--red)" },
+            ].map((c, i) => (
+              <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: i < 2 ? 10 : 0 }}>
+                <span style={{ width: 8, height: 8, borderRadius: "50%", background: c.color, flexShrink: 0 }} />
+                <span style={{ fontSize: 12.5, color: "var(--t2)", flex: 1 }}>{c.label}</span>
+                <span style={{ fontSize: 13, fontWeight: 800, color: "var(--t1)" }}>{c.value}</span>
+              </div>
+            ))}
+          </div>
+
+          <div className="statPop" style={{ ...cardStyle, padding: 20, flex: 1 }}>
+            <div style={{ fontSize: 13, fontWeight: 800, color: "var(--t1)", marginBottom: 14 }}>{lang === "en" ? "Station Growth Trend" : "Tren Pertumbuhan SPBU"}</div>
+            {growthByMonth.length === 0 ? (
+              <div style={{ fontSize: 13.5, color: "var(--t3)" }}>{lang === "en" ? "No data yet" : "Belum ada data"}</div>
+            ) : (
+              <div style={{ display: "flex", alignItems: "flex-end", gap: 10, height: 70 }}>
+                {growthByMonth.map((g, i) => (
+                  <div key={i} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
+                    <span style={{ fontSize: 13, fontWeight: 700, color: "var(--t1)" }}>{g.cumulative}</span>
+                    <div style={{ width: "100%", height: `${Math.max(8, (g.cumulative / maxGrowth) * 44)}px`, background: "linear-gradient(180deg, var(--brand), var(--brand2))", borderRadius: "6px 6px 2px 2px" }} />
+                    <span style={{ fontSize: 12, color: "var(--t3)" }}>{g.label}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* ── Map + Station list ── */}
+      <div style={{ display: "grid", gridTemplateColumns: "1.6fr 1fr", gap: 16 }}>
+        <div className="statPop">
+          <GasStationMap stations={stations} placing={placing} onPick={handleMapPick} onMarkerClick={handleMarkerClick} />
+        </div>
+        <div className="statPop" style={{ ...cardStyle, overflow: "hidden", maxHeight: 420, display: "flex", flexDirection: "column" }}>
+          <div style={{ padding: "13px 16px", borderBottom: "1px solid var(--border)", fontWeight: 800, fontSize: 13, color: "var(--t1)" }}>
+            {lang === "en" ? "Station List" : "Daftar SPBU"}
+          </div>
+          <div style={{ overflowY: "auto", flex: 1 }}>
+            {loading ? (
+              <div style={{ textAlign: "center", padding: 30, color: "var(--t3)", fontSize: 12 }}>{t.actionLoading}</div>
+            ) : stations.length === 0 ? (
+              <div style={{ textAlign: "center", padding: 30, color: "var(--t3)", fontSize: 12 }}>{t.actionNoDataYet}</div>
+            ) : (
+              stations.map((s) => {
+                const activeFuelCount = s.fuels.filter((f) => f.available).length;
+                return (
+                  <div key={s.id} onClick={() => openEdit(s)} className="rowHover" style={{ padding: "11px 16px", borderBottom: "1px solid var(--border)", cursor: "pointer", display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8 }}>
+                    <div style={{ minWidth: 0 }}>
+                      <div style={{ fontSize: 12.5, fontWeight: 700, color: "var(--t1)" }}>{s.name}</div>
+                      <div style={{ fontSize: 12.5, color: "var(--t3)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.address || `${s.lat.toFixed(4)}, ${s.lng.toFixed(4)}`}</div>
+                      <div style={{ fontSize: 12, color: "var(--brand)", marginTop: 2, fontWeight: 600 }}>{activeFuelCount} {lang === "en" ? "fuel types available" : "jenis BBM tersedia"}</div>
+                    </div>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); setConfirmDelete(s); }}
+                      style={{ border: "none", background: "none", color: "var(--red)", cursor: "pointer", fontSize: 12, flexShrink: 0 }}
+                    >
+                      🗑️
+                    </button>
+                  </div>
+                );
+              })
+            )}
+          </div>
+        </div>
+      </div>
 
       {showForm && (
         <div onClick={() => setShowForm(false)} className="modalOverlayAnim" style={{ position: "fixed", inset: 0, background: "rgba(10,20,40,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 2000, padding: 16 }}>
@@ -3969,7 +4322,7 @@ function VehiclesTab() {
     fontFamily: "var(--font)",
   };
   const labelStyle: CSSProperties = {
-    fontSize: 11,
+    fontSize: 13,
     fontWeight: 700,
     color: "var(--t2)",
     marginBottom: 5,
@@ -4049,13 +4402,13 @@ function VehiclesTab() {
                     <div style={{ fontFamily: "var(--mono)", fontWeight: 700, fontSize: 15, color: "var(--t1)" }}>
                       {v.nopol}
                     </div>
-                    <div style={{ fontSize: 11, color: "var(--t3)" }}>
+                    <div style={{ fontSize: 13, color: "var(--t3)" }}>
                       {v.jenis} · {v.year}
                     </div>
                   </div>
                   <span
                     style={{
-                      fontSize: 10,
+                      fontSize: 12,
                       fontWeight: 700,
                       padding: "3px 10px",
                       borderRadius: "var(--pill)",
@@ -4091,7 +4444,7 @@ function VehiclesTab() {
                   {docs.map(([label, date]) => {
                     const d = daysUntil(date);
                     return (
-                      <div key={label} style={{ display: "flex", justifyContent: "space-between", fontSize: 11, marginBottom: 4 }}>
+                      <div key={label} style={{ display: "flex", justifyContent: "space-between", fontSize: 13, marginBottom: 4 }}>
                         <span style={{ color: "var(--t3)" }}>{label}</span>
                         <span style={{ color: urgencyColor(d), fontWeight: 700 }}>
                           {date ? (d <= 0 ? (lang === "en" ? "Expired" : "Lewat") : `${d}h`) : "-"}
@@ -4270,6 +4623,498 @@ function VehiclesTab() {
               <button onClick={handleDelete} style={{ flex: 1, padding: "10px", borderRadius: 10, border: "none", background: "var(--red)", color: "#fff", fontWeight: 700, cursor: "pointer" }}>
                 Ya, Hapus
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ════════════════════════════════════════════════════════════
+   MASTER DATA — the missing piece: until now there was no way to add
+   a new Driver, Employee, or Job Type through the UI at all (only
+   read-only dropdowns fed by Supabase). This tab covers all three.
+════════════════════════════════════════════════════════════ */
+
+const AVATAR_EMOJIS = ["🧑", "👨", "👩", "🧔", "👨‍🦱", "👩‍🦱", "👨‍🦳", "👩‍🦳", "🧑‍✈️", "🕺"];
+
+function MasterDataTab() {
+  const { lang } = useLang();
+  const [sub, setSub] = useState<"drivers" | "employees" | "jobtypes">("drivers");
+
+  const cardStyle: CSSProperties = { background: "linear-gradient(180deg, var(--surface2), var(--surface))", border: "1px solid var(--border2)", borderRadius: "var(--r2)", boxShadow: "var(--shadow-md)" };
+
+  return (
+    <div style={{ padding: 20 }}>
+      <div style={{ display: "flex", gap: 8, marginBottom: 18 }}>
+        {([
+          { id: "drivers", label: lang === "en" ? "Drivers" : "Driver", icon: "🧑‍✈️" },
+          { id: "employees", label: lang === "en" ? "Employees" : "Pegawai", icon: "👤" },
+          { id: "jobtypes", label: lang === "en" ? "Job Types" : "Jenis Pekerjaan", icon: "🧰" },
+        ] as const).map((s) => (
+          <button
+            key={s.id}
+            className="tabPill"
+            onClick={() => setSub(s.id)}
+            style={{
+              padding: "9px 18px", borderRadius: "var(--pill)", border: "none", cursor: "pointer",
+              fontSize: 13, fontWeight: 700,
+              background: sub === s.id ? "linear-gradient(135deg, var(--brand), var(--brand2))" : "var(--surface2)",
+              color: sub === s.id ? "#fff" : "var(--t2)",
+            }}
+          >
+            {s.icon} {s.label}
+          </button>
+        ))}
+      </div>
+
+      {sub === "drivers" && <DriversMasterPanel cardStyle={cardStyle} />}
+      {sub === "employees" && <EmployeesMasterPanel cardStyle={cardStyle} />}
+      {sub === "jobtypes" && <JobTypesMasterPanel cardStyle={cardStyle} />}
+    </div>
+  );
+}
+
+/* ── Drivers sub-panel ── */
+function DriversMasterPanel({ cardStyle }: { cardStyle: CSSProperties }) {
+  const { lang, t } = useLang();
+  const [drivers, setDrivers] = useState<Driver[]>([]);
+  const [tiers, setTiers] = useState<DriverTier[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const [showForm, setShowForm] = useState(false);
+  const [editing, setEditing] = useState<Driver | null>(null);
+  const [formNama, setFormNama] = useState("");
+  const [formPhone, setFormPhone] = useState("");
+  const [formEmail, setFormEmail] = useState("");
+  const [formAvatar, setFormAvatar] = useState(AVATAR_EMOJIS[0]);
+  const [formAktif, setFormAktif] = useState(true);
+  const [formPin, setFormPin] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState<Driver | null>(null);
+
+  const [pinTarget, setPinTarget] = useState<Driver | null>(null);
+  const [newPin, setNewPin] = useState("");
+  const [pinSaving, setPinSaving] = useState(false);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const [d, tr] = await Promise.all([getAllDriversFull(), getDriverTiers()]);
+      setDrivers(d);
+      setTiers(tr);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Gagal memuat data driver");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+  useEffect(() => { load(); }, [load]);
+
+  function openAdd() {
+    setEditing(null);
+    setFormNama(""); setFormPhone(""); setFormEmail(""); setFormAvatar(AVATAR_EMOJIS[0]); setFormAktif(true); setFormPin("");
+    setShowForm(true);
+  }
+  function openEdit(d: Driver) {
+    setEditing(d);
+    setFormNama(d.nama); setFormPhone(d.no_hp || ""); setFormEmail(d.email || ""); setFormAvatar(d.avatar_emoji || AVATAR_EMOJIS[0]); setFormAktif(d.aktif); setFormPin("");
+    setShowForm(true);
+  }
+
+  const canSave = formNama.trim() !== "" && (!!editing || formPin.length >= 4);
+
+  async function handleSave() {
+    if (!canSave) return;
+    setSaving(true);
+    try {
+      const payload: DriverInput = { nama: formNama.trim(), no_hp: formPhone.trim() || null, email: formEmail.trim() || null, avatar_emoji: formAvatar, aktif: formAktif };
+      if (editing) await updateDriver(editing.id, payload);
+      else await addDriver(payload, formPin);
+      setShowForm(false);
+      await load();
+    } catch (e) {
+      alert(e instanceof Error ? e.message : "Gagal menyimpan driver");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleDelete() {
+    if (!confirmDelete) return;
+    try {
+      await deleteDriver(confirmDelete.id);
+      setConfirmDelete(null);
+      await load();
+    } catch (e) {
+      alert((e instanceof Error ? e.message : "Gagal menghapus driver") + " — driver ini mungkin masih punya riwayat tugas/klaim/overtime, coba nonaktifkan saja.");
+    }
+  }
+
+  async function handleResetPin() {
+    if (!pinTarget || newPin.length < 4) return;
+    setPinSaving(true);
+    try {
+      await resetDriverPin(pinTarget.id, newPin);
+      setPinTarget(null);
+      setNewPin("");
+      alert(lang === "en" ? "PIN reset successfully" : "PIN berhasil direset");
+    } catch (e) {
+      alert(e instanceof Error ? e.message : "Gagal reset PIN");
+    } finally {
+      setPinSaving(false);
+    }
+  }
+
+  const inputStyle: CSSProperties = { width: "100%", padding: "9px 12px", borderRadius: 10, border: "1px solid var(--border2)", background: "var(--bg2)", color: "var(--t1)", fontSize: 13, fontFamily: "var(--font)" };
+  const labelStyle: CSSProperties = { fontSize: 13, fontWeight: 700, color: "var(--t2)", marginBottom: 5, display: "block" };
+
+  return (
+    <div>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+        <div style={{ fontSize: 13, color: "var(--t3)" }}>{drivers.length} {lang === "en" ? "drivers total" : "total driver"}</div>
+        <button className="pillBtn" onClick={openAdd}>+ {lang === "en" ? "Add Driver" : "Tambah Driver"}</button>
+      </div>
+
+      {error && <div style={{ padding: 12, borderRadius: 10, background: "var(--red-soft)", color: "var(--red)", marginBottom: 14, fontSize: 13 }}>{error}</div>}
+
+      <div className="statPop" style={{ ...cardStyle, overflow: "hidden" }}>
+        {loading ? (
+          <div style={{ textAlign: "center", padding: 40, color: "var(--t3)" }}>{t.actionLoading}</div>
+        ) : drivers.length === 0 ? (
+          <div style={{ textAlign: "center", padding: 40, color: "var(--t3)" }}>{t.actionNoDataYet}</div>
+        ) : (
+          drivers.map((d) => (
+            <div key={d.id} className="rowHover" style={{ display: "flex", alignItems: "center", gap: 14, padding: "12px 18px", borderBottom: "1px solid var(--border)" }}>
+              <div style={{ width: 38, height: 38, borderRadius: "50%", background: "var(--bg2)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, flexShrink: 0 }}>{d.avatar_emoji || "🧑"}</div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 13, fontWeight: 700, color: "var(--t1)" }}>{d.nama}</div>
+                <div style={{ fontSize: 13, color: "var(--t3)" }}>{d.no_hp || "-"} {d.email ? `· ${d.email}` : ""}</div>
+              </div>
+              <div style={{ fontSize: 13, color: "var(--t3)", minWidth: 90 }}>
+                {tiers.find((tr) => tr.id === d.tier_id)?.name || (lang === "en" ? "No tier" : "Tanpa tier")}
+              </div>
+              <span style={{ fontSize: 12, fontWeight: 700, padding: "3px 10px", borderRadius: "var(--pill)", background: d.aktif ? "var(--green-soft)" : "var(--red-soft)", color: d.aktif ? "var(--green)" : "var(--red)" }}>
+                {d.aktif ? (lang === "en" ? "Active" : "Aktif") : (lang === "en" ? "Inactive" : "Nonaktif")}
+              </span>
+              <button onClick={() => setPinTarget(d)} title="Reset PIN" style={{ border: "1px solid var(--border2)", background: "var(--surface2)", borderRadius: 8, padding: "6px 9px", cursor: "pointer", fontSize: 12 }}>🔑</button>
+              <button onClick={() => openEdit(d)} style={{ border: "1px solid var(--border2)", background: "var(--surface2)", borderRadius: 8, padding: "6px 9px", cursor: "pointer", fontSize: 12 }}>✏️</button>
+              <button onClick={() => setConfirmDelete(d)} style={{ border: "1px solid var(--red)", background: "var(--red-soft)", color: "var(--red)", borderRadius: 8, padding: "6px 9px", cursor: "pointer", fontSize: 12 }}>🗑️</button>
+            </div>
+          ))
+        )}
+      </div>
+
+      {showForm && (
+        <div onClick={() => setShowForm(false)} className="modalOverlayAnim" style={{ position: "fixed", inset: 0, background: "rgba(10,20,40,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 2000, padding: 16 }}>
+          <div onClick={(e) => e.stopPropagation()} className="modalPop" style={{ ...cardStyle, padding: 24, width: "100%", maxWidth: 420, maxHeight: "90vh", overflowY: "auto" }}>
+            <div style={{ fontSize: 16, fontWeight: 800, marginBottom: 18, color: "var(--t1)" }}>
+              {editing ? (lang === "en" ? "Edit Driver" : "Edit Driver") : (lang === "en" ? "Add Driver" : "Tambah Driver")}
+            </div>
+            <div style={{ marginBottom: 12 }}>
+              <label style={labelStyle}>AVATAR</label>
+              <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                {AVATAR_EMOJIS.map((em) => (
+                  <button key={em} type="button" onClick={() => setFormAvatar(em)} style={{ width: 36, height: 36, borderRadius: "50%", fontSize: 16, cursor: "pointer", background: formAvatar === em ? "var(--brand)" : "var(--bg2)", border: formAvatar === em ? "2px solid var(--brand2)" : "1px solid var(--border2)" }}>{em}</button>
+                ))}
+              </div>
+            </div>
+            <div style={{ marginBottom: 12 }}>
+              <label style={labelStyle}>{lang === "en" ? "NAME" : "NAMA"} *</label>
+              <input className="premiumInput" style={inputStyle} value={formNama} onChange={(e) => setFormNama(e.target.value)} />
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 12 }}>
+              <div>
+                <label style={labelStyle}>{lang === "en" ? "PHONE" : "NO. HP"}</label>
+                <input className="premiumInput" style={inputStyle} value={formPhone} onChange={(e) => setFormPhone(e.target.value)} placeholder="0812xxxxxxx" />
+              </div>
+              <div>
+                <label style={labelStyle}>EMAIL</label>
+                <input className="premiumInput" style={inputStyle} value={formEmail} onChange={(e) => setFormEmail(e.target.value)} />
+              </div>
+            </div>
+            {!editing && (
+              <div style={{ marginBottom: 12 }}>
+                <label style={labelStyle}>{lang === "en" ? "INITIAL PIN (min. 4 digits)" : "PIN AWAL (min. 4 digit)"} *</label>
+                <input className="premiumInput" style={inputStyle} type="password" inputMode="numeric" value={formPin} onChange={(e) => setFormPin(e.target.value.replace(/\D/g, ""))} placeholder="1234" />
+              </div>
+            )}
+            <div style={{ marginBottom: 18, display: "flex", alignItems: "center", gap: 8 }}>
+              <input type="checkbox" checked={formAktif} onChange={(e) => setFormAktif(e.target.checked)} id="driverAktif" />
+              <label htmlFor="driverAktif" style={{ fontSize: 12.5, color: "var(--t2)" }}>{lang === "en" ? "Active" : "Aktif"}</label>
+            </div>
+            <div style={{ display: "flex", gap: 10 }}>
+              <button onClick={() => setShowForm(false)} style={{ flex: 1, padding: "10px", borderRadius: 10, border: "1px solid var(--border2)", background: "var(--surface2)", color: "var(--t2)", fontWeight: 700, cursor: "pointer" }}>{t.actionCancel}</button>
+              <button className="pillBtn" onClick={handleSave} disabled={!canSave || saving} style={{ flex: 1, justifyContent: "center", opacity: canSave && !saving ? 1 : 0.5 }}>{saving ? t.actionSaving : t.actionSave}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {pinTarget && (
+        <div onClick={() => setPinTarget(null)} className="modalOverlayAnim" style={{ position: "fixed", inset: 0, background: "rgba(10,20,40,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 2000, padding: 16 }}>
+          <div onClick={(e) => e.stopPropagation()} className="modalPop" style={{ ...cardStyle, padding: 24, width: "100%", maxWidth: 360 }}>
+            <div style={{ fontSize: 15, fontWeight: 800, marginBottom: 4, color: "var(--t1)" }}>{lang === "en" ? "Reset PIN" : "Reset PIN"}</div>
+            <div style={{ fontSize: 12, color: "var(--t3)", marginBottom: 16 }}>{pinTarget.nama}</div>
+            <input className="premiumInput" style={inputStyle} type="password" inputMode="numeric" value={newPin} onChange={(e) => setNewPin(e.target.value.replace(/\D/g, ""))} placeholder={lang === "en" ? "New PIN (min. 4 digits)" : "PIN baru (min. 4 digit)"} />
+            <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
+              <button onClick={() => setPinTarget(null)} style={{ flex: 1, padding: "10px", borderRadius: 10, border: "1px solid var(--border2)", background: "var(--surface2)", color: "var(--t2)", fontWeight: 700, cursor: "pointer" }}>{t.actionCancel}</button>
+              <button className="pillBtn" onClick={handleResetPin} disabled={newPin.length < 4 || pinSaving} style={{ flex: 1, justifyContent: "center", opacity: newPin.length >= 4 && !pinSaving ? 1 : 0.5 }}>{pinSaving ? t.actionSaving : (lang === "en" ? "Reset" : "Reset")}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {confirmDelete && (
+        <div onClick={() => setConfirmDelete(null)} className="modalOverlayAnim" style={{ position: "fixed", inset: 0, background: "rgba(10,20,40,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 2000, padding: 16 }}>
+          <div onClick={(e) => e.stopPropagation()} className="modalPop" style={{ ...cardStyle, padding: 24, width: "100%", maxWidth: 360, textAlign: "center" }}>
+            <div style={{ fontSize: 15, fontWeight: 800, marginBottom: 8, color: "var(--t1)" }}>{lang === "en" ? "Delete this driver?" : "Hapus driver ini?"}</div>
+            <div style={{ fontSize: 13, color: "var(--t3)", marginBottom: 18 }}><strong style={{ color: "var(--t1)" }}>{confirmDelete.nama}</strong> {lang === "en" ? "will be permanently deleted." : "akan dihapus permanen."}</div>
+            <div style={{ display: "flex", gap: 10 }}>
+              <button onClick={() => setConfirmDelete(null)} style={{ flex: 1, padding: "10px", borderRadius: 10, border: "1px solid var(--border2)", background: "var(--surface2)", color: "var(--t2)", fontWeight: 700, cursor: "pointer" }}>{t.actionCancel}</button>
+              <button onClick={handleDelete} style={{ flex: 1, padding: "10px", borderRadius: 10, border: "none", background: "var(--red)", color: "#fff", fontWeight: 700, cursor: "pointer" }}>{t.actionYesDelete}</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ── Employees sub-panel ── */
+function EmployeesMasterPanel({ cardStyle }: { cardStyle: CSSProperties }) {
+  const { lang, t } = useLang();
+  const [employees, setEmployees] = useState<Employee[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [showForm, setShowForm] = useState(false);
+  const [editing, setEditing] = useState<Employee | null>(null);
+  const [formNama, setFormNama] = useState("");
+  const [formNik, setFormNik] = useState("");
+  const [formDept, setFormDept] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState<Employee | null>(null);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      setEmployees(await getAllEmployeesFull());
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Gagal memuat data pegawai");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+  useEffect(() => { load(); }, [load]);
+
+  function openAdd() { setEditing(null); setFormNama(""); setFormNik(""); setFormDept(""); setShowForm(true); }
+  function openEdit(e: Employee) { setEditing(e); setFormNama(e.nama); setFormNik(e.nik || ""); setFormDept(e.departement || ""); setShowForm(true); }
+  const canSave = formNama.trim() !== "";
+
+  async function handleSave() {
+    if (!canSave) return;
+    setSaving(true);
+    try {
+      const payload: EmployeeInput = { nama: formNama.trim(), nik: formNik.trim() || null, departement: formDept.trim() || null };
+      if (editing) await updateEmployee(editing.id, payload);
+      else await addEmployee(payload);
+      setShowForm(false);
+      await load();
+    } catch (e) {
+      alert(e instanceof Error ? e.message : "Gagal menyimpan pegawai");
+    } finally {
+      setSaving(false);
+    }
+  }
+  async function handleDelete() {
+    if (!confirmDelete) return;
+    try {
+      await deleteEmployee(confirmDelete.id);
+      setConfirmDelete(null);
+      await load();
+    } catch (e) {
+      alert(e instanceof Error ? e.message : "Gagal menghapus pegawai");
+    }
+  }
+
+  const inputStyle: CSSProperties = { width: "100%", padding: "9px 12px", borderRadius: 10, border: "1px solid var(--border2)", background: "var(--bg2)", color: "var(--t1)", fontSize: 13, fontFamily: "var(--font)" };
+  const labelStyle: CSSProperties = { fontSize: 13, fontWeight: 700, color: "var(--t2)", marginBottom: 5, display: "block" };
+
+  return (
+    <div>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+        <div style={{ fontSize: 13, color: "var(--t3)" }}>{employees.length} {lang === "en" ? "employees total" : "total pegawai"}</div>
+        <button className="pillBtn" onClick={openAdd}>+ {lang === "en" ? "Add Employee" : "Tambah Pegawai"}</button>
+      </div>
+      {error && <div style={{ padding: 12, borderRadius: 10, background: "var(--red-soft)", color: "var(--red)", marginBottom: 14, fontSize: 13 }}>{error}</div>}
+      <div className="statPop" style={{ ...cardStyle, overflow: "hidden" }}>
+        {loading ? (
+          <div style={{ textAlign: "center", padding: 40, color: "var(--t3)" }}>{t.actionLoading}</div>
+        ) : employees.length === 0 ? (
+          <div style={{ textAlign: "center", padding: 40, color: "var(--t3)" }}>{t.actionNoDataYet}</div>
+        ) : (
+          employees.map((emp) => (
+            <div key={emp.id} className="rowHover" style={{ display: "flex", alignItems: "center", gap: 14, padding: "12px 18px", borderBottom: "1px solid var(--border)" }}>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 13, fontWeight: 700, color: "var(--t1)" }}>{emp.nama}</div>
+                <div style={{ fontSize: 13, color: "var(--t3)" }}>NIK: {emp.nik || "-"}</div>
+              </div>
+              <div style={{ fontSize: 12, color: "var(--t2)" }}>{emp.departement || "-"}</div>
+              <button onClick={() => openEdit(emp)} style={{ border: "1px solid var(--border2)", background: "var(--surface2)", borderRadius: 8, padding: "6px 9px", cursor: "pointer", fontSize: 12 }}>✏️</button>
+              <button onClick={() => setConfirmDelete(emp)} style={{ border: "1px solid var(--red)", background: "var(--red-soft)", color: "var(--red)", borderRadius: 8, padding: "6px 9px", cursor: "pointer", fontSize: 12 }}>🗑️</button>
+            </div>
+          ))
+        )}
+      </div>
+
+      {showForm && (
+        <div onClick={() => setShowForm(false)} className="modalOverlayAnim" style={{ position: "fixed", inset: 0, background: "rgba(10,20,40,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 2000, padding: 16 }}>
+          <div onClick={(e) => e.stopPropagation()} className="modalPop" style={{ ...cardStyle, padding: 24, width: "100%", maxWidth: 380 }}>
+            <div style={{ fontSize: 16, fontWeight: 800, marginBottom: 18, color: "var(--t1)" }}>{editing ? (lang === "en" ? "Edit Employee" : "Edit Pegawai") : (lang === "en" ? "Add Employee" : "Tambah Pegawai")}</div>
+            <div style={{ marginBottom: 12 }}>
+              <label style={labelStyle}>{lang === "en" ? "NAME" : "NAMA"} *</label>
+              <input className="premiumInput" style={inputStyle} value={formNama} onChange={(e) => setFormNama(e.target.value)} />
+            </div>
+            <div style={{ marginBottom: 12 }}>
+              <label style={labelStyle}>NIK</label>
+              <input className="premiumInput" style={inputStyle} value={formNik} onChange={(e) => setFormNik(e.target.value)} />
+            </div>
+            <div style={{ marginBottom: 18 }}>
+              <label style={labelStyle}>{lang === "en" ? "DEPARTMENT" : "DEPARTEMEN"}</label>
+              <input className="premiumInput" style={inputStyle} value={formDept} onChange={(e) => setFormDept(e.target.value)} />
+            </div>
+            <div style={{ display: "flex", gap: 10 }}>
+              <button onClick={() => setShowForm(false)} style={{ flex: 1, padding: "10px", borderRadius: 10, border: "1px solid var(--border2)", background: "var(--surface2)", color: "var(--t2)", fontWeight: 700, cursor: "pointer" }}>{t.actionCancel}</button>
+              <button className="pillBtn" onClick={handleSave} disabled={!canSave || saving} style={{ flex: 1, justifyContent: "center", opacity: canSave && !saving ? 1 : 0.5 }}>{saving ? t.actionSaving : t.actionSave}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {confirmDelete && (
+        <div onClick={() => setConfirmDelete(null)} className="modalOverlayAnim" style={{ position: "fixed", inset: 0, background: "rgba(10,20,40,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 2000, padding: 16 }}>
+          <div onClick={(e) => e.stopPropagation()} className="modalPop" style={{ ...cardStyle, padding: 24, width: "100%", maxWidth: 360, textAlign: "center" }}>
+            <div style={{ fontSize: 15, fontWeight: 800, marginBottom: 8, color: "var(--t1)" }}>{lang === "en" ? "Delete this employee?" : "Hapus pegawai ini?"}</div>
+            <div style={{ fontSize: 13, color: "var(--t3)", marginBottom: 18 }}><strong style={{ color: "var(--t1)" }}>{confirmDelete.nama}</strong> {lang === "en" ? "will be permanently deleted." : "akan dihapus permanen."}</div>
+            <div style={{ display: "flex", gap: 10 }}>
+              <button onClick={() => setConfirmDelete(null)} style={{ flex: 1, padding: "10px", borderRadius: 10, border: "1px solid var(--border2)", background: "var(--surface2)", color: "var(--t2)", fontWeight: 700, cursor: "pointer" }}>{t.actionCancel}</button>
+              <button onClick={handleDelete} style={{ flex: 1, padding: "10px", borderRadius: 10, border: "none", background: "var(--red)", color: "#fff", fontWeight: 700, cursor: "pointer" }}>{t.actionYesDelete}</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ── Job Types sub-panel ── */
+function JobTypesMasterPanel({ cardStyle }: { cardStyle: CSSProperties }) {
+  const { lang, t } = useLang();
+  const [jobTypes, setJobTypes] = useState<JobType[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [showForm, setShowForm] = useState(false);
+  const [editing, setEditing] = useState<JobType | null>(null);
+  const [formLabel, setFormLabel] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState<JobType | null>(null);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      setJobTypes(await getAllJobTypesFull());
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Gagal memuat jenis pekerjaan");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+  useEffect(() => { load(); }, [load]);
+
+  function openAdd() { setEditing(null); setFormLabel(""); setShowForm(true); }
+  function openEdit(j: JobType) { setEditing(j); setFormLabel(j.label); setShowForm(true); }
+  const canSave = formLabel.trim() !== "";
+
+  async function handleSave() {
+    if (!canSave) return;
+    setSaving(true);
+    try {
+      if (editing) await updateJobType(editing.id, formLabel.trim());
+      else await addJobType(formLabel.trim());
+      setShowForm(false);
+      await load();
+    } catch (e) {
+      alert(e instanceof Error ? e.message : "Gagal menyimpan jenis pekerjaan");
+    } finally {
+      setSaving(false);
+    }
+  }
+  async function handleDelete() {
+    if (!confirmDelete) return;
+    try {
+      await deleteJobType(confirmDelete.id);
+      setConfirmDelete(null);
+      await load();
+    } catch (e) {
+      alert(e instanceof Error ? e.message : "Gagal menghapus jenis pekerjaan");
+    }
+  }
+
+  const inputStyle: CSSProperties = { width: "100%", padding: "9px 12px", borderRadius: 10, border: "1px solid var(--border2)", background: "var(--bg2)", color: "var(--t1)", fontSize: 13, fontFamily: "var(--font)" };
+  const labelStyle: CSSProperties = { fontSize: 13, fontWeight: 700, color: "var(--t2)", marginBottom: 5, display: "block" };
+
+  return (
+    <div>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+        <div style={{ fontSize: 13, color: "var(--t3)" }}>{jobTypes.length} {lang === "en" ? "job types total" : "total jenis pekerjaan"}</div>
+        <button className="pillBtn" onClick={openAdd}>+ {lang === "en" ? "Add Job Type" : "Tambah Jenis"}</button>
+      </div>
+      {error && <div style={{ padding: 12, borderRadius: 10, background: "var(--red-soft)", color: "var(--red)", marginBottom: 14, fontSize: 13 }}>{error}</div>}
+      <div className="statPop" style={{ ...cardStyle, overflow: "hidden" }}>
+        {loading ? (
+          <div style={{ textAlign: "center", padding: 40, color: "var(--t3)" }}>{t.actionLoading}</div>
+        ) : jobTypes.length === 0 ? (
+          <div style={{ textAlign: "center", padding: 40, color: "var(--t3)" }}>{t.actionNoDataYet}</div>
+        ) : (
+          jobTypes.map((j) => (
+            <div key={j.id} className="rowHover" style={{ display: "flex", alignItems: "center", gap: 14, padding: "12px 18px", borderBottom: "1px solid var(--border)" }}>
+              <div style={{ flex: 1, fontSize: 13, fontWeight: 700, color: "var(--t1)" }}>{j.label}</div>
+              <button onClick={() => openEdit(j)} style={{ border: "1px solid var(--border2)", background: "var(--surface2)", borderRadius: 8, padding: "6px 9px", cursor: "pointer", fontSize: 12 }}>✏️</button>
+              <button onClick={() => setConfirmDelete(j)} style={{ border: "1px solid var(--red)", background: "var(--red-soft)", color: "var(--red)", borderRadius: 8, padding: "6px 9px", cursor: "pointer", fontSize: 12 }}>🗑️</button>
+            </div>
+          ))
+        )}
+      </div>
+
+      {showForm && (
+        <div onClick={() => setShowForm(false)} className="modalOverlayAnim" style={{ position: "fixed", inset: 0, background: "rgba(10,20,40,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 2000, padding: 16 }}>
+          <div onClick={(e) => e.stopPropagation()} className="modalPop" style={{ ...cardStyle, padding: 24, width: "100%", maxWidth: 360 }}>
+            <div style={{ fontSize: 16, fontWeight: 800, marginBottom: 18, color: "var(--t1)" }}>{editing ? (lang === "en" ? "Edit Job Type" : "Edit Jenis Pekerjaan") : (lang === "en" ? "Add Job Type" : "Tambah Jenis Pekerjaan")}</div>
+            <div style={{ marginBottom: 18 }}>
+              <label style={labelStyle}>LABEL *</label>
+              <input className="premiumInput" style={inputStyle} value={formLabel} onChange={(e) => setFormLabel(e.target.value)} placeholder={lang === "en" ? "e.g. Internal Meeting" : "cth: Meeting Internal"} />
+            </div>
+            <div style={{ display: "flex", gap: 10 }}>
+              <button onClick={() => setShowForm(false)} style={{ flex: 1, padding: "10px", borderRadius: 10, border: "1px solid var(--border2)", background: "var(--surface2)", color: "var(--t2)", fontWeight: 700, cursor: "pointer" }}>{t.actionCancel}</button>
+              <button className="pillBtn" onClick={handleSave} disabled={!canSave || saving} style={{ flex: 1, justifyContent: "center", opacity: canSave && !saving ? 1 : 0.5 }}>{saving ? t.actionSaving : t.actionSave}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {confirmDelete && (
+        <div onClick={() => setConfirmDelete(null)} className="modalOverlayAnim" style={{ position: "fixed", inset: 0, background: "rgba(10,20,40,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 2000, padding: 16 }}>
+          <div onClick={(e) => e.stopPropagation()} className="modalPop" style={{ ...cardStyle, padding: 24, width: "100%", maxWidth: 360, textAlign: "center" }}>
+            <div style={{ fontSize: 15, fontWeight: 800, marginBottom: 8, color: "var(--t1)" }}>{lang === "en" ? "Delete this job type?" : "Hapus jenis pekerjaan ini?"}</div>
+            <div style={{ fontSize: 13, color: "var(--t3)", marginBottom: 18 }}><strong style={{ color: "var(--t1)" }}>{confirmDelete.label}</strong> {lang === "en" ? "will be permanently deleted." : "akan dihapus permanen."}</div>
+            <div style={{ display: "flex", gap: 10 }}>
+              <button onClick={() => setConfirmDelete(null)} style={{ flex: 1, padding: "10px", borderRadius: 10, border: "1px solid var(--border2)", background: "var(--surface2)", color: "var(--t2)", fontWeight: 700, cursor: "pointer" }}>{t.actionCancel}</button>
+              <button onClick={handleDelete} style={{ flex: 1, padding: "10px", borderRadius: 10, border: "none", background: "var(--red)", color: "#fff", fontWeight: 700, cursor: "pointer" }}>{t.actionYesDelete}</button>
             </div>
           </div>
         </div>

@@ -230,18 +230,18 @@ select {
    applied once to <body> so every screen feels less "flat white/navy". ── */
 body {
   background-image:
-    radial-gradient(circle at 8% 8%, rgba(61, 111, 242, 0.05), transparent 32%),
-    radial-gradient(circle at 92% 88%, rgba(216, 169, 78, 0.05), transparent 32%),
-    radial-gradient(circle, var(--border2) 1px, transparent 1px);
-  background-size: auto, auto, 26px 26px;
+    radial-gradient(circle at 8% 8%, rgba(61, 111, 242, 0.09), transparent 35%),
+    radial-gradient(circle at 92% 88%, rgba(216, 169, 78, 0.09), transparent 35%),
+    radial-gradient(circle, var(--border2) 1.3px, transparent 1.3px);
+  background-size: auto, auto, 24px 24px;
   background-attachment: fixed;
 }
 [data-theme="dark"] body {
   background-image:
-    radial-gradient(circle at 8% 8%, rgba(34, 193, 255, 0.07), transparent 32%),
-    radial-gradient(circle at 92% 88%, rgba(230, 188, 110, 0.06), transparent 32%),
-    radial-gradient(circle, rgba(255, 255, 255, 0.035) 1px, transparent 1px);
-  background-size: auto, auto, 26px 26px;
+    radial-gradient(circle at 8% 8%, rgba(34, 193, 255, 0.12), transparent 35%),
+    radial-gradient(circle at 92% 88%, rgba(230, 188, 110, 0.1), transparent 35%),
+    radial-gradient(circle, rgba(255, 255, 255, 0.06) 1.3px, transparent 1.3px);
+  background-size: auto, auto, 24px 24px;
 }
 
 /* ── Gradient-text numbers — the "premium fintech dashboard" signature:
@@ -391,7 +391,6 @@ body {
   }
   to {
     opacity: 1;
-    transform: translateY(0);
   }
 }
 
@@ -415,7 +414,6 @@ body {
   }
   to {
     opacity: 1;
-    transform: translateY(0);
   }
 }
 
