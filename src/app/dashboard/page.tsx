@@ -62,6 +62,7 @@ import {
   deleteGasStation,
 } from "@/lib/api";
 import type { Claim, ClaimItem, Overtime, Plant, Kantong, DriverTier, GasStation, FuelEntry } from "@/lib/types";
+import { exportTandaTerima } from "@/lib/tandaTerima";
 import {
   buildFleetReportData,
   buildInsights,
@@ -2119,14 +2120,17 @@ function ClaimsTab() {
     { id: Date.now(), type: "Gasoline", expr: "" },
   ]);
   const [saving, setSaving] = useState(false);
+  const [driverUserIds, setDriverUserIds] = useState<string[]>([]);
+  const [exportingRecap, setExportingRecap] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const [c, d] = await Promise.all([getClaims(), getDrivers()]);
+      const [c, d, du] = await Promise.all([getClaims(), getDrivers(), getAppSetting("driver_user_ids")]);
       setClaims(c);
       setDrivers(d);
+      setDriverUserIds(du ? du.split(",").filter(Boolean) : []);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Gagal memuat data klaim");
     } finally {
@@ -2234,6 +2238,16 @@ function ClaimsTab() {
     }
   }
 
+  function handleExportRecap() {
+    setExportingRecap(true);
+    try {
+      const label = weekRangeOf(filterDate, lang).label + " " + filterDate.slice(0, 4);
+      exportTandaTerima(filtered, `Week ${weekOfMonth(filterDate)} - ${label}`, "Cikarang", driverUserIds);
+    } finally {
+      setExportingRecap(false);
+    }
+  }
+
   const cardStyle: CSSProperties = {
     background: "linear-gradient(180deg, var(--surface2), var(--surface))",
     border: "1px solid var(--border2)",
@@ -2321,9 +2335,21 @@ function ClaimsTab() {
             </span>
           )}
         </div>
-        <button className="pillBtn" onClick={openAdd}>
-          + {lang === "en" ? "New Claim" : "Buat Klaim"}
-        </button>
+        <div style={{ display: "flex", gap: 8 }}>
+          {periodMode === "week" && filtered.length > 0 && (
+            <button
+              onClick={handleExportRecap}
+              disabled={exportingRecap}
+              style={{ padding: "9px 16px", borderRadius: "var(--pill)", border: "1px solid var(--green)", background: "var(--green-soft)", color: "var(--green)", fontWeight: 700, fontSize: 13, cursor: "pointer" }}
+              title={lang === "en" ? "Export official Finance recap format (CSV)" : "Export format rekap resmi Finance (CSV)"}
+            >
+              ⬇ {exportingRecap ? "..." : (lang === "en" ? "Export Tanda Terima" : "Export Tanda Terima")}
+            </button>
+          )}
+          <button className="pillBtn" onClick={openAdd}>
+            + {lang === "en" ? "New Claim" : "Buat Klaim"}
+          </button>
+        </div>
       </div>
 
       <div className="statPop" style={{ display: "flex", gap: 28, padding: "16px 22px", marginBottom: 18, ...cardStyle, borderLeft: "3px solid var(--gold)" }}>
@@ -4782,6 +4808,8 @@ function MasterDataTab() {
 function SettingsPanel({ cardStyle }: { cardStyle: CSSProperties }) {
   const { lang, t } = useLang();
   const [managerEmail, setManagerEmail] = useState("");
+  const [driverUserIds, setDriverUserIds] = useState<string[]>([]);
+  const [allDrivers, setAllDrivers] = useState<Driver[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -4791,7 +4819,14 @@ function SettingsPanel({ cardStyle }: { cardStyle: CSSProperties }) {
     setLoading(true);
     setError(null);
     try {
-      setManagerEmail(await getAppSetting("manager_email"));
+      const [me, du, drv] = await Promise.all([
+        getAppSetting("manager_email"),
+        getAppSetting("driver_user_ids"),
+        getAllDriversFull(),
+      ]);
+      setManagerEmail(me);
+      setDriverUserIds(du ? du.split(",").filter(Boolean) : []);
+      setAllDrivers(drv);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Gagal memuat pengaturan");
     } finally {
@@ -4800,11 +4835,18 @@ function SettingsPanel({ cardStyle }: { cardStyle: CSSProperties }) {
   }, []);
   useEffect(() => { load(); }, [load]);
 
+  function toggleDriverUser(id: string) {
+    setDriverUserIds((p) => (p.includes(id) ? p.filter((x) => x !== id) : [...p, id]));
+  }
+
   async function handleSave() {
     setSaving(true);
     setSaved(false);
     try {
-      await setAppSetting("manager_email", managerEmail.trim());
+      await Promise.all([
+        setAppSetting("manager_email", managerEmail.trim()),
+        setAppSetting("driver_user_ids", driverUserIds.join(",")),
+      ]);
       setSaved(true);
       setTimeout(() => setSaved(false), 2500);
     } catch (e) {
@@ -4820,28 +4862,54 @@ function SettingsPanel({ cardStyle }: { cardStyle: CSSProperties }) {
   if (loading) return <div style={{ padding: 40, textAlign: "center", color: "var(--t3)" }}>{t.actionLoading}</div>;
 
   return (
-    <div className="statPop" style={{ ...cardStyle, padding: 24, maxWidth: 480 }}>
-      <div style={{ fontSize: 14, fontWeight: 800, color: "var(--t1)", marginBottom: 4 }}>
-        📧 {lang === "en" ? "Claim Email Notifications" : "Notifikasi Email Klaim"}
-      </div>
-      <div style={{ fontSize: 12, color: "var(--t3)", marginBottom: 18, lineHeight: 1.5 }}>
-        {lang === "en"
-          ? "Every time a claim is submitted, the driver gets a confirmation email and this manager address gets a formal copy for record-keeping."
-          : "Setiap kali klaim diajukan, driver dapat email konfirmasi dan alamat manager ini dapat salinan formal untuk dokumentasi."}
+    <div style={{ display: "flex", flexDirection: "column", gap: 16, maxWidth: 480 }}>
+      <div className="statPop" style={{ ...cardStyle, padding: 24 }}>
+        <div style={{ fontSize: 14, fontWeight: 800, color: "var(--t1)", marginBottom: 4 }}>
+          📧 {lang === "en" ? "Claim Email Notifications" : "Notifikasi Email Klaim"}
+        </div>
+        <div style={{ fontSize: 12, color: "var(--t3)", marginBottom: 18, lineHeight: 1.5 }}>
+          {lang === "en"
+            ? "Every time a claim is submitted, the driver gets a confirmation email and this manager address gets a formal copy for record-keeping."
+            : "Setiap kali klaim diajukan, driver dapat email konfirmasi dan alamat manager ini dapat salinan formal untuk dokumentasi."}
+        </div>
+
+        {error && <div style={{ padding: 10, borderRadius: 8, background: "var(--red-soft)", color: "var(--red)", marginBottom: 14, fontSize: 12.5 }}>{error}</div>}
+
+        <label style={labelStyle}>{lang === "en" ? "MANAGER EMAIL" : "EMAIL MANAGER"}</label>
+        <input
+          className="premiumInput"
+          style={inputStyle}
+          type="email"
+          value={managerEmail}
+          onChange={(e) => setManagerEmail(e.target.value)}
+          placeholder="manager@company.com"
+        />
       </div>
 
-      {error && <div style={{ padding: 10, borderRadius: 8, background: "var(--red-soft)", color: "var(--red)", marginBottom: 14, fontSize: 12.5 }}>{error}</div>}
+      <div className="statPop" style={{ ...cardStyle, padding: 24 }}>
+        <div style={{ fontSize: 14, fontWeight: 800, color: "var(--t1)", marginBottom: 4 }}>
+          🧾 {lang === "en" ? "Tanda Terima Export — Driver User List" : "Export Tanda Terima — Daftar Driver User"}
+        </div>
+        <div style={{ fontSize: 12, color: "var(--t3)", marginBottom: 16, lineHeight: 1.5 }}>
+          {lang === "en"
+            ? "Drivers checked here get their own separate Tanda Terima recap file (different budgeting) when exporting per-week. Everyone else goes into the combined file."
+            : "Driver yang dicentang di sini akan mendapat file rekap Tanda Terima terpisah (budgeting beda) saat export per-minggu. Sisanya masuk ke file gabungan."}
+        </div>
+        <div style={{ maxHeight: 220, overflowY: "auto", border: "1px solid var(--border2)", borderRadius: 10 }}>
+          {allDrivers.length === 0 ? (
+            <div style={{ padding: 16, textAlign: "center", color: "var(--t3)", fontSize: 12 }}>{t.actionNoDataYet}</div>
+          ) : (
+            allDrivers.map((d) => (
+              <label key={d.id} className="rowHover" style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 14px", borderBottom: "1px solid var(--border)", cursor: "pointer", fontSize: 13 }}>
+                <input type="checkbox" checked={driverUserIds.includes(d.id)} onChange={() => toggleDriverUser(d.id)} />
+                <span style={{ color: "var(--t1)" }}>{d.avatar_emoji || "🧑"} {d.nama}</span>
+              </label>
+            ))
+          )}
+        </div>
+      </div>
 
-      <label style={labelStyle}>{lang === "en" ? "MANAGER EMAIL" : "EMAIL MANAGER"}</label>
-      <input
-        className="premiumInput"
-        style={inputStyle}
-        type="email"
-        value={managerEmail}
-        onChange={(e) => setManagerEmail(e.target.value)}
-        placeholder="manager@company.com"
-      />
-      <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 14 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
         <button className="pillBtn" onClick={handleSave} disabled={saving}>
           {saving ? t.actionSaving : t.actionSave}
         </button>
