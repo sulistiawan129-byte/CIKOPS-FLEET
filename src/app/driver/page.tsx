@@ -17,6 +17,7 @@ import type { Driver, TaskDetail } from "@/lib/types";
 import { computeStats } from "@/lib/types";
 import { useLang, useTheme } from "@/lib/providers";
 import type { Dict } from "@/lib/dictionary";
+import { todayLocalISODate } from "@/lib/dateUtils";
 
 type Screen = "splash" | "landing" | "pin" | "app";
 type Tab = "today" | "history" | "profile";
@@ -430,7 +431,7 @@ export default function DriverPanelPage() {
   // ── history ──
   async function applyHistoryFilter() {
     if (!loggedDriver) return;
-    const today = new Date().toISOString().split("T")[0];
+    const today = todayLocalISODate();
     const from = historyFrom || today;
     const to = historyTo || today;
     setHistoryLoading(true);

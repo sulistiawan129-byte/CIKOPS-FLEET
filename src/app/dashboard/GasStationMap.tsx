@@ -9,11 +9,14 @@ import type { GasStation } from "@/lib/types";
 // depend on Leaflet's default marker image assets (which don't resolve
 // correctly under Next.js's bundler without extra config).
 function goldPinIcon(active = false) {
+  const fill = active
+    ? getComputedStyle(document.documentElement).getPropertyValue("--gold2").trim() || "#0f9c8f"
+    : getComputedStyle(document.documentElement).getPropertyValue("--gold").trim() || "#17c3b2";
   return L.divIcon({
     className: "",
     html: `<div style="
       width:28px;height:28px;border-radius:50% 50% 50% 0;
-      background:${active ? "#e0a83c" : "#d8a94e"};
+      background:${fill};
       border:2px solid #ffffff;
       transform:rotate(-45deg);
       box-shadow:0 2px 6px rgba(0,0,0,0.35);
@@ -77,10 +80,10 @@ export default function GasStationMap({
             <Popup>
               <div style={{ minWidth: 160 }}>
                 <div style={{ fontWeight: 700, marginBottom: 3 }}>{s.name}</div>
-                {s.address && <div style={{ fontSize: 12, color: "#666", marginBottom: 6 }}>{s.address}</div>}
+                {s.address && <div style={{ fontSize: 12, color: "#57708f", marginBottom: 6 }}>{s.address}</div>}
                 <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
                   {s.fuels.filter((f) => f.available).map((f) => (
-                    <span key={f.type} style={{ fontSize: 10, fontWeight: 700, padding: "2px 7px", borderRadius: 5, background: "#eef4fb", color: "#0090c9" }}>
+                    <span key={f.type} style={{ fontSize: 10, fontWeight: 700, padding: "2px 7px", borderRadius: 5, background: "#eaf1fd", color: "#3d6ff2" }}>
                       {f.type}
                     </span>
                   ))}

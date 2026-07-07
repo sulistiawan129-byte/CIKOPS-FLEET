@@ -608,7 +608,7 @@
   height: 56px;
   flex-shrink: 0;
   display: block;
-  filter: drop-shadow(0 6px 14px rgba(0, 174, 239, 0.3));
+  filter: drop-shadow(0 6px 14px rgba(61, 111, 242, 0.3));
 }
 
 .headerInfo {

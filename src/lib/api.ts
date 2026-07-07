@@ -1,4 +1,5 @@
 import { supabase } from "./supabaseClient";
+import { todayLocalISODate } from "./dateUtils";
 import type {
   Claim,
   ClaimItem,
@@ -96,7 +97,7 @@ export async function changeDriverPin(
 export async function getDriverTasksToday(
   driverId: string
 ): Promise<TaskDetail[]> {
-  const today = new Date().toISOString().split("T")[0];
+  const today = todayLocalISODate();
   const { data, error } = await supabase
     .from("tasks_detail")
     .select("*")
@@ -618,7 +619,7 @@ export async function createKantong(input: {
     cash_available: input.cashAvailable,
     claim_submitted: 0,
     claim_paid: 0,
-    last_reset: new Date().toISOString().slice(0, 10),
+    last_reset: todayLocalISODate(),
   });
   if (error) throw error;
 }
@@ -730,4 +731,28 @@ export async function updateGasStation(
 export async function deleteGasStation(id: string): Promise<void> {
   const { error } = await supabase.from("gas_stations").delete().eq("id", id);
   if (error) throw error;
+}
+
+/* ════════════════════════════════════════════════════════════
+   MY PROFILE — for the sidebar topbar's avatar/name/role display.
+   Returns null on any error (missing row, RLS, etc.) so the UI can
+   fall back to showing just the auth email instead of breaking.
+════════════════════════════════════════════════════════════ */
+export interface MyProfile {
+  fullName: string | null;
+  role: string;
+}
+
+export async function getMyProfile(userId: string): Promise<MyProfile | null> {
+  try {
+    const { data, error } = await supabase
+      .from("profiles")
+      .select("full_name, role")
+      .eq("id", userId)
+      .maybeSingle();
+    if (error || !data) return null;
+    return { fullName: data.full_name, role: data.role };
+  } catch {
+    return null;
+  }
 }

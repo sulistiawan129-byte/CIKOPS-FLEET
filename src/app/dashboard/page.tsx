@@ -9,6 +9,8 @@ import {
   createTask,
   deleteTask,
   getDrivers,
+  getMyProfile,
+  type MyProfile,
   getEmployees,
   getJobTypes,
   getTasksByDate,
@@ -43,10 +45,14 @@ import {
 import type { Claim, ClaimItem, Overtime, Plant, Kantong, DriverTier, GasStation, FuelEntry } from "@/lib/types";
 import {
   buildFleetReportData,
+  buildInsights,
   exportFleetReportToCsv,
   exportFleetReportToPdf,
   periodLabel,
+  getPeriodDateRange,
+  getPreviousPeriod,
   type ReportPeriod,
+  type FleetReportData,
 } from "@/lib/fleetReport";
 
 // Leaflet touches `window` directly, so it must never be server-rendered.
@@ -71,9 +77,11 @@ import type {
 import { computeStats } from "@/lib/types";
 import { useLang, useTheme } from "@/lib/providers";
 import { useAuth } from "@/lib/auth";
+import { supabase } from "@/lib/supabaseClient";
+import { toLocalISODate } from "@/lib/dateUtils";
 
 function todayStr() {
-  return new Date().toISOString().split("T")[0];
+  return toLocalISODate(new Date());
 }
 
 /** Merged dashboard tabs — "tasks" is the original driver-assignment
@@ -121,7 +129,15 @@ function useIsMobile(breakpoint = 860) {
 export default function DashboardPage() {
   const { theme, toggleTheme } = useTheme();
   const { lang, setLang, t } = useLang();
-  const { session, loading: authLoading, signOut } = useAuth();
+  const { session, user, loading: authLoading, signOut } = useAuth();
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [myProfile, setMyProfile] = useState<MyProfile | null>(null);
+
+  useEffect(() => {
+    if (user?.id) {
+      getMyProfile(user.id).then(setMyProfile);
+    }
+  }, [user?.id]);
   const isMobile = useIsMobile();
   const [activeTab, setActiveTab] = useState<DashboardTab>("overview");
 
@@ -269,14 +285,98 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className={styles.page}>
-      <div className={styles.topbar}>
-        <img src="/logo.png" alt="CIKOPS" className={styles.topbarLogoImg} />
-        <div className={styles.topbarTitleWrap}>
-          <div className={styles.topbarEyebrow}>CIKOPS</div>
-          <div className={styles.topbarTitle}>Fleet Dashboard</div>
+    <div style={{ display: "flex", minHeight: "100vh" }}>
+      {/* Mobile sidebar backdrop */}
+      {isMobile && sidebarOpen && (
+        <div
+          onClick={() => setSidebarOpen(false)}
+          style={{ position: "fixed", inset: 0, background: "rgba(10,20,40,0.5)", zIndex: 299 }}
+        />
+      )}
+
+      {/* ── Sidebar ── */}
+      <aside
+        style={{
+          width: 240,
+          flexShrink: 0,
+          background: "var(--surface)",
+          borderRight: "1px solid var(--border)",
+          display: "flex",
+          flexDirection: "column",
+          position: isMobile ? "fixed" : "sticky",
+          top: 0,
+          left: isMobile ? (sidebarOpen ? 0 : -260) : "auto",
+          height: "100vh",
+          zIndex: 300,
+          transition: "left 0.25s ease",
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "18px" }}>
+          <img src="/logo.png" alt="CIKOPS" style={{ width: 38, height: 38, filter: "drop-shadow(0 4px 10px rgba(61,111,242,0.35))" }} />
+          <div>
+            <div style={{ fontWeight: 800, fontSize: 14, color: "var(--t1)" }}>{t.appName}</div>
+            <div style={{ fontSize: 10, color: "var(--t3)" }}>Fleet Dashboard</div>
+          </div>
         </div>
-        <div className={styles.topbarActions}>
+        <nav style={{ flex: 1, overflowY: "auto", padding: "10px 10px" }}>
+          {TAB_CONFIG.map((tabItem) => (
+            <button
+              key={tabItem.id}
+              className="tabPill"
+              onClick={() => { setActiveTab(tabItem.id); setSidebarOpen(false); }}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 10,
+                width: "100%",
+                padding: "10px 14px",
+                borderRadius: 10,
+                border: "none",
+                cursor: "pointer",
+                marginBottom: 3,
+                fontSize: 13,
+                fontWeight: 600,
+                fontFamily: "var(--font)",
+                textAlign: "left",
+                background: activeTab === tabItem.id ? "linear-gradient(135deg, var(--gold), var(--gold2))" : "transparent",
+                color: activeTab === tabItem.id ? "var(--gold-on)" : "var(--t2)",
+              }}
+            >
+              <span>{tabItem.icon}</span>
+              {lang === "id" ? tabItem.labelId : tabItem.labelEn}
+            </button>
+          ))}
+        </nav>
+        <div style={{ padding: "10px", borderTop: "1px solid var(--border)" }}>
+          <button
+            onClick={() => signOut()}
+            style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", padding: "9px 14px", borderRadius: 10, border: "none", background: "transparent", color: "var(--red)", cursor: "pointer", fontSize: 13, fontWeight: 600, fontFamily: "var(--font)" }}
+          >
+            🚪 {t.actionSignOut}
+          </button>
+        </div>
+      </aside>
+
+      {/* ── Main content wrapper ── */}
+      <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0 }}>
+        {/* Topbar */}
+        <div style={{ display: "flex", alignItems: "center", gap: 14, padding: "14px 24px", borderBottom: "1px solid var(--border)", background: "var(--surface)", position: "sticky", top: 0, zIndex: 100 }}>
+          {isMobile && (
+            <button onClick={() => setSidebarOpen(true)} style={{ background: "none", border: "none", fontSize: 20, cursor: "pointer", color: "var(--t1)" }}>
+              ☰
+            </button>
+          )}
+          {!isMobile && (
+            <div style={{ flex: 1, position: "relative", maxWidth: 400 }}>
+              <span style={{ position: "absolute", left: 13, top: "50%", transform: "translateY(-50%)", color: "var(--t3)", fontSize: 13 }}>🔍</span>
+              <input
+                placeholder={lang === "en" ? "Search menu, data, or module..." : "Cari menu, data, atau modul..."}
+                className="premiumInput"
+                style={{ width: "100%", padding: "9px 14px 9px 36px", borderRadius: "var(--pill)", border: "1px solid var(--border2)", background: "var(--bg2)", fontSize: 13, color: "var(--t1)" }}
+              />
+            </div>
+          )}
+          <div style={{ flex: 1 }} />
           {!isMobile && (
             <div className={styles.liveBadge}>
               <span className={styles.liveDot} /> Live
@@ -293,13 +393,8 @@ export default function DashboardPage() {
           <button className={styles.iconBtn} onClick={toggleTheme}>
             {theme === "dark" ? "☀️" : "🌙"}
           </button>
-          <button
-            className={styles.iconBtn}
-            onClick={() => signOut()}
-            aria-label={t.actionSignOut}
-            title={t.actionSignOut}
-          >
-            🚪
+          <button className={styles.iconBtn} aria-label="Notifications" title={lang === "en" ? "Notifications" : "Notifikasi"}>
+            🔔
           </button>
           {activeTab === "tasks" && (
             <>
@@ -316,48 +411,32 @@ export default function DashboardPage() {
               </button>
             </>
           )}
+          <div style={{ display: "flex", alignItems: "center", gap: 8, paddingLeft: 12, marginLeft: 2, borderLeft: "1px solid var(--border)" }}>
+            <div
+              style={{
+                width: 32, height: 32, borderRadius: "50%",
+                background: "linear-gradient(135deg, var(--brand), var(--brand2))",
+                color: "#fff", display: "flex", alignItems: "center", justifyContent: "center",
+                fontWeight: 700, fontSize: 13, flexShrink: 0,
+              }}
+            >
+              {(myProfile?.fullName || user?.email || "?").charAt(0).toUpperCase()}
+            </div>
+            {!isMobile && (
+              <div>
+                <div style={{ fontSize: 12, fontWeight: 700, color: "var(--t1)" }}>
+                  {myProfile?.fullName || user?.email?.split("@")[0] || "-"}
+                </div>
+                <div style={{ fontSize: 10, color: "var(--t3)" }}>
+                  {myProfile?.role === "admin" ? "Admin" : "GA Manager"}
+                </div>
+              </div>
+            )}
+          </div>
         </div>
-      </div>
 
-      {/* ── Tab navigation — Sky & Gold pill style, merges the original
-          driver-assignment ("Penugasan") feature with every FleetOS module. ── */}
-      <div
-        style={{
-          display: "flex",
-          gap: 8,
-          padding: "12px 20px",
-          overflowX: "auto",
-          borderBottom: "1px solid var(--border)",
-          background: "linear-gradient(180deg, var(--surface2), var(--surface))",
-        }}
-      >
-        {TAB_CONFIG.map((tabItem) => (
-          <button
-            key={tabItem.id}
-            className={`tabPill ${activeTab === tabItem.id ? "tabPillActive" : ""}`}
-            onClick={() => setActiveTab(tabItem.id)}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 6,
-              padding: "9px 17px",
-              borderRadius: "var(--pill)",
-              border: "none",
-              cursor: "pointer",
-              whiteSpace: "nowrap",
-              fontSize: 13,
-              fontWeight: 700,
-              fontFamily: "var(--font)",
-              background: activeTab === tabItem.id ? "linear-gradient(135deg, var(--gold), var(--gold2))" : "transparent",
-              color: activeTab === tabItem.id ? "var(--gold-on)" : "var(--t2)",
-            }}
-          >
-            <span>{tabItem.icon}</span>
-            {lang === "id" ? tabItem.labelId : tabItem.labelEn}
-          </button>
-        ))}
-      </div>
-
+        {/* Scrollable content area */}
+        <div style={{ flex: 1, overflowY: "auto" }}>
       {activeTab === "tasks" && (
       <div key="tasks" className={`${styles.body} tabContent`}>
         <div className={styles.statsRow}>
@@ -469,7 +548,7 @@ export default function DashboardPage() {
 
       {activeTab !== "tasks" && (
         <div key={activeTab} className="tabContent">
-          {activeTab === "overview" && <OverviewTab />}
+          {activeTab === "overview" && <OverviewTab setActiveTab={setActiveTab} myProfile={myProfile} />}
           {activeTab === "vehicles" && <VehiclesTab />}
           {activeTab === "claims" && <ClaimsTab />}
           {activeTab === "overtime" && <OvertimeTab />}
@@ -479,6 +558,8 @@ export default function DashboardPage() {
           {activeTab === "reports" && <ReportsTab />}
         </div>
       )}
+        </div>
+      </div>
 
       {modalOpen && (
         <CreateTaskModal
@@ -745,7 +826,7 @@ function quickRangeToDates(range: QuickRange): { from: string; to: string } {
   } else if (range === "thisMonth") {
     from.setDate(1);
   }
-  const fmt = (d: Date) => d.toISOString().split("T")[0];
+  const fmt = (d: Date) => toLocalISODate(d);
   return { from: fmt(from), to: fmt(to) };
 }
 
@@ -1379,34 +1460,41 @@ function ComingSoonTab({ title }: { title: string }) {
   );
 }
 
-function OverviewTab() {
-  const { lang, t } = useLang();
+
+function OverviewTab({ setActiveTab, myProfile }: { setActiveTab: (t: DashboardTab) => void; myProfile: MyProfile | null }) {
+  const { lang } = useLang();
   const [loading, setLoading] = useState(true);
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [claims, setClaims] = useState<Claim[]>([]);
   const [overtimes, setOvertimes] = useState<Overtime[]>([]);
-  const [kantong, setKantong] = useState<Kantong | null>(null);
-  const [gasStations, setGasStations] = useState<GasStation[]>([]);
   const [drivers, setDrivers] = useState<Driver[]>([]);
+  const [kantong, setKantong] = useState<Kantong | null>(null);
+  const [tiers, setTiers] = useState<DriverTier[]>([]);
+  const [gasStations, setGasStations] = useState<GasStation[]>([]);
+  const [todayTasks, setTodayTasks] = useState<TaskDetail[]>([]);
 
   useEffect(() => {
     (async () => {
       setLoading(true);
       try {
-        const [v, c, ot, k, g, d] = await Promise.all([
+        const [v, c, ot, d, k, t, g, tt] = await Promise.all([
           getAllVehiclesFull(),
           getClaims(),
           getOvertimes(),
-          getCurrentKantong(),
-          getGasStations(),
           getDrivers(),
+          getCurrentKantong(),
+          getDriverTiers(),
+          getGasStations(),
+          getTasksByDate(todayStr()),
         ]);
         setVehicles(v);
         setClaims(c);
         setOvertimes(ot);
-        setKantong(k);
-        setGasStations(g);
         setDrivers(d);
+        setKantong(k);
+        setTiers(t);
+        setGasStations(g);
+        setTodayTasks(tt);
       } catch {
         // best-effort overview — individual tabs already surface their own errors
       } finally {
@@ -1415,32 +1503,43 @@ function OverviewTab() {
     })();
   }, []);
 
-  if (loading) return <div style={{ padding: 60, textAlign: "center", color: "var(--t3)" }}>Memuat ringkasan...</div>;
+  if (loading) return <div style={{ padding: 60, textAlign: "center", color: "var(--t3)" }}>{lang === "en" ? "Loading overview..." : "Memuat ringkasan..."}</div>;
 
   const now = new Date();
+  const hour = now.getHours();
+  const greeting =
+    hour < 11 ? (lang === "en" ? "Good Morning" : "Selamat Pagi") : hour < 15 ? (lang === "en" ? "Good Afternoon" : "Selamat Siang") : hour < 18 ? (lang === "en" ? "Good Evening" : "Selamat Sore") : (lang === "en" ? "Good Evening" : "Selamat Malam");
+  const displayName = myProfile?.fullName || "";
+
+  // ── Vehicles & documents ──
   const activeV = vehicles.filter((v) => v.aktif).length;
+  const maintenanceV = vehicles.length - activeV;
   const docBuckets = { urgent: 0, mid: 0, safe: 0 };
   vehicles.forEach((v) => {
-    [v.kir_date, v.service_date, v.stnk_date].forEach((date) => {
-      const d = daysUntil(date);
-      if (d <= 7) docBuckets.urgent++;
-      else if (d <= 30) docBuckets.mid++;
+    [v.kir_date, v.service_date, v.stnk_date].forEach((d) => {
+      const days = daysUntil(d);
+      if (days <= 7) docBuckets.urgent++;
+      else if (days <= 30) docBuckets.mid++;
       else docBuckets.safe++;
     });
   });
   const totalDocs = docBuckets.urgent + docBuckets.mid + docBuckets.safe;
+  const urgentDocs = docBuckets.urgent + docBuckets.mid;
 
+  // ── Claims ──
   const thisMonthClaims = claims.filter((c) => {
     const d = new Date(c.periodDate);
     return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
   });
   const thisMonthTotal = thisMonthClaims.reduce((s, c) => s + c.total, 0);
+  const lastMonthDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+  const lastMonthTotal = claims
+    .filter((c) => { const d = new Date(c.periodDate); return d.getMonth() === lastMonthDate.getMonth() && d.getFullYear() === lastMonthDate.getFullYear(); })
+    .reduce((s, c) => s + c.total, 0);
+  const claimTrendPct = lastMonthTotal > 0 ? ((thisMonthTotal - lastMonthTotal) / lastMonthTotal) * 100 : null;
   const activeDrivers = new Set(claims.map((c) => c.driver_id)).size;
 
-  const totalAlokasi = kantong ? kantong.allocOpDriver + kantong.allocEmergency : 0;
-  const outstanding = kantong ? totalAlokasi + kantong.cashAvailable + kantong.claimSubmitted + kantong.claimPaid : 0;
-  const gap = kantong ? outstanding - kantong.totalBudget : 0;
-
+  // ── Overtime (this month) ──
   const periodNow = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
   const otThisMonth = overtimes.filter((o) => o.period === periodNow);
   const otHours = otThisMonth.reduce((s, o) => s + o.hours, 0);
@@ -1448,129 +1547,300 @@ function OverviewTab() {
   const otByPlant = OT_PLANTS.map((p) => ({ plant: p, hours: otThisMonth.filter((o) => o.plant === p).reduce((s, o) => s + o.hours, 0) }));
   const topPlant = [...otByPlant].sort((a, b) => b.hours - a.hours)[0];
 
+  // ── Dana Operasional ──
+  const totalAlokasi = kantong ? kantong.allocOpDriver + kantong.allocEmergency : 0;
+  const outstanding = kantong ? totalAlokasi + kantong.cashAvailable + kantong.claimSubmitted + kantong.claimPaid : 0;
+  const gap = kantong ? outstanding - kantong.totalBudget : 0;
+  const gapColor = gap === 0 ? "var(--green)" : Math.abs(gap) > (kantong?.totalBudget || 1) * 0.1 ? "var(--red)" : "var(--orange)";
+
+  // ── Driver Budget ──
+  const totalTierBudget = tiers.reduce((s, t) => s + t.amountPerMonth * t.activeDriverCount, 0);
+  const totalTierDrivers = tiers.reduce((s, t) => s + t.activeDriverCount, 0);
+
+  // ── Gas Stations ──
+  const fuelTypesCovered = new Set(gasStations.flatMap((s) => s.fuels.filter((f) => f.available).map((f) => f.type))).size;
+
+  // ── Tasks today ──
+  const taskDoneToday = todayTasks.filter((t) => t.status === "DONE").length;
+  const taskCancelledToday = todayTasks.filter((t) => t.status === "CANCELLED").length;
+  const taskNonCancelled = todayTasks.length - taskCancelledToday;
+  const taskCompletionToday = taskNonCancelled > 0 ? (taskDoneToday / taskNonCancelled) * 100 : 100;
+
+  // ── Composite Operational Health Score — the signature premium element,
+  // synthesizing every module into one number instead of raw stats alone. ──
   const docHealthPct = totalDocs > 0 ? Math.max(0, 100 - ((docBuckets.urgent * 2 + docBuckets.mid) / (totalDocs * 2)) * 100) : 100;
-  const budgetHealthPct = kantong?.totalBudget ? Math.max(0, 100 - Math.min(100, Math.abs(gap) / kantong.totalBudget * 100)) : 100;
-  const healthScore = Math.round(docHealthPct * 0.5 + budgetHealthPct * 0.5);
+  const budgetHealthPct = kantong?.totalBudget ? Math.max(0, 100 - Math.min(100, (Math.abs(gap) / kantong.totalBudget) * 100)) : 100;
+  const claimTrendHealthPct = claimTrendPct === null ? 100 : Math.max(0, Math.min(100, 100 - Math.max(0, claimTrendPct)));
+  const taskHealthPct = todayTasks.length > 0 ? taskCompletionToday : 100;
+  const healthScore = Math.round(docHealthPct * 0.3 + budgetHealthPct * 0.25 + claimTrendHealthPct * 0.2 + taskHealthPct * 0.25);
   const healthColor = healthScore >= 85 ? "var(--green)" : healthScore >= 70 ? "var(--brand)" : healthScore >= 50 ? "var(--orange)" : "var(--red)";
-  const R = 62, CIRC = 2 * Math.PI * R;
-  const gaugeOffset = CIRC * (1 - healthScore / 100);
+  const healthLabel = healthScore >= 85 ? (lang === "en" ? "Excellent" : "Sangat Baik") : healthScore >= 70 ? (lang === "en" ? "Good" : "Baik") : healthScore >= 50 ? (lang === "en" ? "Fair" : "Cukup") : (lang === "en" ? "Needs Attention" : "Perlu Perhatian");
+  const RG = 58, CIRCG = 2 * Math.PI * RG;
+  const gaugeOffset = CIRCG * (1 - healthScore / 100);
+
+  // ── Claims trend, last 30 days ──
+  const dayBuckets: { date: Date; total: number }[] = Array.from({ length: 30 }, (_, i) => {
+    const d = new Date(now);
+    d.setDate(d.getDate() - (29 - i));
+    d.setHours(0, 0, 0, 0);
+    return { date: d, total: 0 };
+  });
+  claims.forEach((c) => {
+    const cd = new Date(c.periodDate);
+    cd.setHours(0, 0, 0, 0);
+    const bucket = dayBuckets.find((b) => b.date.getTime() === cd.getTime());
+    if (bucket) bucket.total += c.total;
+  });
+  const chartW = 640, chartH = 160, chartPad = 30;
+  const maxVal = Math.max(...dayBuckets.map((b) => b.total), 1);
+  const points = dayBuckets.map((b, i) => {
+    const x = chartPad + (i / (dayBuckets.length - 1)) * (chartW - chartPad * 2);
+    const y = chartH - chartPad - (b.total / maxVal) * (chartH - chartPad * 2 - 10);
+    return `${x.toFixed(1)},${y.toFixed(1)}`;
+  }).join(" ");
+  const areaPoints = `${chartPad},${chartH - chartPad} ${points} ${chartW - chartPad},${chartH - chartPad}`;
+
+  // ── Vehicle status donut ──
+  const donutTotal = vehicles.length || 1;
+  const donutSegs = [
+    { label: lang === "en" ? "Active" : "Aktif", value: activeV, color: "var(--brand)" },
+    { label: "Maintenance", value: maintenanceV, color: "var(--orange)" },
+  ];
+  const RD = 42, CIRCD = 2 * Math.PI * RD;
+  let donutOffset = 0;
+
+  // ── Activity feed — Claims + Overtime + today's Tasks, merged ──
+  const activity = [
+    ...claims.map((c) => ({ kind: "claim" as const, date: c.periodDate, driver: c.driverName, amount: c.total, meta: [...new Set(c.items.map((i) => i.type))].join(", ") })),
+    ...overtimes.map((o) => ({ kind: "overtime" as const, date: `${o.period}-01`, driver: o.driverName, amount: o.amount, meta: `${o.plant} · ${fmtRp(o.hours)} jam` })),
+  ].filter((a) => a.driver).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).slice(0, 6);
 
   const cardStyle: CSSProperties = { background: "linear-gradient(180deg, var(--surface2), var(--surface))", border: "1px solid var(--border2)", borderRadius: "var(--r2)", boxShadow: "var(--shadow-md)" };
 
+  const quickAccess: { icon: string; label: string; tab: DashboardTab }[] = [
+    { icon: "🚗", label: lang === "en" ? "Vehicles" : "Armada", tab: "vehicles" },
+    { icon: "🧾", label: lang === "en" ? "Claims" : "Klaim", tab: "claims" },
+    { icon: "⏱️", label: "Overtime", tab: "overtime" },
+    { icon: "💳", label: lang === "en" ? "Driver Budget" : "Budget Driver", tab: "driverbudget" },
+    { icon: "💰", label: lang === "en" ? "Op. Fund" : "Dana Operasional", tab: "opfund" },
+    { icon: "📈", label: lang === "en" ? "Reports" : "Report", tab: "reports" },
+  ];
+
+  // ── Module snapshot — covers every module in the system, addresses
+  // "mencakup semua aspek function". Each card is clickable. ──
+  const moduleSnapshots = [
+    {
+      tab: "overtime" as DashboardTab, icon: "⏱️", accent: "var(--gold2)",
+      title: lang === "en" ? "Overtime This Month" : "Overtime Bulan Ini",
+      big: `${fmtRp(otHours)} ${lang === "en" ? "hrs" : "jam"}`,
+      sub: `Rp ${fmtRp(otAmount)}${topPlant && otHours > 0 ? ` · ${lang === "en" ? "top" : "terbanyak"} ${topPlant.plant}` : ""}`,
+    },
+    {
+      tab: "opfund" as DashboardTab, icon: "💰", accent: gapColor,
+      title: lang === "en" ? "Operational Fund" : "Dana Operasional",
+      big: kantong ? `Rp ${fmtRp(kantong.totalBudget)}` : (lang === "en" ? "Not set up" : "Belum diisi"),
+      sub: kantong ? `GAP ${gap >= 0 ? "+" : ""}Rp ${fmtRp(gap)}` : (lang === "en" ? "Click to set up" : "Klik untuk mengisi"),
+    },
+    {
+      tab: "driverbudget" as DashboardTab, icon: "💳", accent: "var(--purple)",
+      title: lang === "en" ? "Driver Budget" : "Budget Driver",
+      big: `Rp ${fmtRp(totalTierBudget)}`,
+      sub: `${totalTierDrivers} ${lang === "en" ? "drivers" : "driver"} · ${tiers.length} tier`,
+    },
+    {
+      tab: "gasstations" as DashboardTab, icon: "⛽", accent: "var(--green)",
+      title: lang === "en" ? "Gas Stations" : "Pom Bensin",
+      big: String(gasStations.length),
+      sub: `${fuelTypesCovered}/${FUEL_TYPES_LIST.length} ${lang === "en" ? "fuel types" : "jenis BBM"}`,
+    },
+    {
+      tab: "tasks" as DashboardTab, icon: "🗂️", accent: "var(--brand)",
+      title: lang === "en" ? "Tasks Today" : "Tugas Hari Ini",
+      big: String(todayTasks.length),
+      sub: todayTasks.length > 0 ? `${taskCompletionToday.toFixed(0)}% ${lang === "en" ? "done" : "selesai"}` : (lang === "en" ? "No tasks yet" : "Belum ada tugas"),
+    },
+  ];
+
   return (
     <div style={{ padding: 20 }}>
-      {/* Hero: Fleet Health Score */}
-      <div
-        className="heroGlow"
-        style={{
-          padding: "30px 32px",
-          marginBottom: 20,
-          borderRadius: "var(--r3)",
-          boxShadow: "var(--shadow-lg)",
-        }}
-      >
-        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 22 }}>
+      {/* ── Greeting ── */}
+      <div style={{ marginBottom: 18 }}>
+        <div style={{ fontSize: 20, fontWeight: 800, color: "var(--t1)" }}>
+          {greeting}{displayName ? `, ${displayName}!` : "!"} 👋
+        </div>
+        <div style={{ fontSize: 13, color: "var(--t3)", marginTop: 3 }}>
+          {lang === "en" ? "Here is a summary of today's operations." : "Berikut adalah ringkasan operasional hari ini."}
+        </div>
+      </div>
+
+      {/* ── Hero: composite Operational Health Score + headline stats ── */}
+      <div className="heroGlow statPop" style={{ borderRadius: "var(--r3)", boxShadow: "var(--shadow-lg)", padding: "26px 28px", marginBottom: 20 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 20 }}>
           <span style={{ width: 7, height: 7, borderRadius: "50%", background: "var(--green)", animation: "pulse 1.6s infinite", display: "inline-block" }} />
           <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: 1, color: "var(--t3)", textTransform: "uppercase" }}>
-            {lang === "en" ? "Executive Summary · Live" : "Ringkasan Eksekutif · Live"}
+            {lang === "en" ? "Operational Command Center · Live" : "Command Center Operasional · Live"}
           </span>
         </div>
-        <div style={{ display: "grid", gridTemplateColumns: "auto 1fr", gap: 36, alignItems: "center" }}>
-          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", position: "relative", zIndex: 1 }}>
-            <svg viewBox="0 0 140 140" width={140} height={140}>
+        <div style={{ display: "grid", gridTemplateColumns: "auto 1fr", gap: 32, alignItems: "center" }}>
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
+            <svg viewBox="0 0 130 130" width={122} height={122}>
               <defs>
                 <linearGradient id="healthGrad" x1="0%" y1="0%" x2="100%" y2="100%">
                   <stop offset="0%" stopColor="var(--brand)" />
                   <stop offset="100%" stopColor="var(--gold)" />
                 </linearGradient>
               </defs>
-              <circle cx={70} cy={70} r={R} fill="none" stroke="var(--border)" strokeWidth={10} />
-              <circle cx={70} cy={70} r={R} fill="none" stroke="url(#healthGrad)" strokeWidth={10} strokeLinecap="round" strokeDasharray={CIRC} strokeDashoffset={gaugeOffset} transform="rotate(-90 70 70)" />
-              <text x={70} y={66} textAnchor="middle" fontSize={34} fontWeight={800} fill="url(#healthGrad)" fontFamily="var(--mono)">{healthScore}</text>
-              <text x={70} y={84} textAnchor="middle" fontSize={10} fill="var(--t3)">/ 100</text>
+              <circle cx={65} cy={65} r={RG} fill="none" stroke="var(--border)" strokeWidth={9} />
+              <circle cx={65} cy={65} r={RG} fill="none" stroke="url(#healthGrad)" strokeWidth={9} strokeLinecap="round" strokeDasharray={CIRCG} strokeDashoffset={gaugeOffset} transform="rotate(-90 65 65)" />
+              <text x={65} y={62} textAnchor="middle" fontSize={30} fontWeight={800} fill="url(#healthGrad)" fontFamily="var(--mono)">{healthScore}</text>
+              <text x={65} y={78} textAnchor="middle" fontSize={9} fill="var(--t3)">/ 100</text>
             </svg>
-            <div style={{ marginTop: 8, fontSize: 12, fontWeight: 800, color: healthColor }}>
-              {lang === "en" ? "Fleet Health Score" : "Skor Kesehatan Armada"}
-            </div>
+            <div style={{ marginTop: 8, fontSize: 12, fontWeight: 800, color: healthColor }}>{healthLabel}</div>
+            <div style={{ fontSize: 10, color: "var(--t3)", marginTop: 2 }}>{lang === "en" ? "Operational Health" : "Kesehatan Operasional"}</div>
           </div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", position: "relative", zIndex: 1 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(120px, 1fr))" }}>
             {[
-              { label: lang === "en" ? "Total Vehicles" : "Total Kendaraan", value: String(vehicles.length), sub: `${activeV} aktif` },
-              { label: lang === "en" ? "Claims This Month" : "Klaim Bulan Ini", value: `Rp ${fmtRp(thisMonthTotal)}`, sub: `${thisMonthClaims.length} transaksi` },
-              { label: lang === "en" ? "Urgent Documents" : "Dokumen Urgent", value: String(docBuckets.urgent + docBuckets.mid), sub: "≤30 hari" },
+              { label: lang === "en" ? "Total Vehicles" : "Total Kendaraan", value: String(vehicles.length), sub: `${activeV} ${lang === "en" ? "active" : "aktif"}` },
+              { label: lang === "en" ? "Active Drivers" : "Driver Aktif", value: String(activeDrivers), sub: `${drivers.length} total` },
+              { label: lang === "en" ? "Claims This Month" : "Klaim Bulan Ini", value: `Rp ${fmtRp(thisMonthTotal)}`, sub: claimTrendPct === null ? "-" : `${claimTrendPct >= 0 ? "+" : ""}${claimTrendPct.toFixed(0)}%` },
+              { label: lang === "en" ? "Urgent Documents" : "Dokumen Urgent", value: String(urgentDocs), sub: "≤30 " + (lang === "en" ? "days" : "hari") },
             ].map((k, i) => (
-              <div key={i} style={{ padding: "0 22px", borderLeft: i > 0 ? "1px solid var(--border2)" : "none" }}>
-                <div className="numGrad" style={{ fontSize: 30, fontWeight: 800, fontFamily: "var(--mono)", letterSpacing: -0.5 }}>{k.value}</div>
-                <div style={{ fontSize: 12, color: "var(--t2)", fontWeight: 600, marginTop: 4 }}>{k.label}</div>
-                <div style={{ fontSize: 10.5, color: "var(--t3)", marginTop: 2 }}>{k.sub}</div>
+              <div key={i} style={{ padding: "0 18px", borderLeft: i > 0 ? "1px solid var(--border2)" : "none" }}>
+                <div className="numGrad" style={{ fontSize: 24, fontWeight: 800, fontFamily: "var(--mono)", letterSpacing: -0.5 }}>{k.value}</div>
+                <div style={{ fontSize: 11, color: "var(--t2)", fontWeight: 600, marginTop: 4 }}>{k.label}</div>
+                <div style={{ fontSize: 10, color: "var(--t3)", marginTop: 2 }}>{k.sub}</div>
               </div>
             ))}
           </div>
         </div>
       </div>
 
-      {/* 3 intelligence cards */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 16 }}>
-        <div className="statPop" style={{ ...cardStyle, overflow: "hidden" }}>
-          <div style={{ height: 3, background: "var(--brand)" }} />
-          <div style={{ padding: 18 }}>
-            <div style={{ fontSize: 11, fontWeight: 800, color: "var(--brand)", textTransform: "uppercase", marginBottom: 12 }}>
-              🚗 {lang === "en" ? "Fleet & Documents" : "Armada & Dokumen"}
+      {/* ── Module snapshot — every function in the system, at a glance ── */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 12, marginBottom: 20 }}>
+        {moduleSnapshots.map((m, i) => (
+          <button
+            key={i}
+            onClick={() => setActiveTab(m.tab)}
+            className="statPop"
+            style={{ ...cardStyle, padding: 15, textAlign: "left", cursor: "pointer", animationDelay: `${i * 0.05}s`, borderTop: `3px solid ${m.accent}` }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
+              <span style={{ fontSize: 15 }}>{m.icon}</span>
+              <span style={{ fontSize: 10.5, fontWeight: 700, color: "var(--t3)" }}>{m.title}</span>
             </div>
-            <div style={{ fontSize: 22, fontWeight: 800, color: "var(--t1)" }}>{vehicles.length}</div>
-            <div style={{ fontSize: 11, color: "var(--t3)", marginBottom: 12 }}>{activeV} aktif · {vehicles.length - activeV} maintenance</div>
-            <div style={{ display: "flex", gap: 12, fontSize: 10, color: "var(--t3)", borderTop: "1px solid var(--border)", paddingTop: 10 }}>
-              <span><strong style={{ color: "var(--red)" }}>{docBuckets.urgent}</strong> Urgent</span>
-              <span><strong style={{ color: "var(--orange)" }}>{docBuckets.mid}</strong> Perhatian</span>
-              <span><strong style={{ color: "var(--green)" }}>{docBuckets.safe}</strong> Aman</span>
-            </div>
-            <div style={{ marginTop: 10, fontSize: 11, color: "var(--t3)" }}>⛽ {gasStations.length} SPBU terdaftar</div>
+            <div style={{ fontSize: 15, fontWeight: 800, color: "var(--t1)", fontFamily: "var(--mono)", marginBottom: 4 }}>{m.big}</div>
+            <div style={{ fontSize: 10, color: m.accent, fontWeight: 600 }}>{m.sub}</div>
+          </button>
+        ))}
+      </div>
+
+      {/* ── Charts row ── */}
+      <div style={{ display: "grid", gridTemplateColumns: "1.6fr 1fr", gap: 16, marginBottom: 20 }}>
+        <div className="statPop" style={{ ...cardStyle, padding: 20 }}>
+          <div style={{ fontSize: 13, fontWeight: 800, color: "var(--t1)", marginBottom: 16 }}>
+            {lang === "en" ? "Claim Activity — Last 30 Days" : "Aktivitas Klaim — 30 Hari Terakhir"}
           </div>
+          <svg viewBox={`0 0 ${chartW} ${chartH}`} width="100%" height={chartH}>
+            <defs>
+              <linearGradient id="areaGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+                <stop offset="0%" stopColor="var(--brand)" stopOpacity="0.28" />
+                <stop offset="100%" stopColor="var(--brand)" stopOpacity="0" />
+              </linearGradient>
+            </defs>
+            {[0.25, 0.5, 0.75].map((f) => (
+              <line key={f} x1={chartPad} x2={chartW - chartPad} y1={chartPad + f * (chartH - chartPad * 2 - 10)} y2={chartPad + f * (chartH - chartPad * 2 - 10)} stroke="var(--border)" strokeWidth={1} />
+            ))}
+            <polygon points={areaPoints} fill="url(#areaGrad)" />
+            <polyline points={points} fill="none" stroke="var(--brand)" strokeWidth={2.5} strokeLinejoin="round" strokeLinecap="round" />
+            {[0, 7, 14, 21, 29].map((idx) => {
+              const b = dayBuckets[idx];
+              const x = chartPad + (idx / (dayBuckets.length - 1)) * (chartW - chartPad * 2);
+              return (
+                <text key={idx} x={x} y={chartH - 8} textAnchor="middle" fontSize={9} fill="var(--t3)">
+                  {b.date.getDate()}/{b.date.getMonth() + 1}
+                </text>
+              );
+            })}
+          </svg>
         </div>
 
-        <div className="statPop" style={{ ...cardStyle, overflow: "hidden" }}>
-          <div style={{ height: 3, background: "var(--gold)" }} />
-          <div style={{ padding: 18 }}>
-            <div style={{ fontSize: 11, fontWeight: 800, color: "var(--gold2)", textTransform: "uppercase", marginBottom: 12 }}>
-              💰 {lang === "en" ? "Operational Finance" : "Keuangan Operasional"}
-            </div>
-            <div style={{ fontSize: 20, fontWeight: 800, color: "var(--t1)" }}>Rp {fmtRp(thisMonthTotal)}</div>
-            <div style={{ fontSize: 11, color: "var(--t3)", marginBottom: 12 }}>{lang === "en" ? "Claims this month" : "Klaim bulan ini"}</div>
-            <div style={{ borderTop: "1px solid var(--border)", paddingTop: 10 }}>
-              <div style={{ fontSize: 10, color: "var(--t3)" }}>Total Cash</div>
-              <div style={{ fontWeight: 700, color: "var(--t1)" }}>Rp {fmtRp(kantong?.totalBudget || 0)}</div>
-              {kantong && (
-                <div style={{ fontSize: 10, marginTop: 4, color: gap === 0 ? "var(--green)" : gap > 0 ? "var(--orange)" : "var(--red)" }}>
-                  GAP: {gap >= 0 ? "+" : ""}Rp {fmtRp(gap)}
+        <div className="statPop" style={{ ...cardStyle, padding: 20 }}>
+          <div style={{ fontSize: 13, fontWeight: 800, color: "var(--t1)", marginBottom: 16 }}>
+            {lang === "en" ? "Vehicle Status" : "Distribusi Status Kendaraan"}
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+            <svg viewBox="0 0 110 110" width={96} height={96}>
+              <circle cx={55} cy={55} r={RD} fill="none" stroke="var(--border)" strokeWidth={14} />
+              {donutSegs.map((seg, i) => {
+                const segLen = (seg.value / donutTotal) * CIRCD;
+                const el = (
+                  <circle key={i} cx={55} cy={55} r={RD} fill="none" stroke={seg.color} strokeWidth={14} strokeDasharray={`${segLen} ${CIRCD - segLen}`} strokeDashoffset={-donutOffset} transform="rotate(-90 55 55)" />
+                );
+                donutOffset += segLen;
+                return el;
+              })}
+            </svg>
+            <div style={{ display: "flex", flexDirection: "column", gap: 9 }}>
+              {donutSegs.map((seg, i) => (
+                <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 11.5 }}>
+                  <span style={{ width: 9, height: 9, borderRadius: "50%", background: seg.color, flexShrink: 0 }} />
+                  <span style={{ color: "var(--t2)" }}>{seg.label}</span>
+                  <span style={{ fontWeight: 700, color: "var(--t1)" }}>{seg.value} ({donutTotal > 0 ? Math.round((seg.value / donutTotal) * 100) : 0}%)</span>
                 </div>
-              )}
+              ))}
             </div>
           </div>
         </div>
+      </div>
 
+      {/* ── Activity + Quick Access row ── */}
+      <div style={{ display: "grid", gridTemplateColumns: "1.6fr 1fr", gap: 16 }}>
         <div className="statPop" style={{ ...cardStyle, overflow: "hidden" }}>
-          <div style={{ height: 3, background: "var(--green)" }} />
-          <div style={{ padding: 18 }}>
-            <div style={{ fontSize: 11, fontWeight: 800, color: "var(--green)", textTransform: "uppercase", marginBottom: 12 }}>
-              👥 {lang === "en" ? "Workforce & Overtime" : "Tenaga Kerja & Lembur"}
+          <div style={{ padding: "14px 18px", borderBottom: "1px solid var(--border)", fontWeight: 800, fontSize: 13, color: "var(--t1)" }}>
+            {lang === "en" ? "Recent Activity" : "Aktivitas Terbaru"}
+          </div>
+          {activity.length === 0 ? (
+            <div style={{ padding: 24, textAlign: "center", color: "var(--t3)", fontSize: 12 }}>
+              {lang === "en" ? "No activity yet." : "Belum ada aktivitas."}
             </div>
-            <div style={{ fontSize: 20, fontWeight: 800, color: "var(--t1)" }}>{activeDrivers}</div>
-            <div style={{ fontSize: 11, color: "var(--t3)", marginBottom: 12 }}>{lang === "en" ? "Active drivers" : "Driver aktif"} ({drivers.length} total)</div>
-            <div style={{ borderTop: "1px solid var(--border)", paddingTop: 10 }}>
-              <div style={{ fontSize: 10, color: "var(--t3)" }}>{lang === "en" ? "Overtime this month" : "Overtime bulan ini"}</div>
-              <div style={{ fontWeight: 700, color: "var(--t1)" }}>{fmtRp(otHours)} jam · Rp {fmtRp(otAmount)}</div>
-              {topPlant && otHours > 0 && (
-                <div style={{ fontSize: 10, marginTop: 4, color: PLANT_COLOR[topPlant.plant] }}>
-                  {lang === "en" ? "Top plant" : "Plant terbanyak"}: {topPlant.plant}
+          ) : (
+            activity.map((a, i) => (
+              <div key={i} className="staggerItem" style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 18px", borderBottom: "1px solid var(--border)", animationDelay: `${i * 0.05}s` }}>
+                <div style={{ width: 32, height: 32, borderRadius: 9, background: a.kind === "claim" ? "rgba(61,111,242,0.1)" : "var(--gold-soft)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, flexShrink: 0 }}>
+                  {a.kind === "claim" ? "🧾" : "⏱️"}
                 </div>
-              )}
-            </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 12.5, fontWeight: 600, color: "var(--t1)" }}>
+                    {a.driver} <span style={{ fontWeight: 400, color: "var(--t3)" }}>{a.kind === "claim" ? (lang === "en" ? "submitted a claim" : "mengajukan claim") : (lang === "en" ? "logged overtime" : "mencatat overtime")}</span>
+                  </div>
+                  <div style={{ fontSize: 11, color: "var(--t3)" }}>{a.meta}</div>
+                </div>
+                <div style={{ fontSize: 12.5, fontWeight: 700, color: a.kind === "claim" ? "var(--brand)" : "var(--gold2)", whiteSpace: "nowrap" }}>Rp {fmtRp(a.amount)}</div>
+              </div>
+            ))
+          )}
+        </div>
+
+        <div className="statPop" style={{ ...cardStyle, padding: 18 }}>
+          <div style={{ fontWeight: 800, fontSize: 13, color: "var(--t1)", marginBottom: 14 }}>Quick Access</div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+            {quickAccess.map((q, i) => (
+              <button
+                key={i}
+                onClick={() => setActiveTab(q.tab)}
+                style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6, padding: "14px 8px", borderRadius: 12, border: "1px solid var(--border2)", background: "var(--bg2)", cursor: "pointer" }}
+              >
+                <span style={{ fontSize: 20 }}>{q.icon}</span>
+                <span style={{ fontSize: 10.5, fontWeight: 600, color: "var(--t2)", textAlign: "center" }}>{q.label}</span>
+              </button>
+            ))}
           </div>
         </div>
       </div>
     </div>
   );
 }
+
 const CLAIM_TYPES = ["Gasoline", "Toll", "Parking", "Service", "Maintenance", "Other"];
 const CLAIM_TYPE_COLOR: Record<string, string> = {
   Gasoline: "var(--green)",
@@ -2085,7 +2355,7 @@ function OvertimeTab() {
 
       {error && <div style={{ padding: 12, borderRadius: 10, background: "var(--red-soft)", color: "var(--red)", marginBottom: 14, fontSize: 13 }}>{error}</div>}
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 13, marginBottom: 18 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(120px, 1fr))", gap: 13, marginBottom: 18 }}>
         <div className="statPop" style={{ ...cardStyle, padding: 16 }}>
           <div style={{ fontSize: 20, fontWeight: 800, color: "var(--t1)" }}>{filtered.length}</div>
           <div style={{ fontSize: 11, color: "var(--t3)" }}>{lang === "en" ? "Entries" : "Entri"}</div>
@@ -2276,6 +2546,7 @@ function LoginScreen() {
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const isMobile = useIsMobile();
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -2286,96 +2557,113 @@ function LoginScreen() {
     if (err) setError(t.loginErrorGeneric);
   }
 
-  return (
-    <div
-      style={{
-        minHeight: "100vh",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        background: "linear-gradient(135deg, var(--bg2), var(--bg))",
-        padding: 20,
-      }}
-    >
-      <div style={{ position: "fixed", top: 16, right: 16, display: "flex", gap: 8 }}>
-        <button
-          onClick={() => setLang(lang === "id" ? "en" : "id")}
-          style={{ padding: "6px 12px", borderRadius: "var(--pill)", border: "1px solid var(--border2)", background: "var(--surface)", color: "var(--t2)", fontWeight: 700, fontSize: 12, cursor: "pointer" }}
-        >
-          {lang === "id" ? "EN" : "ID"}
-        </button>
-        <button
-          onClick={toggleTheme}
-          style={{ padding: "6px 12px", borderRadius: "var(--pill)", border: "1px solid var(--border2)", background: "var(--surface)", cursor: "pointer" }}
-        >
-          {theme === "dark" ? "☀️" : "🌙"}
-        </button>
-      </div>
+  const inputStyle: CSSProperties = { width: "100%", padding: "11px 14px", borderRadius: 10, border: "1px solid var(--border2)", background: "var(--bg2)", color: "var(--t1)", fontSize: 14 };
+  const labelStyle: CSSProperties = { fontSize: 11, fontWeight: 700, color: "var(--t2)", marginBottom: 5, display: "block" };
 
-      <div
-        className="heroGlow"
-        style={{
-          borderRadius: "var(--r3)",
-          boxShadow: "var(--shadow-lg)",
-          padding: 36,
-          width: "100%",
-          maxWidth: 380,
-        }}
-      >
-        <div style={{ textAlign: "center", marginBottom: 26 }}>
-          <img src="/logo.png" alt="CIKOPS" style={{ width: 52, height: 52, margin: "0 auto 12px" }} />
-          <div style={{ fontSize: 18, fontWeight: 800, color: "var(--t1)" }}>{t.loginTitle}</div>
-          <div style={{ fontSize: 12, color: "var(--t3)", marginTop: 3 }}>{t.loginSubtitle}</div>
+  return (
+    <div style={{ minHeight: "100vh", display: "flex" }}>
+      {/* ── Left: decorative brand panel — hidden on mobile ── */}
+      {!isMobile && (
+        <div
+          style={{
+            flex: "0 0 44%",
+            position: "relative",
+            overflow: "hidden",
+            background: "linear-gradient(160deg, #0d2b52 0%, var(--brand2) 55%, var(--brand) 100%)",
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "space-between",
+            padding: "48px 44px",
+          }}
+        >
+          {/* Abstract flowing glow shapes, echoing the reference's wave motif */}
+          <div style={{ position: "absolute", top: "-15%", right: "-10%", width: 380, height: 380, borderRadius: "50%", background: "radial-gradient(circle, rgba(255,255,255,0.14), transparent 70%)" }} />
+          <div style={{ position: "absolute", bottom: "-20%", left: "-15%", width: 420, height: 420, borderRadius: "50%", background: "radial-gradient(circle, rgba(23,195,178,0.22), transparent 70%)" }} />
+          <div style={{ position: "absolute", top: "38%", left: "48%", width: 260, height: 260, borderRadius: "50%", border: "1px solid rgba(255,255,255,0.12)" }} />
+
+          <div style={{ position: "relative", zIndex: 1, display: "flex", alignItems: "center", gap: 12 }}>
+            <img src="/logo.png" alt="CIKOPS" style={{ width: 48, height: 48 }} />
+            <div>
+              <div style={{ fontSize: 17, fontWeight: 800, color: "#fff" }}>{t.appName}</div>
+              <div style={{ fontSize: 11, color: "rgba(255,255,255,0.7)" }}>Integrated Facility Management</div>
+            </div>
+          </div>
+
+          <div style={{ position: "relative", zIndex: 1 }}>
+            <div style={{ fontSize: 26, fontWeight: 800, color: "#fff", lineHeight: 1.3, marginBottom: 10 }}>
+              {lang === "en" ? "One System," : "Satu Sistem,"}
+              <br />
+              {lang === "en" ? "All Operations in Harmony" : "Semua Operasional Selaras"}
+            </div>
+            <div style={{ fontSize: 13, color: "rgba(255,255,255,0.72)", maxWidth: 340 }}>
+              {lang === "en"
+                ? "Fleet, claims, overtime, and driver operations — managed in one integrated dashboard."
+                : "Armada, klaim, overtime, dan operasional driver — dikelola dalam satu dashboard terintegrasi."}
+            </div>
+          </div>
+
+          <div style={{ position: "relative", zIndex: 1, fontSize: 11, color: "rgba(255,255,255,0.5)" }}>
+            © {new Date().getFullYear()} {t.appName}. All rights reserved.
+          </div>
+        </div>
+      )}
+
+      {/* ── Right: login form panel ── */}
+      <div style={{ flex: 1, display: "flex", flexDirection: "column", background: "var(--bg)" }}>
+        <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, padding: 20 }}>
+          <button
+            onClick={() => setLang(lang === "id" ? "en" : "id")}
+            style={{ padding: "6px 12px", borderRadius: "var(--pill)", border: "1px solid var(--border2)", background: "var(--surface)", color: "var(--t2)", fontWeight: 700, fontSize: 12, cursor: "pointer" }}
+          >
+            {lang === "id" ? "EN" : "ID"}
+          </button>
+          <button
+            onClick={toggleTheme}
+            style={{ padding: "6px 12px", borderRadius: "var(--pill)", border: "1px solid var(--border2)", background: "var(--surface)", cursor: "pointer" }}
+          >
+            {theme === "dark" ? "☀️" : "🌙"}
+          </button>
         </div>
 
-        <form onSubmit={handleSubmit}>
-          <div style={{ marginBottom: 14 }}>
-            <label style={{ fontSize: 11, fontWeight: 700, color: "var(--t2)", marginBottom: 5, display: "block" }}>
-              {t.loginEmail.toUpperCase()}
-            </label>
-            <input
-              type="email"
-              required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="premiumInput"
-              style={{ width: "100%", padding: "11px 14px", borderRadius: 10, border: "1px solid var(--border2)", background: "var(--bg2)", color: "var(--t1)", fontSize: 14 }}
-            />
-          </div>
-          <div style={{ marginBottom: 20 }}>
-            <label style={{ fontSize: 11, fontWeight: 700, color: "var(--t2)", marginBottom: 5, display: "block" }}>
-              {t.loginPassword.toUpperCase()}
-            </label>
-            <input
-              type="password"
-              required
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="premiumInput"
-              style={{ width: "100%", padding: "11px 14px", borderRadius: 10, border: "1px solid var(--border2)", background: "var(--bg2)", color: "var(--t1)", fontSize: 14 }}
-            />
-          </div>
-
-          {error && (
-            <div style={{ padding: 10, borderRadius: 10, background: "var(--red-soft)", color: "var(--red)", fontSize: 12.5, marginBottom: 16 }}>
-              {error}
+        <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
+          <div style={{ width: "100%", maxWidth: 360 }}>
+            {isMobile && (
+              <div style={{ textAlign: "center", marginBottom: 20 }}>
+                <img src="/logo.png" alt="CIKOPS" style={{ width: 48, height: 48, margin: "0 auto 10px" }} />
+              </div>
+            )}
+            <div style={{ marginBottom: 28 }}>
+              <div style={{ fontSize: 22, fontWeight: 800, color: "var(--t1)" }}>{t.loginTitle}</div>
+              <div style={{ fontSize: 13, color: "var(--t3)", marginTop: 4 }}>{t.loginSubtitle}</div>
             </div>
-          )}
 
-          <button
-            type="submit"
-            className="pillBtn"
-            disabled={busy}
-            style={{ width: "100%", justifyContent: "center", padding: "12px", fontSize: 14, opacity: busy ? 0.7 : 1 }}
-          >
-            {busy ? t.loginSigningIn : t.loginButton}
-          </button>
-        </form>
+            <form onSubmit={handleSubmit}>
+              <div style={{ marginBottom: 14 }}>
+                <label style={labelStyle}>{t.loginEmail.toUpperCase()}</label>
+                <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} className="premiumInput" style={inputStyle} />
+              </div>
+              <div style={{ marginBottom: 20 }}>
+                <label style={labelStyle}>{t.loginPassword.toUpperCase()}</label>
+                <input type="password" required value={password} onChange={(e) => setPassword(e.target.value)} className="premiumInput" style={inputStyle} />
+              </div>
 
-        <div style={{ textAlign: "center", marginTop: 20 }}>
-          <a href="/driver" style={{ fontSize: 12, color: "var(--t3)", textDecoration: "none" }}>
-            {t.loginBackToDriver}
-          </a>
+              {error && (
+                <div style={{ padding: 10, borderRadius: 10, background: "var(--red-soft)", color: "var(--red)", fontSize: 12.5, marginBottom: 16 }}>
+                  {error}
+                </div>
+              )}
+
+              <button type="submit" className="pillBtn" disabled={busy} style={{ width: "100%", justifyContent: "center", padding: "12px", fontSize: 14, opacity: busy ? 0.7 : 1 }}>
+                {busy ? t.loginSigningIn : t.loginButton}
+              </button>
+            </form>
+
+            <div style={{ textAlign: "center", marginTop: 20 }}>
+              <a href="/driver" style={{ fontSize: 12, color: "var(--t3)", textDecoration: "none" }}>
+                {t.loginBackToDriver}
+              </a>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -2433,6 +2721,8 @@ function DriverBudgetTab() {
     setShowForm(true);
   }
 
+  const canSaveTier = formName.trim() !== "" && !!evalExpr(formAmount);
+
   async function handleSave() {
     const amount = evalExpr(formAmount);
     if (!formName || !amount) return;
@@ -2478,7 +2768,7 @@ function DriverBudgetTab() {
 
   return (
     <div style={{ padding: 20 }}>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 13, marginBottom: 18 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 13, marginBottom: 18 }}>
         <div className="statPop" style={{ ...cardStyle, padding: 16, textAlign: "center" }}>
           <div style={{ fontSize: 20, fontWeight: 800, color: "var(--t1)" }}>{totalDrivers}</div>
           <div style={{ fontSize: 11, color: "var(--t3)" }}>{lang === "en" ? "Total Drivers" : "Total Driver"}</div>
@@ -2566,7 +2856,7 @@ function DriverBudgetTab() {
             </div>
             <div style={{ display: "flex", gap: 10 }}>
               <button onClick={() => setShowForm(false)} style={{ flex: 1, padding: "10px", borderRadius: 10, border: "1px solid var(--border2)", background: "var(--surface2)", color: "var(--t2)", fontWeight: 700, cursor: "pointer" }}>{t.actionCancel}</button>
-              <button className="pillBtn" onClick={handleSave} disabled={saving} style={{ flex: 1, justifyContent: "center" }}>{saving ? t.actionSaving : t.actionSave}</button>
+              <button className="pillBtn" onClick={handleSave} disabled={!canSaveTier || saving} style={{ flex: 1, justifyContent: "center", opacity: canSaveTier && !saving ? 1 : 0.5 }}>{saving ? t.actionSaving : t.actionSave}</button>
             </div>
           </div>
         </div>
@@ -2742,7 +3032,7 @@ function OpFundTab() {
     const now = new Date();
     const newPeriod = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
     try {
-      await resetKantong(newPeriod, now.toISOString().slice(0, 10));
+      await resetKantong(newPeriod, toLocalISODate(now));
       setShowResetConfirm(false);
       await load();
     } catch (e) {
@@ -2847,103 +3137,120 @@ function OpFundTab() {
 }
 const FUEL_TYPES_LIST = ["Pertalite", "Pertamax", "Pertamax Turbo", "Pertamax Green", "Solar", "Dexlite"];
 
-/* ── REPORTS TAB — comprehensive report across Claims, Overtime, Vehicles,
-   Dana Operasional, and Driver Budget, filterable by month / date range / year. ── */
+/* ── REPORTS TAB — comprehensive report merging Tasks (Penugasan Driver),
+   Claims, Overtime, Vehicles, Dana Operasional, and Driver Budget.
+   Filterable by month / date range / year. Nothing is computed until the
+   user explicitly clicks "Generate Laporan". ── */
 function ReportsTab() {
   const { lang } = useLang();
   const months = lang === "en" ? MONTHS_EN : MONTHS_ID;
   const now = new Date();
 
-  const [loading, setLoading] = useState(true);
+  const [loadingMaster, setLoadingMaster] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [allClaims, setAllClaims] = useState<Claim[]>([]);
   const [allOvertimes, setAllOvertimes] = useState<Overtime[]>([]);
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [kantong, setKantong] = useState<Kantong | null>(null);
   const [tiers, setTiers] = useState<DriverTier[]>([]);
+  const [drivers, setDrivers] = useState<Driver[]>([]);
 
   const [mode, setMode] = useState<"month" | "range" | "year">("month");
   const [month, setMonth] = useState(now.getMonth());
   const [year, setYear] = useState(now.getFullYear());
   const [dateFrom, setDateFrom] = useState(() => {
     const d = new Date(now.getFullYear(), now.getMonth(), 1);
-    return d.toISOString().slice(0, 10);
+    return toLocalISODate(d);
   });
-  const [dateTo, setDateTo] = useState(now.toISOString().slice(0, 10));
+  const [dateTo, setDateTo] = useState(toLocalISODate(now));
+
+  const [generated, setGenerated] = useState(false);
+  const [generating, setGenerating] = useState(false);
+  const [reportData, setReportData] = useState<FleetReportData | null>(null);
+  const [insights, setInsights] = useState<string[]>([]);
+  const [reportLabel, setReportLabel] = useState("");
+
   const [exportingCsv, setExportingCsv] = useState(false);
   const [exportingPdf, setExportingPdf] = useState(false);
 
+  // Master data (claims/overtime/vehicles/kantong/tiers/drivers) loads once
+  // up front — it's cheap and shared across every period the user might
+  // pick. Tasks are fetched per-period on demand (see handleGenerate),
+  // since they're queried by date range server-side.
   useEffect(() => {
     (async () => {
-      setLoading(true);
+      setLoadingMaster(true);
       setError(null);
       try {
-        const [c, ot, v, k, t] = await Promise.all([
+        const [c, ot, v, k, t, d] = await Promise.all([
           getClaims(),
           getOvertimes(),
           getAllVehiclesFull(),
           getCurrentKantong(),
           getDriverTiers(),
+          getDrivers(),
         ]);
         setAllClaims(c);
         setAllOvertimes(ot);
         setVehicles(v);
         setKantong(k);
         setTiers(t);
+        setDrivers(d);
       } catch (e) {
-        setError(e instanceof Error ? e.message : "Gagal memuat data laporan");
+        setError(e instanceof Error ? e.message : "Gagal memuat data master laporan");
       } finally {
-        setLoading(false);
+        setLoadingMaster(false);
       }
     })();
   }, []);
 
-  const period: ReportPeriod = useMemo(
-    () => ({ mode, month, year, dateFrom, dateTo }),
-    [mode, month, year, dateFrom, dateTo]
-  );
+  async function handleGenerate() {
+    setGenerating(true);
+    setError(null);
+    try {
+      const period: ReportPeriod = { mode, month, year, dateFrom, dateTo };
+      const { from, to } = getPeriodDateRange(period);
+      const tasks = await getTasksByRange(from, to);
 
-  const reportData = useMemo(
-    () => buildFleetReportData(period, allClaims, allOvertimes, vehicles, kantong, tiers),
-    [period, allClaims, allOvertimes, vehicles, kantong, tiers]
-  );
+      const data = buildFleetReportData(period, allClaims, allOvertimes, vehicles, kantong, tiers, tasks);
 
-  const label = periodLabel(period, months);
-  const totalClaims = reportData.claims.reduce((s, c) => s + c.total, 0);
-  const totalOtHours = reportData.overtimes.reduce((s, o) => s + o.hours, 0);
-  const totalOtAmount = reportData.overtimes.reduce((s, o) => s + o.amount, 0);
-  const activeVehicles = vehicles.filter((v) => v.aktif).length;
+      // Previous-period data, for trend insights — silently skipped if it
+      // fails (trend is a nice-to-have, not worth blocking the report).
+      let prevData: FleetReportData | null = null;
+      try {
+        const prevPeriod = getPreviousPeriod(period);
+        const prevRange = getPeriodDateRange(prevPeriod);
+        const prevTasks = await getTasksByRange(prevRange.from, prevRange.to);
+        prevData = buildFleetReportData(prevPeriod, allClaims, allOvertimes, vehicles, kantong, tiers, prevTasks);
+      } catch {
+        prevData = null;
+      }
 
-  const byType = useMemo(() => {
-    const map = new Map<string, number>();
-    reportData.claims.forEach((c) => c.items.forEach((i) => map.set(i.type, (map.get(i.type) || 0) + i.total)));
-    return [...map.entries()].sort((a, b) => b[1] - a[1]);
-  }, [reportData.claims]);
-
-  const byDriverClaim = useMemo(() => {
-    const map = new Map<string, number>();
-    reportData.claims.forEach((c) => map.set(c.driverName, (map.get(c.driverName) || 0) + c.total));
-    return [...map.entries()].sort((a, b) => b[1] - a[1]).slice(0, 8);
-  }, [reportData.claims]);
-
-  const otByPlant = OT_PLANTS.map((p) => ({
-    plant: p,
-    hours: reportData.overtimes.filter((o) => o.plant === p).reduce((s, o) => s + o.hours, 0),
-    amount: reportData.overtimes.filter((o) => o.plant === p).reduce((s, o) => s + o.amount, 0),
-  }));
+      setReportData(data);
+      setInsights(buildInsights(data, prevData, drivers, lang));
+      setReportLabel(periodLabel(period, months));
+      setGenerated(true);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Gagal membuat laporan");
+    } finally {
+      setGenerating(false);
+    }
+  }
 
   async function handleExportCsv() {
+    if (!reportData) return;
     setExportingCsv(true);
     try {
-      exportFleetReportToCsv(reportData, months);
+      exportFleetReportToCsv(reportData, months, insights);
     } finally {
       setExportingCsv(false);
     }
   }
   async function handleExportPdf() {
+    if (!reportData) return;
     setExportingPdf(true);
     try {
-      await exportFleetReportToPdf(reportData, months);
+      await exportFleetReportToPdf(reportData, months, insights);
     } catch (e) {
       alert(e instanceof Error ? e.message : "Gagal membuat PDF");
     } finally {
@@ -2954,8 +3261,59 @@ function ReportsTab() {
   const cardStyle: CSSProperties = { background: "linear-gradient(180deg, var(--surface2), var(--surface))", border: "1px solid var(--border2)", borderRadius: "var(--r2)", boxShadow: "var(--shadow-md)" };
   const inputStyle: CSSProperties = { width: "100%", padding: "9px 12px", borderRadius: 10, border: "1px solid var(--border2)", background: "var(--bg2)", color: "var(--t1)", fontSize: 13, fontFamily: "var(--font)" };
 
-  if (loading) return <div style={{ padding: 60, textAlign: "center", color: "var(--t3)" }}>Memuat data laporan...</div>;
-  if (error) return <div style={{ padding: 30, margin: 20, borderRadius: 10, background: "var(--red-soft)", color: "var(--red)" }}>{error}</div>;
+  // ── Derived views of reportData (only meaningful once generated) ──
+  const totalClaims = reportData?.claims.reduce((s, c) => s + c.total, 0) ?? 0;
+  const totalOtHours = reportData?.overtimes.reduce((s, o) => s + o.hours, 0) ?? 0;
+  const totalOtAmount = reportData?.overtimes.reduce((s, o) => s + o.amount, 0) ?? 0;
+  const activeVehicles = vehicles.filter((v) => v.aktif).length;
+
+  const taskStats = useMemo(() => {
+    if (!reportData) return null;
+    return computeStats(reportData.tasks);
+  }, [reportData]);
+  const taskCompletionRate = useMemo(() => {
+    if (!reportData || reportData.tasks.length === 0) return 0;
+    const nonCancelled = reportData.tasks.length - (taskStats?.cancelled ?? 0);
+    return nonCancelled > 0 ? ((taskStats?.done ?? 0) / nonCancelled) * 100 : 0;
+  }, [reportData, taskStats]);
+
+  const byType = useMemo(() => {
+    if (!reportData) return [];
+    const map = new Map<string, number>();
+    reportData.claims.forEach((c) => c.items.forEach((i) => map.set(i.type, (map.get(i.type) || 0) + i.total)));
+    return [...map.entries()].sort((a, b) => b[1] - a[1]);
+  }, [reportData]);
+
+  const byDriverClaim = useMemo(() => {
+    if (!reportData) return [];
+    const map = new Map<string, number>();
+    reportData.claims.forEach((c) => map.set(c.driverName, (map.get(c.driverName) || 0) + c.total));
+    return [...map.entries()].sort((a, b) => b[1] - a[1]).slice(0, 8);
+  }, [reportData]);
+
+  const otByPlant = useMemo(() => {
+    if (!reportData) return [];
+    return OT_PLANTS.map((p) => ({
+      plant: p,
+      hours: reportData.overtimes.filter((o) => o.plant === p).reduce((s, o) => s + o.hours, 0),
+      amount: reportData.overtimes.filter((o) => o.plant === p).reduce((s, o) => s + o.amount, 0),
+    }));
+  }, [reportData]);
+
+  const byDriverTask = useMemo(() => {
+    if (!reportData) return [];
+    const map = new Map<string, { total: number; done: number }>();
+    reportData.tasks.forEach((t) => {
+      const name = t.driver_nama || "-";
+      const cur = map.get(name) || { total: 0, done: 0 };
+      cur.total += 1;
+      if (t.status === "DONE") cur.done += 1;
+      map.set(name, cur);
+    });
+    return [...map.entries()].sort((a, b) => b[1].total - a[1].total).slice(0, 8);
+  }, [reportData]);
+
+  if (loadingMaster) return <div style={{ padding: 60, textAlign: "center", color: "var(--t3)" }}>Memuat...</div>;
 
   return (
     <div style={{ padding: 20 }}>
@@ -2966,7 +3324,7 @@ function ReportsTab() {
             <button
               key={m}
               className="tabPill"
-              onClick={() => setMode(m)}
+              onClick={() => { setMode(m); setGenerated(false); }}
               style={{
                 padding: "7px 16px",
                 borderRadius: "var(--pill)",
@@ -2986,122 +3344,207 @@ function ReportsTab() {
         <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
           {mode === "month" && (
             <>
-              <select className="premiumInput" style={{ ...inputStyle, width: "auto" }} value={month} onChange={(e) => setMonth(Number(e.target.value))}>
+              <select className="premiumInput" style={{ ...inputStyle, width: "auto" }} value={month} onChange={(e) => { setMonth(Number(e.target.value)); setGenerated(false); }}>
                 {months.map((m, i) => <option key={i} value={i}>{m}</option>)}
               </select>
-              <select className="premiumInput" style={{ ...inputStyle, width: "auto" }} value={year} onChange={(e) => setYear(Number(e.target.value))}>
+              <select className="premiumInput" style={{ ...inputStyle, width: "auto" }} value={year} onChange={(e) => { setYear(Number(e.target.value)); setGenerated(false); }}>
                 {[now.getFullYear() - 1, now.getFullYear(), now.getFullYear() + 1].map((y) => <option key={y} value={y}>{y}</option>)}
               </select>
             </>
           )}
           {mode === "range" && (
             <>
-              <input className="premiumInput" style={{ ...inputStyle, width: "auto" }} type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} />
+              <input className="premiumInput" style={{ ...inputStyle, width: "auto" }} type="date" value={dateFrom} onChange={(e) => { setDateFrom(e.target.value); setGenerated(false); }} />
               <span style={{ color: "var(--t3)" }}>s/d</span>
-              <input className="premiumInput" style={{ ...inputStyle, width: "auto" }} type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
+              <input className="premiumInput" style={{ ...inputStyle, width: "auto" }} type="date" value={dateTo} onChange={(e) => { setDateTo(e.target.value); setGenerated(false); }} />
             </>
           )}
           {mode === "year" && (
-            <select className="premiumInput" style={{ ...inputStyle, width: "auto" }} value={year} onChange={(e) => setYear(Number(e.target.value))}>
+            <select className="premiumInput" style={{ ...inputStyle, width: "auto" }} value={year} onChange={(e) => { setYear(Number(e.target.value)); setGenerated(false); }}>
               {[now.getFullYear() - 2, now.getFullYear() - 1, now.getFullYear(), now.getFullYear() + 1].map((y) => <option key={y} value={y}>{y}</option>)}
             </select>
           )}
 
           <div style={{ flex: 1 }} />
-          <button
-            onClick={handleExportCsv}
-            disabled={exportingCsv}
-            style={{ padding: "9px 16px", borderRadius: "var(--pill)", border: "1px solid var(--green)", background: "var(--green-soft)", color: "var(--green)", fontWeight: 700, fontSize: 12.5, cursor: "pointer" }}
-          >
-            ⬇ {exportingCsv ? "..." : "CSV"}
+
+          <button className="pillBtn" onClick={handleGenerate} disabled={generating}>
+            📊 {generating ? (lang === "en" ? "Generating..." : "Membuat...") : (lang === "en" ? "Generate Report" : "Generate Laporan")}
           </button>
-          <button className="pillBtn" onClick={handleExportPdf} disabled={exportingPdf}>
-            ⬇ {exportingPdf ? "..." : "PDF"}
-          </button>
-        </div>
-      </div>
 
-      <div style={{ fontSize: 12, color: "var(--t3)", marginBottom: 16 }}>
-        {lang === "en" ? "Showing report for" : "Menampilkan laporan untuk"}: <strong style={{ color: "var(--t1)" }}>{label}</strong>
-      </div>
-
-      {/* ── Summary stat cards ── */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(5,1fr)", gap: 13, marginBottom: 18 }}>
-        {[
-          { label: lang === "en" ? "Total Claims" : "Total Klaim", value: `Rp ${fmtRp(totalClaims)}`, color: "var(--brand)" },
-          { label: lang === "en" ? "OT Hours" : "Jam OT", value: `${fmtRp(totalOtHours)} jam`, color: "var(--gold2)" },
-          { label: lang === "en" ? "OT Amount" : "Nominal OT", value: `Rp ${fmtRp(totalOtAmount)}`, color: "var(--gold2)" },
-          { label: lang === "en" ? "Active Vehicles" : "Kendaraan Aktif", value: `${activeVehicles}/${vehicles.length}`, color: "var(--green)" },
-          { label: lang === "en" ? "Entries" : "Total Entri", value: String(reportData.claims.length + reportData.overtimes.length), color: "var(--t1)" },
-        ].map((s, i) => (
-          <div key={i} className="statPop" style={{ ...cardStyle, padding: 16, textAlign: "center" }}>
-            <div style={{ fontSize: 18, fontWeight: 800, color: s.color, fontFamily: "var(--mono)" }}>{s.value}</div>
-            <div style={{ fontSize: 10.5, color: "var(--t3)", marginTop: 4 }}>{s.label}</div>
-          </div>
-        ))}
-      </div>
-
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 18 }}>
-        <div className="statPop" style={{ ...cardStyle, overflow: "hidden" }}>
-          <div style={{ padding: "13px 16px", borderBottom: "1px solid var(--border)", fontWeight: 800, fontSize: 13, color: "var(--t1)" }}>
-            {lang === "en" ? "Claims by Type" : "Klaim per Jenis"}
-          </div>
-          {byType.length === 0 ? (
-            <div style={{ padding: 24, textAlign: "center", color: "var(--t3)", fontSize: 12 }}>-</div>
-          ) : (
-            <div style={{ padding: 16 }}>
-              {byType.map(([type, total]) => {
-                const max = byType[0][1] || 1;
-                return (
-                  <div key={type} style={{ marginBottom: 10 }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, marginBottom: 4 }}>
-                      <span style={{ color: "var(--t2)" }}>{type}</span>
-                      <span style={{ fontWeight: 700, color: "var(--t1)" }}>Rp {fmtRp(total)}</span>
-                    </div>
-                    <div style={{ height: 6, borderRadius: 4, background: "var(--border)", overflow: "hidden" }}>
-                      <div style={{ height: "100%", width: `${(total / max) * 100}%`, background: CLAIM_TYPE_COLOR[type] || "var(--brand)" }} />
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
+          {generated && (
+            <>
+              <button
+                onClick={handleExportCsv}
+                disabled={exportingCsv}
+                style={{ padding: "9px 16px", borderRadius: "var(--pill)", border: "1px solid var(--green)", background: "var(--green-soft)", color: "var(--green)", fontWeight: 700, fontSize: 12.5, cursor: "pointer" }}
+              >
+                ⬇ {exportingCsv ? "..." : "CSV"}
+              </button>
+              <button
+                onClick={handleExportPdf}
+                disabled={exportingPdf}
+                style={{ padding: "9px 16px", borderRadius: "var(--pill)", border: "1px solid var(--brand)", background: "rgba(0,174,239,0.1)", color: "var(--brand)", fontWeight: 700, fontSize: 12.5, cursor: "pointer" }}
+              >
+                ⬇ {exportingPdf ? "..." : "PDF"}
+              </button>
+            </>
           )}
         </div>
+      </div>
 
-        <div className="statPop" style={{ ...cardStyle, overflow: "hidden" }}>
-          <div style={{ padding: "13px 16px", borderBottom: "1px solid var(--border)", fontWeight: 800, fontSize: 13, color: "var(--t1)" }}>
-            {lang === "en" ? "Overtime — CIK vs PRB" : "Overtime — CIK vs PRB"}
+      {error && <div style={{ padding: 12, borderRadius: 10, background: "var(--red-soft)", color: "var(--red)", marginBottom: 14, fontSize: 13 }}>{error}</div>}
+
+      {!generated ? (
+        <div className="heroGlow" style={{ borderRadius: "var(--r2)", padding: 50, textAlign: "center" }}>
+          <div style={{ fontSize: 36, marginBottom: 10 }}>📈</div>
+          <div style={{ fontSize: 15, fontWeight: 700, color: "var(--t1)", marginBottom: 4 }}>
+            {lang === "en" ? "Pick a period, then click Generate Report" : "Pilih periode lalu klik Generate Laporan"}
           </div>
-          <div style={{ padding: 16, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-            {otByPlant.map((p) => (
-              <div key={p.plant} style={{ padding: 12, borderRadius: 10, border: "1px solid var(--border2)", borderLeft: `3px solid ${PLANT_COLOR[p.plant]}` }}>
-                <div style={{ fontWeight: 800, color: PLANT_COLOR[p.plant], marginBottom: 6 }}>{p.plant}</div>
-                <div style={{ fontSize: 12, color: "var(--t2)" }}>{fmtRp(p.hours)} jam</div>
-                <div style={{ fontSize: 11, color: "var(--t3)" }}>Rp {fmtRp(p.amount)}</div>
+          <div style={{ fontSize: 12, color: "var(--t3)" }}>
+            {lang === "en"
+              ? "Combines Task Assignment, Claims, Overtime, Vehicles, and Operational Fund into one report."
+              : "Menggabungkan Penugasan Driver, Klaim, Overtime, Armada, dan Dana Operasional jadi satu laporan."}
+          </div>
+        </div>
+      ) : (
+        <div className="tabContent">
+          <div style={{ fontSize: 12, color: "var(--t3)", marginBottom: 16 }}>
+            {lang === "en" ? "Showing report for" : "Menampilkan laporan untuk"}: <strong style={{ color: "var(--t1)" }}>{reportLabel}</strong>
+          </div>
+
+          {/* ── Summary stat cards (now includes Tasks) ── */}
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(110px, 1fr))", gap: 12, marginBottom: 18 }}>
+            {[
+              { label: lang === "en" ? "Tasks Completed" : "Tugas Selesai", value: `${taskCompletionRate.toFixed(0)}%`, color: "var(--green)" },
+              { label: lang === "en" ? "Total Claims" : "Total Klaim", value: `Rp ${fmtRp(totalClaims)}`, color: "var(--brand)" },
+              { label: lang === "en" ? "OT Hours" : "Jam OT", value: `${fmtRp(totalOtHours)} jam`, color: "var(--gold2)" },
+              { label: lang === "en" ? "OT Amount" : "Nominal OT", value: `Rp ${fmtRp(totalOtAmount)}`, color: "var(--gold2)" },
+              { label: lang === "en" ? "Active Vehicles" : "Kendaraan Aktif", value: `${activeVehicles}/${vehicles.length}`, color: "var(--green)" },
+              { label: lang === "en" ? "Total Entries" : "Total Entri", value: String((reportData?.claims.length ?? 0) + (reportData?.overtimes.length ?? 0) + (reportData?.tasks.length ?? 0)), color: "var(--t1)" },
+            ].map((s, i) => (
+              <div key={i} className="statPop" style={{ ...cardStyle, padding: 14, textAlign: "center", animationDelay: `${i * 0.05}s` }}>
+                <div className="numGrad" style={{ fontSize: 16, fontWeight: 800, fontFamily: "var(--mono)" }}>{s.value}</div>
+                <div style={{ fontSize: 10, color: "var(--t3)", marginTop: 4 }}>{s.label}</div>
               </div>
             ))}
           </div>
-        </div>
-      </div>
 
-      <div className="statPop" style={{ ...cardStyle, overflow: "hidden" }}>
-        <div style={{ padding: "13px 16px", borderBottom: "1px solid var(--border)", fontWeight: 800, fontSize: 13, color: "var(--t1)" }}>
-          {lang === "en" ? "Top Drivers by Claim Amount" : "Driver Terbanyak Klaim"}
-        </div>
-        {byDriverClaim.length === 0 ? (
-          <div style={{ padding: 24, textAlign: "center", color: "var(--t3)", fontSize: 12 }}>
-            {lang === "en" ? "No claim data for this period." : "Tidak ada data klaim pada periode ini."}
-          </div>
-        ) : (
-          byDriverClaim.map(([name, total], i) => (
-            <div key={name} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 16px", borderBottom: "1px solid var(--border)" }}>
-              <div style={{ width: 20, height: 20, borderRadius: 6, background: "var(--brand)", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, fontWeight: 700 }}>{i + 1}</div>
-              <div style={{ flex: 1, fontSize: 12.5, color: "var(--t1)" }}>{name}</div>
-              <div style={{ fontWeight: 700, fontSize: 12.5, color: "var(--t1)" }}>Rp {fmtRp(total)}</div>
+          {/* ── Insights — the whole point of the request: valuable, textual
+              analysis for management, not just raw numbers. ── */}
+          <div className="statPop" style={{ ...cardStyle, borderLeft: "3px solid var(--gold)", padding: "16px 20px", marginBottom: 18 }}>
+            <div style={{ fontSize: 13, fontWeight: 800, color: "var(--t1)", marginBottom: 12 }}>
+              💡 {lang === "en" ? "Insights & Analysis for Management" : "Insight & Analisa untuk Manajemen"}
             </div>
-          ))
-        )}
-      </div>
+            {insights.length === 0 ? (
+              <div style={{ fontSize: 12, color: "var(--t3)" }}>
+                {lang === "en" ? "Not enough data in this period to generate insights." : "Data pada periode ini belum cukup untuk membuat insight."}
+              </div>
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                {insights.map((ins, i) => (
+                  <div key={i} className="staggerItem" style={{ display: "flex", gap: 9, alignItems: "flex-start", fontSize: 12.5, color: "var(--t2)", lineHeight: 1.5, animationDelay: `${i * 0.06}s` }}>
+                    <span style={{ flexShrink: 0, marginTop: 6, width: 5, height: 5, borderRadius: "50%", background: "var(--gold)" }} />
+                    <span>{ins}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* ── Task Assignment summary (merged) ── */}
+          {reportData && reportData.tasks.length > 0 && (
+            <div className="statPop" style={{ ...cardStyle, overflow: "hidden", marginBottom: 18 }}>
+              <div style={{ padding: "13px 16px", borderBottom: "1px solid var(--border)", fontWeight: 800, fontSize: 13, color: "var(--t1)" }}>
+                🗂️ {lang === "en" ? "Task Assignment Summary" : "Ringkasan Penugasan Driver"}
+              </div>
+              <div style={{ padding: 16, display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(100px, 1fr))", gap: 12, borderBottom: "1px solid var(--border)" }}>
+                {[
+                  { label: lang === "en" ? "New" : "Baru", value: taskStats?.assigned ?? 0, color: "var(--orange)" },
+                  { label: lang === "en" ? "Ongoing" : "Berlangsung", value: taskStats?.ongoing ?? 0, color: "var(--brand)" },
+                  { label: lang === "en" ? "Done" : "Selesai", value: taskStats?.done ?? 0, color: "var(--green)" },
+                  { label: lang === "en" ? "Cancelled" : "Dibatalkan", value: taskStats?.cancelled ?? 0, color: "var(--red)" },
+                ].map((s, i) => (
+                  <div key={i} style={{ textAlign: "center" }}>
+                    <div style={{ fontSize: 18, fontWeight: 800, color: s.color }}>{s.value}</div>
+                    <div style={{ fontSize: 10, color: "var(--t3)" }}>{s.label}</div>
+                  </div>
+                ))}
+              </div>
+              <div style={{ padding: 8 }}>
+                {byDriverTask.map(([name, v], i) => (
+                  <div key={name} style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 12px" }}>
+                    <div style={{ width: 20, height: 20, borderRadius: 6, background: "var(--navy)", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, fontWeight: 700, flexShrink: 0 }}>{i + 1}</div>
+                    <div style={{ flex: 1, fontSize: 12.5, color: "var(--t1)" }}>{name}</div>
+                    <div style={{ fontSize: 11.5, color: "var(--t3)" }}>{v.done}/{v.total} {lang === "en" ? "done" : "selesai"}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 18 }}>
+            <div className="statPop" style={{ ...cardStyle, overflow: "hidden" }}>
+              <div style={{ padding: "13px 16px", borderBottom: "1px solid var(--border)", fontWeight: 800, fontSize: 13, color: "var(--t1)" }}>
+                🧾 {lang === "en" ? "Claims by Type" : "Klaim per Jenis"}
+              </div>
+              {byType.length === 0 ? (
+                <div style={{ padding: 24, textAlign: "center", color: "var(--t3)", fontSize: 12 }}>-</div>
+              ) : (
+                <div style={{ padding: 16 }}>
+                  {byType.map(([type, total]) => {
+                    const max = byType[0][1] || 1;
+                    return (
+                      <div key={type} style={{ marginBottom: 10 }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, marginBottom: 4 }}>
+                          <span style={{ color: "var(--t2)" }}>{type}</span>
+                          <span style={{ fontWeight: 700, color: "var(--t1)" }}>Rp {fmtRp(total)}</span>
+                        </div>
+                        <div style={{ height: 6, borderRadius: 4, background: "var(--border)", overflow: "hidden" }}>
+                          <div style={{ height: "100%", width: `${(total / max) * 100}%`, background: CLAIM_TYPE_COLOR[type] || "var(--brand)" }} />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            <div className="statPop" style={{ ...cardStyle, overflow: "hidden" }}>
+              <div style={{ padding: "13px 16px", borderBottom: "1px solid var(--border)", fontWeight: 800, fontSize: 13, color: "var(--t1)" }}>
+                ⏱️ {lang === "en" ? "Overtime — CIK vs PRB" : "Overtime — CIK vs PRB"}
+              </div>
+              <div style={{ padding: 16, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                {otByPlant.map((p) => (
+                  <div key={p.plant} style={{ padding: 12, borderRadius: 10, border: "1px solid var(--border2)", borderLeft: `3px solid ${PLANT_COLOR[p.plant]}` }}>
+                    <div style={{ fontWeight: 800, color: PLANT_COLOR[p.plant], marginBottom: 6 }}>{p.plant}</div>
+                    <div style={{ fontSize: 12, color: "var(--t2)" }}>{fmtRp(p.hours)} jam</div>
+                    <div style={{ fontSize: 11, color: "var(--t3)" }}>Rp {fmtRp(p.amount)}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <div className="statPop" style={{ ...cardStyle, overflow: "hidden" }}>
+            <div style={{ padding: "13px 16px", borderBottom: "1px solid var(--border)", fontWeight: 800, fontSize: 13, color: "var(--t1)" }}>
+              🏆 {lang === "en" ? "Top Drivers by Claim Amount" : "Driver Terbanyak Klaim"}
+            </div>
+            {byDriverClaim.length === 0 ? (
+              <div style={{ padding: 24, textAlign: "center", color: "var(--t3)", fontSize: 12 }}>
+                {lang === "en" ? "No claim data for this period." : "Tidak ada data klaim pada periode ini."}
+              </div>
+            ) : (
+              byDriverClaim.map(([name, total], i) => (
+                <div key={name} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 16px", borderBottom: "1px solid var(--border)" }}>
+                  <div style={{ width: 20, height: 20, borderRadius: 6, background: "var(--brand)", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, fontWeight: 700 }}>{i + 1}</div>
+                  <div style={{ flex: 1, fontSize: 12.5, color: "var(--t1)" }}>{name}</div>
+                  <div style={{ fontWeight: 700, fontSize: 12.5, color: "var(--t1)" }}>Rp {fmtRp(total)}</div>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -3423,8 +3866,10 @@ function VehiclesTab() {
     setShowForm(true);
   }
 
+  const canSave = form.nopol.trim() !== "" && form.jenis.trim() !== "";
+
   async function handleSave() {
-    if (!form.nopol.trim() || !form.jenis.trim()) return;
+    if (!canSave) return;
     setSaving(true);
     const payload = {
       nopol: form.nopol.trim(),
@@ -3754,8 +4199,8 @@ function VehiclesTab() {
               <button
                 className="pillBtn"
                 onClick={handleSave}
-                disabled={saving}
-                style={{ flex: 2, justifyContent: "center", opacity: saving ? 0.6 : 1 }}
+                disabled={!canSave || saving}
+                style={{ flex: 2, justifyContent: "center", opacity: canSave && !saving ? 1 : 0.5 }}
               >
                 {saving ? t.actionSaving : t.actionSave}
               </button>
