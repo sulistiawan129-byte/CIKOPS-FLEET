@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect } from "react";
-import { MapContainer, TileLayer, Marker, Popup, useMapEvents } from "react-leaflet";
+import { useEffect, useRef } from "react";
+import { MapContainer, TileLayer, Marker, Popup, useMap, useMapEvents } from "react-leaflet";
 import L from "leaflet";
 import type { GasStation } from "@/lib/types";
 
@@ -48,6 +48,29 @@ function InvalidateSizeOnMount() {
   return null;
 }
 
+/** Pans/zooms the map to a station when it's selected from the list
+ *  sidebar, and opens its popup — so clicking a list item visibly jumps
+ *  the map to that point instead of leaving the user to hunt for it. */
+function FlyToStation({
+  station,
+  markerRefs,
+}: {
+  station: GasStation | null;
+  markerRefs: React.MutableRefObject<Record<string, L.Marker>>;
+}) {
+  const map = useMap();
+  useEffect(() => {
+    if (!station) return;
+    map.flyTo([station.lat, station.lng], Math.max(map.getZoom(), 15), { duration: 0.6 });
+    const marker = markerRefs.current[station.id];
+    // Small delay so the popup opens once the fly animation has settled
+    // enough for Leaflet to position it correctly.
+    const id = setTimeout(() => marker?.openPopup(), 350);
+    return () => clearTimeout(id);
+  }, [station, map, markerRefs]);
+  return null;
+}
+
 const DEFAULT_CENTER: [number, number] = [-6.2607, 107.1525]; // Cikarang area
 
 export default function GasStationMap({
@@ -55,12 +78,16 @@ export default function GasStationMap({
   placing,
   onPick,
   onMarkerClick,
+  focusStation,
 }: {
   stations: GasStation[];
   placing: boolean;
   onPick: (lat: number, lng: number) => void;
   onMarkerClick: (station: GasStation) => void;
+  focusStation?: GasStation | null;
 }) {
+  const markerRefs = useRef<Record<string, L.Marker>>({});
+
   return (
     <div style={{ height: 420, borderRadius: "var(--r2)", overflow: "hidden", border: "1px solid var(--border)", cursor: placing ? "crosshair" : "", position: "relative", zIndex: 0 }}>
       <MapContainer center={DEFAULT_CENTER} zoom={13} style={{ height: "100%", width: "100%" }}>
@@ -70,12 +97,22 @@ export default function GasStationMap({
         />
         <ClickHandler enabled={placing} onPick={onPick} />
         <InvalidateSizeOnMount />
+        <FlyToStation station={focusStation ?? null} markerRefs={markerRefs} />
         {stations.map((s) => (
           <Marker
             key={s.id}
             position={[s.lat, s.lng]}
             icon={goldPinIcon()}
-            eventHandlers={{ click: () => onMarkerClick(s) }}
+            ref={(m) => {
+              if (m) markerRefs.current[s.id] = m;
+            }}
+            eventHandlers={{
+              click: () => onMarkerClick(s),
+              // Hover shows the detail popup immediately, no click needed —
+              // mouseout closes it again so the map doesn't get cluttered.
+              mouseover: (e) => e.target.openPopup(),
+              mouseout: (e) => e.target.closePopup(),
+            }}
           >
             <Popup>
               <div style={{ minWidth: 160 }}>

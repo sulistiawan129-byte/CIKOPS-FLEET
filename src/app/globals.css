@@ -1,4 +1,4 @@
-@import url("https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;600;700;800;900&family=Space+Mono:wght@500;700&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400&family=JetBrains+Mono:wght@400;500;600;700&display=swap");
 @import "leaflet/dist/leaflet.css";
 
 *,
@@ -57,8 +57,8 @@
   --t2: #47617f;
   --t3: #74889f;
 
-  --font: "Roboto", "Segoe UI", -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
-  --mono: "Space Mono", monospace;
+  --font: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+  --mono: "JetBrains Mono", monospace;
   --r1: 16px;
   --r2: 22px;
   --r3: 30px;
@@ -253,6 +253,26 @@ body {
   background-clip: text;
   -webkit-text-fill-color: transparent;
   color: transparent;
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
+}
+
+/* ── Plain tabular number utility — for any KPI/stat value that doesn't
+   use the gradient treatment, keeps digits perfectly aligned like the
+   reference dashboard (font-variant-numeric: tabular-nums). ── */
+.num {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
+  font-family: var(--mono);
+}
+
+/* ── Uppercase label utility — the reference dashboard's signature
+   micro-label treatment (uppercase + wide letter-spacing) used for
+   KPI labels, section headers, table headers, etc. ── */
+.labelCaps {
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  font-weight: 700;
 }
 
 /* ── Button shimmer sweep — a light diagonal gloss slides across pillBtn
