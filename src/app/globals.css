@@ -54,8 +54,8 @@
   --gold-on: #ffffff;
 
   --t1: #14315c;
-  --t2: #57708f;
-  --t3: #93a8c2;
+  --t2: #47617f;
+  --t3: #74889f;
 
   --font: "Roboto", "Segoe UI", -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
   --mono: "Space Mono", monospace;
@@ -101,8 +101,8 @@
   --gold-on: #06231f;
 
   --t1: #f0f5fc;
-  --t2: rgba(217, 230, 251, 0.68);
-  --t3: rgba(170, 194, 230, 0.42);
+  --t2: rgba(224, 234, 251, 0.86);
+  --t3: rgba(198, 214, 240, 0.66);
 
   --shadow-sm: 0 2px 10px rgba(0, 0, 0, 0.3);
   --shadow-md: 0 8px 28px rgba(0, 0, 0, 0.36);
@@ -293,6 +293,77 @@ body {
    instead of popping instantly when switching tabs. ── */
 .tabContent {
   animation: fadeUp 0.28s ease both;
+}
+
+/* ── Modal entrance — scale+fade in instead of popping instantly. Applied
+   to the overlay backdrop (fades) and the modal box (scales+lifts). ── */
+.modalOverlayAnim {
+  animation: overlayIn 0.18s ease both;
+}
+.modalPop {
+  animation: modalIn 0.25s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+/* ── Gauge/donut fill-in — the stroke-dashoffset transitions smoothly
+   whenever its value changes, so scores/percentages visibly "fill up"
+   on load instead of snapping straight to their final state. ── */
+.gaugeAnimated {
+  transition: stroke-dashoffset 1.1s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* ── Sidebar — smooth active-state transition + icon nudge on hover. ── */
+.sidebarItem {
+  transition: background 0.2s ease, color 0.2s ease, transform 0.15s ease;
+}
+.sidebarItem:hover {
+  transform: translateX(2px);
+}
+
+/* ── Button press feedback — a quick scale-down on click for tactile
+   response, layered on top of the existing hover-lift. ── */
+.pillBtn:active {
+  transform: scale(0.97);
+}
+
+/* ── Loading shimmer — replaces plain "Loading..." text with a soft
+   sweeping gradient placeholder, feels alive instead of static. ── */
+.shimmerBlock {
+  background: linear-gradient(90deg, var(--bg2) 25%, var(--border2) 50%, var(--bg2) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.4s ease-in-out infinite;
+  border-radius: 8px;
+}
+
+/* ── Icon micro-bounce — small celebratory nudge for success states. ── */
+.iconBounce {
+  animation: bounceIn 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+/* ── Row hover — subtle background sweep for list/table rows. ── */
+.rowHover {
+  transition: background 0.15s ease;
+}
+.rowHover:hover {
+  background: var(--bg2);
+}
+
+@keyframes overlayIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes modalIn {
+  from { opacity: 0; transform: scale(0.94) translateY(8px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
+@keyframes shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+@keyframes bounceIn {
+  0% { opacity: 0; transform: scale(0.3); }
+  50% { transform: scale(1.15); }
+  70% { transform: scale(0.92); }
+  100% { opacity: 1; transform: scale(1); }
 }
 
 @keyframes spin {

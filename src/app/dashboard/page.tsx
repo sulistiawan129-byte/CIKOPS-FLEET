@@ -126,6 +126,28 @@ function useIsMobile(breakpoint = 860) {
   return isMobile;
 }
 
+/** Animates a number counting up from 0 to `target` over ~900ms using an
+ *  eased curve — used for hero KPI values so the dashboard feels alive on
+ *  load instead of numbers just appearing statically. */
+function useCountUp(target: number, durationMs = 900): number {
+  const [value, setValue] = useState(0);
+  useEffect(() => {
+    let raf: number;
+    const start = performance.now();
+    const from = 0;
+    function tick(now: number) {
+      const elapsed = now - start;
+      const progress = Math.min(1, elapsed / durationMs);
+      const eased = 1 - Math.pow(1 - progress, 3); // ease-out cubic
+      setValue(Math.round(from + (target - from) * eased));
+      if (progress < 1) raf = requestAnimationFrame(tick);
+    }
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [target, durationMs]);
+  return value;
+}
+
 export default function DashboardPage() {
   const { theme, toggleTheme } = useTheme();
   const { lang, setLang, t } = useLang();
@@ -588,11 +610,11 @@ export default function DashboardPage() {
 
       {cancelTarget && (
         <div
-          className={styles.modalOverlay}
+          className={`${styles.modalOverlay} modalOverlayAnim`}
           onClick={() => setCancelTarget(null)}
         >
           <div
-            className={styles.confirmBox}
+            className={`${styles.confirmBox} modalPop`}
             onClick={(e) => e.stopPropagation()}
           >
             <div className={styles.modalTitle}>Batalkan tugas ini?</div>
@@ -1259,8 +1281,8 @@ function CreateTaskModal({
   }
 
   return (
-    <div className={styles.modalOverlay} onClick={onClose}>
-      <div className={styles.modalBox} onClick={(e) => e.stopPropagation()}>
+    <div className={`${styles.modalOverlay} modalOverlayAnim`} onClick={onClose}>
+      <div className={`${styles.modalBox} modalPop`} onClick={(e) => e.stopPropagation()}>
         <div className={styles.modalHeader}>
           <div className={styles.modalTitle}>Tugaskan Driver</div>
           <button className={styles.modalClose} onClick={onClose}>
@@ -1472,6 +1494,15 @@ function OverviewTab({ setActiveTab, myProfile }: { setActiveTab: (t: DashboardT
   const [tiers, setTiers] = useState<DriverTier[]>([]);
   const [gasStations, setGasStations] = useState<GasStation[]>([]);
   const [todayTasks, setTodayTasks] = useState<TaskDetail[]>([]);
+  const [gaugeReady, setGaugeReady] = useState(false);
+
+  useEffect(() => {
+    if (!loading) {
+      const t = setTimeout(() => setGaugeReady(true), 80);
+      return () => clearTimeout(t);
+    }
+    setGaugeReady(false);
+  }, [loading]);
 
   useEffect(() => {
     (async () => {
@@ -1503,6 +1534,24 @@ function OverviewTab({ setActiveTab, myProfile }: { setActiveTab: (t: DashboardT
     })();
   }, []);
 
+  // Computed BEFORE the loading-gate (hooks must be called unconditionally)
+  // so the hero KPI numbers can animate with a count-up effect on load.
+  const docBucketsPre = { urgent: 0, mid: 0, safe: 0 };
+  vehicles.forEach((v) => {
+    [v.kir_date, v.service_date, v.stnk_date].forEach((d) => {
+      const days = daysUntil(d);
+      if (days <= 7) docBucketsPre.urgent++;
+      else if (days <= 30) docBucketsPre.mid++;
+      else docBucketsPre.safe++;
+    });
+  });
+  const urgentDocsPre = docBucketsPre.urgent + docBucketsPre.mid;
+  const activeDriversPre = new Set(claims.map((c) => c.driver_id)).size;
+
+  const animatedVehicleCount = useCountUp(vehicles.length);
+  const animatedActiveDrivers = useCountUp(activeDriversPre);
+  const animatedUrgentDocs = useCountUp(urgentDocsPre);
+
   if (loading) return <div style={{ padding: 60, textAlign: "center", color: "var(--t3)" }}>{lang === "en" ? "Loading overview..." : "Memuat ringkasan..."}</div>;
 
   const now = new Date();
@@ -1511,18 +1560,10 @@ function OverviewTab({ setActiveTab, myProfile }: { setActiveTab: (t: DashboardT
     hour < 11 ? (lang === "en" ? "Good Morning" : "Selamat Pagi") : hour < 15 ? (lang === "en" ? "Good Afternoon" : "Selamat Siang") : hour < 18 ? (lang === "en" ? "Good Evening" : "Selamat Sore") : (lang === "en" ? "Good Evening" : "Selamat Malam");
   const displayName = myProfile?.fullName || "";
 
-  // ── Vehicles & documents ──
+  // ── Vehicles & documents ── (reusing the pre-computed buckets above)
   const activeV = vehicles.filter((v) => v.aktif).length;
   const maintenanceV = vehicles.length - activeV;
-  const docBuckets = { urgent: 0, mid: 0, safe: 0 };
-  vehicles.forEach((v) => {
-    [v.kir_date, v.service_date, v.stnk_date].forEach((d) => {
-      const days = daysUntil(d);
-      if (days <= 7) docBuckets.urgent++;
-      else if (days <= 30) docBuckets.mid++;
-      else docBuckets.safe++;
-    });
-  });
+  const docBuckets = docBucketsPre;
   const totalDocs = docBuckets.urgent + docBuckets.mid + docBuckets.safe;
   const urgentDocs = docBuckets.urgent + docBuckets.mid;
 
@@ -1537,7 +1578,7 @@ function OverviewTab({ setActiveTab, myProfile }: { setActiveTab: (t: DashboardT
     .filter((c) => { const d = new Date(c.periodDate); return d.getMonth() === lastMonthDate.getMonth() && d.getFullYear() === lastMonthDate.getFullYear(); })
     .reduce((s, c) => s + c.total, 0);
   const claimTrendPct = lastMonthTotal > 0 ? ((thisMonthTotal - lastMonthTotal) / lastMonthTotal) * 100 : null;
-  const activeDrivers = new Set(claims.map((c) => c.driver_id)).size;
+  const activeDrivers = activeDriversPre;
 
   // ── Overtime (this month) ──
   const periodNow = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
@@ -1665,10 +1706,10 @@ function OverviewTab({ setActiveTab, myProfile }: { setActiveTab: (t: DashboardT
     <div style={{ padding: 20 }}>
       {/* ── Greeting ── */}
       <div style={{ marginBottom: 18 }}>
-        <div style={{ fontSize: 20, fontWeight: 800, color: "var(--t1)" }}>
+        <div style={{ fontSize: 22, fontWeight: 800, color: "var(--t1)" }}>
           {greeting}{displayName ? `, ${displayName}!` : "!"} 👋
         </div>
-        <div style={{ fontSize: 13, color: "var(--t3)", marginTop: 3 }}>
+        <div style={{ fontSize: 14.5, color: "var(--t3)", marginTop: 3 }}>
           {lang === "en" ? "Here is a summary of today's operations." : "Berikut adalah ringkasan operasional hari ini."}
         </div>
       </div>
@@ -1677,7 +1718,7 @@ function OverviewTab({ setActiveTab, myProfile }: { setActiveTab: (t: DashboardT
       <div className="heroGlow statPop" style={{ borderRadius: "var(--r3)", boxShadow: "var(--shadow-lg)", padding: "26px 28px", marginBottom: 20 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 20 }}>
           <span style={{ width: 7, height: 7, borderRadius: "50%", background: "var(--green)", animation: "pulse 1.6s infinite", display: "inline-block" }} />
-          <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: 1, color: "var(--t3)", textTransform: "uppercase" }}>
+          <span style={{ fontSize: 13, fontWeight: 800, letterSpacing: 1, color: "var(--t3)", textTransform: "uppercase" }}>
             {lang === "en" ? "Operational Command Center · Live" : "Command Center Operasional · Live"}
           </span>
         </div>
@@ -1691,24 +1732,24 @@ function OverviewTab({ setActiveTab, myProfile }: { setActiveTab: (t: DashboardT
                 </linearGradient>
               </defs>
               <circle cx={65} cy={65} r={RG} fill="none" stroke="var(--border)" strokeWidth={9} />
-              <circle cx={65} cy={65} r={RG} fill="none" stroke="url(#healthGrad)" strokeWidth={9} strokeLinecap="round" strokeDasharray={CIRCG} strokeDashoffset={gaugeOffset} transform="rotate(-90 65 65)" />
+              <circle className="gaugeAnimated" cx={65} cy={65} r={RG} fill="none" stroke="url(#healthGrad)" strokeWidth={9} strokeLinecap="round" strokeDasharray={CIRCG} strokeDashoffset={gaugeReady ? gaugeOffset : CIRCG} transform="rotate(-90 65 65)" />
               <text x={65} y={62} textAnchor="middle" fontSize={30} fontWeight={800} fill="url(#healthGrad)" fontFamily="var(--mono)">{healthScore}</text>
-              <text x={65} y={78} textAnchor="middle" fontSize={9} fill="var(--t3)">/ 100</text>
+              <text x={65} y={78} textAnchor="middle" fontSize={10.5} fill="var(--t3)">/ 100</text>
             </svg>
-            <div style={{ marginTop: 8, fontSize: 12, fontWeight: 800, color: healthColor }}>{healthLabel}</div>
-            <div style={{ fontSize: 10, color: "var(--t3)", marginTop: 2 }}>{lang === "en" ? "Operational Health" : "Kesehatan Operasional"}</div>
+            <div style={{ marginTop: 8, fontSize: 13.5, fontWeight: 800, color: healthColor }}>{healthLabel}</div>
+            <div style={{ fontSize: 12, color: "var(--t3)", marginTop: 2 }}>{lang === "en" ? "Operational Health" : "Kesehatan Operasional"}</div>
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(120px, 1fr))" }}>
             {[
-              { label: lang === "en" ? "Total Vehicles" : "Total Kendaraan", value: String(vehicles.length), sub: `${activeV} ${lang === "en" ? "active" : "aktif"}` },
-              { label: lang === "en" ? "Active Drivers" : "Driver Aktif", value: String(activeDrivers), sub: `${drivers.length} total` },
+              { label: lang === "en" ? "Total Vehicles" : "Total Kendaraan", value: String(animatedVehicleCount), sub: `${activeV} ${lang === "en" ? "active" : "aktif"}` },
+              { label: lang === "en" ? "Active Drivers" : "Driver Aktif", value: String(animatedActiveDrivers), sub: `${drivers.length} total` },
               { label: lang === "en" ? "Claims This Month" : "Klaim Bulan Ini", value: `Rp ${fmtRp(thisMonthTotal)}`, sub: claimTrendPct === null ? "-" : `${claimTrendPct >= 0 ? "+" : ""}${claimTrendPct.toFixed(0)}%` },
-              { label: lang === "en" ? "Urgent Documents" : "Dokumen Urgent", value: String(urgentDocs), sub: "≤30 " + (lang === "en" ? "days" : "hari") },
+              { label: lang === "en" ? "Urgent Documents" : "Dokumen Urgent", value: String(animatedUrgentDocs), sub: "≤30 " + (lang === "en" ? "days" : "hari") },
             ].map((k, i) => (
               <div key={i} style={{ padding: "0 18px", borderLeft: i > 0 ? "1px solid var(--border2)" : "none" }}>
-                <div className="numGrad" style={{ fontSize: 24, fontWeight: 800, fontFamily: "var(--mono)", letterSpacing: -0.5 }}>{k.value}</div>
-                <div style={{ fontSize: 11, color: "var(--t2)", fontWeight: 600, marginTop: 4 }}>{k.label}</div>
-                <div style={{ fontSize: 10, color: "var(--t3)", marginTop: 2 }}>{k.sub}</div>
+                <div className="numGrad" style={{ fontSize: 26, fontWeight: 800, fontFamily: "var(--mono)", letterSpacing: -0.5 }}>{k.value}</div>
+                <div style={{ fontSize: 13, color: "var(--t2)", fontWeight: 600, marginTop: 4 }}>{k.label}</div>
+                <div style={{ fontSize: 12, color: "var(--t3)", marginTop: 2 }}>{k.sub}</div>
               </div>
             ))}
           </div>
@@ -1726,10 +1767,10 @@ function OverviewTab({ setActiveTab, myProfile }: { setActiveTab: (t: DashboardT
           >
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
               <span style={{ fontSize: 15 }}>{m.icon}</span>
-              <span style={{ fontSize: 10.5, fontWeight: 700, color: "var(--t3)" }}>{m.title}</span>
+              <span style={{ fontSize: 12.5, fontWeight: 700, color: "var(--t3)" }}>{m.title}</span>
             </div>
-            <div style={{ fontSize: 15, fontWeight: 800, color: "var(--t1)", fontFamily: "var(--mono)", marginBottom: 4 }}>{m.big}</div>
-            <div style={{ fontSize: 10, color: m.accent, fontWeight: 600 }}>{m.sub}</div>
+            <div style={{ fontSize: 17, fontWeight: 800, color: "var(--t1)", fontFamily: "var(--mono)", marginBottom: 4 }}>{m.big}</div>
+            <div style={{ fontSize: 12, color: m.accent, fontWeight: 600 }}>{m.sub}</div>
           </button>
         ))}
       </div>
@@ -1737,7 +1778,7 @@ function OverviewTab({ setActiveTab, myProfile }: { setActiveTab: (t: DashboardT
       {/* ── Charts row ── */}
       <div style={{ display: "grid", gridTemplateColumns: "1.6fr 1fr", gap: 16, marginBottom: 20 }}>
         <div className="statPop" style={{ ...cardStyle, padding: 20 }}>
-          <div style={{ fontSize: 13, fontWeight: 800, color: "var(--t1)", marginBottom: 16 }}>
+          <div style={{ fontSize: 14.5, fontWeight: 800, color: "var(--t1)", marginBottom: 16 }}>
             {lang === "en" ? "Claim Activity — Last 30 Days" : "Aktivitas Klaim — 30 Hari Terakhir"}
           </div>
           <svg viewBox={`0 0 ${chartW} ${chartH}`} width="100%" height={chartH}>
@@ -1756,7 +1797,7 @@ function OverviewTab({ setActiveTab, myProfile }: { setActiveTab: (t: DashboardT
               const b = dayBuckets[idx];
               const x = chartPad + (idx / (dayBuckets.length - 1)) * (chartW - chartPad * 2);
               return (
-                <text key={idx} x={x} y={chartH - 8} textAnchor="middle" fontSize={9} fill="var(--t3)">
+                <text key={idx} x={x} y={chartH - 8} textAnchor="middle" fontSize={10.5} fill="var(--t3)">
                   {b.date.getDate()}/{b.date.getMonth() + 1}
                 </text>
               );
@@ -1765,7 +1806,7 @@ function OverviewTab({ setActiveTab, myProfile }: { setActiveTab: (t: DashboardT
         </div>
 
         <div className="statPop" style={{ ...cardStyle, padding: 20 }}>
-          <div style={{ fontSize: 13, fontWeight: 800, color: "var(--t1)", marginBottom: 16 }}>
+          <div style={{ fontSize: 14.5, fontWeight: 800, color: "var(--t1)", marginBottom: 16 }}>
             {lang === "en" ? "Vehicle Status" : "Distribusi Status Kendaraan"}
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
@@ -1796,7 +1837,7 @@ function OverviewTab({ setActiveTab, myProfile }: { setActiveTab: (t: DashboardT
       {/* ── Activity + Quick Access row ── */}
       <div style={{ display: "grid", gridTemplateColumns: "1.6fr 1fr", gap: 16 }}>
         <div className="statPop" style={{ ...cardStyle, overflow: "hidden" }}>
-          <div style={{ padding: "14px 18px", borderBottom: "1px solid var(--border)", fontWeight: 800, fontSize: 13, color: "var(--t1)" }}>
+          <div style={{ padding: "14px 18px", borderBottom: "1px solid var(--border)", fontWeight: 800, fontSize: 14.5, color: "var(--t1)" }}>
             {lang === "en" ? "Recent Activity" : "Aktivitas Terbaru"}
           </div>
           {activity.length === 0 ? (
@@ -1806,23 +1847,23 @@ function OverviewTab({ setActiveTab, myProfile }: { setActiveTab: (t: DashboardT
           ) : (
             activity.map((a, i) => (
               <div key={i} className="staggerItem" style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 18px", borderBottom: "1px solid var(--border)", animationDelay: `${i * 0.05}s` }}>
-                <div style={{ width: 32, height: 32, borderRadius: 9, background: a.kind === "claim" ? "rgba(61,111,242,0.1)" : "var(--gold-soft)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, flexShrink: 0 }}>
+                <div style={{ width: 32, height: 32, borderRadius: 9, background: a.kind === "claim" ? "rgba(61,111,242,0.1)" : "var(--gold-soft)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 15.5, flexShrink: 0 }}>
                   {a.kind === "claim" ? "🧾" : "⏱️"}
                 </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 12.5, fontWeight: 600, color: "var(--t1)" }}>
+                  <div style={{ fontSize: 14, fontWeight: 600, color: "var(--t1)" }}>
                     {a.driver} <span style={{ fontWeight: 400, color: "var(--t3)" }}>{a.kind === "claim" ? (lang === "en" ? "submitted a claim" : "mengajukan claim") : (lang === "en" ? "logged overtime" : "mencatat overtime")}</span>
                   </div>
-                  <div style={{ fontSize: 11, color: "var(--t3)" }}>{a.meta}</div>
+                  <div style={{ fontSize: 13, color: "var(--t3)" }}>{a.meta}</div>
                 </div>
-                <div style={{ fontSize: 12.5, fontWeight: 700, color: a.kind === "claim" ? "var(--brand)" : "var(--gold2)", whiteSpace: "nowrap" }}>Rp {fmtRp(a.amount)}</div>
+                <div style={{ fontSize: 14, fontWeight: 700, color: a.kind === "claim" ? "var(--brand)" : "var(--gold2)", whiteSpace: "nowrap" }}>Rp {fmtRp(a.amount)}</div>
               </div>
             ))
           )}
         </div>
 
         <div className="statPop" style={{ ...cardStyle, padding: 18 }}>
-          <div style={{ fontWeight: 800, fontSize: 13, color: "var(--t1)", marginBottom: 14 }}>Quick Access</div>
+          <div style={{ fontWeight: 800, fontSize: 14.5, color: "var(--t1)", marginBottom: 14 }}>Quick Access</div>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
             {quickAccess.map((q, i) => (
               <button
@@ -1831,7 +1872,7 @@ function OverviewTab({ setActiveTab, myProfile }: { setActiveTab: (t: DashboardT
                 style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6, padding: "14px 8px", borderRadius: 12, border: "1px solid var(--border2)", background: "var(--bg2)", cursor: "pointer" }}
               >
                 <span style={{ fontSize: 20 }}>{q.icon}</span>
-                <span style={{ fontSize: 10.5, fontWeight: 600, color: "var(--t2)", textAlign: "center" }}>{q.label}</span>
+                <span style={{ fontSize: 12.5, fontWeight: 600, color: "var(--t2)", textAlign: "center" }}>{q.label}</span>
               </button>
             ))}
           </div>
@@ -2091,8 +2132,8 @@ function ClaimsTab() {
       </div>
 
       {showForm && (
-        <div onClick={() => setShowForm(false)} style={{ position: "fixed", inset: 0, background: "rgba(10,20,40,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 2000, padding: 16 }}>
-          <div onClick={(e) => e.stopPropagation()} style={{ ...cardStyle, padding: 24, width: "100%", maxWidth: 480, maxHeight: "90vh", overflowY: "auto" }}>
+        <div onClick={() => setShowForm(false)} className="modalOverlayAnim" style={{ position: "fixed", inset: 0, background: "rgba(10,20,40,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 2000, padding: 16 }}>
+          <div onClick={(e) => e.stopPropagation()} className="modalPop" style={{ ...cardStyle, padding: 24, width: "100%", maxWidth: 480, maxHeight: "90vh", overflowY: "auto" }}>
             <div style={{ fontSize: 16, fontWeight: 800, marginBottom: 18, color: "var(--t1)" }}>
               {lang === "en" ? "New Claim" : "Buat Klaim"}
             </div>
@@ -2189,8 +2230,8 @@ function ClaimsTab() {
       )}
 
       {confirmDelete && (
-        <div onClick={() => setConfirmDelete(null)} style={{ position: "fixed", inset: 0, background: "rgba(10,20,40,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 2000, padding: 16 }}>
-          <div onClick={(e) => e.stopPropagation()} style={{ ...cardStyle, padding: 24, width: "100%", maxWidth: 360, textAlign: "center" }}>
+        <div onClick={() => setConfirmDelete(null)} className="modalOverlayAnim" style={{ position: "fixed", inset: 0, background: "rgba(10,20,40,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 2000, padding: 16 }}>
+          <div onClick={(e) => e.stopPropagation()} className="modalPop" style={{ ...cardStyle, padding: 24, width: "100%", maxWidth: 360, textAlign: "center" }}>
             <div style={{ fontSize: 15, fontWeight: 800, marginBottom: 8, color: "var(--t1)" }}>{lang === "en" ? "Delete this claim?" : "Hapus klaim ini?"}</div>
             <div style={{ fontSize: 13, color: "var(--t3)", marginBottom: 18 }}>
               <strong style={{ color: "var(--t1)" }}>Rp {fmtRp(confirmDelete.total)}</strong> ({confirmDelete.driverName}) akan dihapus permanen.
@@ -2441,8 +2482,8 @@ function OvertimeTab() {
       </div>
 
       {showForm && (
-        <div onClick={() => setShowForm(false)} style={{ position: "fixed", inset: 0, background: "rgba(10,20,40,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 2000, padding: 16 }}>
-          <div onClick={(e) => e.stopPropagation()} style={{ ...cardStyle, padding: 24, width: "100%", maxWidth: 440 }}>
+        <div onClick={() => setShowForm(false)} className="modalOverlayAnim" style={{ position: "fixed", inset: 0, background: "rgba(10,20,40,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 2000, padding: 16 }}>
+          <div onClick={(e) => e.stopPropagation()} className="modalPop" style={{ ...cardStyle, padding: 24, width: "100%", maxWidth: 440 }}>
             <div style={{ fontSize: 16, fontWeight: 800, marginBottom: 18, color: "var(--t1)" }}>{lang === "en" ? "Add Overtime" : "Tambah Overtime"}</div>
 
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 12 }}>
@@ -2512,8 +2553,8 @@ function OvertimeTab() {
       )}
 
       {confirmDelete && (
-        <div onClick={() => setConfirmDelete(null)} style={{ position: "fixed", inset: 0, background: "rgba(10,20,40,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 2000, padding: 16 }}>
-          <div onClick={(e) => e.stopPropagation()} style={{ ...cardStyle, padding: 24, width: "100%", maxWidth: 360, textAlign: "center" }}>
+        <div onClick={() => setConfirmDelete(null)} className="modalOverlayAnim" style={{ position: "fixed", inset: 0, background: "rgba(10,20,40,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 2000, padding: 16 }}>
+          <div onClick={(e) => e.stopPropagation()} className="modalPop" style={{ ...cardStyle, padding: 24, width: "100%", maxWidth: 360, textAlign: "center" }}>
             <div style={{ fontSize: 15, fontWeight: 800, marginBottom: 8, color: "var(--t1)" }}>{lang === "en" ? "Delete this OT entry?" : "Hapus entri OT ini?"}</div>
             <div style={{ fontSize: 13, color: "var(--t3)", marginBottom: 18 }}>
               <strong style={{ color: "var(--t1)" }}>{confirmDelete.driverName}</strong> ({confirmDelete.plant}) akan dihapus permanen.
@@ -2626,7 +2667,7 @@ function LoginScreen() {
         </div>
 
         <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
-          <div style={{ width: "100%", maxWidth: 360 }}>
+          <div className="tabContent" style={{ width: "100%", maxWidth: 360 }}>
             {isMobile && (
               <div style={{ textAlign: "center", marginBottom: 20 }}>
                 <img src="/logo.png" alt="CIKOPS" style={{ width: 48, height: 48, margin: "0 auto 10px" }} />
@@ -2835,8 +2876,8 @@ function DriverBudgetTab() {
       </div>
 
       {showForm && (
-        <div onClick={() => setShowForm(false)} style={{ position: "fixed", inset: 0, background: "rgba(10,20,40,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 2000, padding: 16 }}>
-          <div onClick={(e) => e.stopPropagation()} style={{ ...cardStyle, padding: 24, width: "100%", maxWidth: 380 }}>
+        <div onClick={() => setShowForm(false)} className="modalOverlayAnim" style={{ position: "fixed", inset: 0, background: "rgba(10,20,40,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 2000, padding: 16 }}>
+          <div onClick={(e) => e.stopPropagation()} className="modalPop" style={{ ...cardStyle, padding: 24, width: "100%", maxWidth: 380 }}>
             <div style={{ fontSize: 16, fontWeight: 800, marginBottom: 18, color: "var(--t1)" }}>{editing ? (lang === "en" ? "Edit Tier" : "Edit Tier") : (lang === "en" ? "Add Tier" : "Tambah Tier")}</div>
             <div style={{ marginBottom: 12 }}>
               <label style={labelStyle}>{t.fieldTierName}</label>
@@ -2863,8 +2904,8 @@ function DriverBudgetTab() {
       )}
 
       {confirmDelete && (
-        <div onClick={() => setConfirmDelete(null)} style={{ position: "fixed", inset: 0, background: "rgba(10,20,40,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 2000, padding: 16 }}>
-          <div onClick={(e) => e.stopPropagation()} style={{ ...cardStyle, padding: 24, width: "100%", maxWidth: 360, textAlign: "center" }}>
+        <div onClick={() => setConfirmDelete(null)} className="modalOverlayAnim" style={{ position: "fixed", inset: 0, background: "rgba(10,20,40,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 2000, padding: 16 }}>
+          <div onClick={(e) => e.stopPropagation()} className="modalPop" style={{ ...cardStyle, padding: 24, width: "100%", maxWidth: 360, textAlign: "center" }}>
             <div style={{ fontSize: 15, fontWeight: 800, marginBottom: 8, color: "var(--t1)" }}>{lang === "en" ? "Delete this tier?" : "Hapus tier ini?"}</div>
             <div style={{ fontSize: 13, color: "var(--t3)", marginBottom: 18 }}>
               <strong style={{ color: "var(--t1)" }}>{confirmDelete.name}</strong> akan dihapus permanen.
@@ -3099,8 +3140,8 @@ function OpFundTab() {
       </div>
 
       {showEdit && (
-        <div onClick={() => setShowEdit(false)} style={{ position: "fixed", inset: 0, background: "rgba(10,20,40,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 2000, padding: 16 }}>
-          <div onClick={(e) => e.stopPropagation()} style={{ ...cardStyle, padding: 24, width: "100%", maxWidth: 420, maxHeight: "90vh", overflowY: "auto" }}>
+        <div onClick={() => setShowEdit(false)} className="modalOverlayAnim" style={{ position: "fixed", inset: 0, background: "rgba(10,20,40,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 2000, padding: 16 }}>
+          <div onClick={(e) => e.stopPropagation()} className="modalPop" style={{ ...cardStyle, padding: 24, width: "100%", maxWidth: 420, maxHeight: "90vh", overflowY: "auto" }}>
             <div style={{ fontSize: 16, fontWeight: 800, marginBottom: 18, color: "var(--t1)" }}>Edit Dana Operasional</div>
             <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
               <div><label style={labelStyle}>{t.fieldTotalCashOp}</label><input className="premiumInput" style={inputStyle} value={eBudget} onChange={(e) => setEBudget(e.target.value)} /></div>
@@ -3119,8 +3160,8 @@ function OpFundTab() {
       )}
 
       {showResetConfirm && (
-        <div onClick={() => setShowResetConfirm(false)} style={{ position: "fixed", inset: 0, background: "rgba(10,20,40,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 2000, padding: 16 }}>
-          <div onClick={(e) => e.stopPropagation()} style={{ ...cardStyle, padding: 24, width: "100%", maxWidth: 360, textAlign: "center" }}>
+        <div onClick={() => setShowResetConfirm(false)} className="modalOverlayAnim" style={{ position: "fixed", inset: 0, background: "rgba(10,20,40,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 2000, padding: 16 }}>
+          <div onClick={(e) => e.stopPropagation()} className="modalPop" style={{ ...cardStyle, padding: 24, width: "100%", maxWidth: 360, textAlign: "center" }}>
             <div style={{ fontSize: 15, fontWeight: 800, marginBottom: 8, color: "var(--t1)" }}>Reset Periode?</div>
             <div style={{ fontSize: 13, color: "var(--t3)", marginBottom: 18 }}>
               Claim Diajukan (A5) dan Claim Dibayar (A6) akan direset ke 0 untuk periode baru. Total cash dan alokasi tetap sama. Data periode lama tetap tersimpan.
@@ -3714,8 +3755,8 @@ function GasStationsTab() {
       )}
 
       {showForm && (
-        <div onClick={() => setShowForm(false)} style={{ position: "fixed", inset: 0, background: "rgba(10,20,40,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 2000, padding: 16 }}>
-          <div onClick={(e) => e.stopPropagation()} style={{ ...cardStyle, padding: 24, width: "100%", maxWidth: 460, maxHeight: "90vh", overflowY: "auto" }}>
+        <div onClick={() => setShowForm(false)} className="modalOverlayAnim" style={{ position: "fixed", inset: 0, background: "rgba(10,20,40,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 2000, padding: 16 }}>
+          <div onClick={(e) => e.stopPropagation()} className="modalPop" style={{ ...cardStyle, padding: 24, width: "100%", maxWidth: 460, maxHeight: "90vh", overflowY: "auto" }}>
             <div style={{ fontSize: 16, fontWeight: 800, marginBottom: 18, color: "var(--t1)" }}>{editing ? (lang === "en" ? "Edit Station" : "Edit SPBU") : (lang === "en" ? "Add Station" : "Tambah SPBU")}</div>
             <div style={{ marginBottom: 12 }}>
               <label style={labelStyle}>{t.fieldStationName}</label>
@@ -3757,8 +3798,8 @@ function GasStationsTab() {
       )}
 
       {confirmDelete && (
-        <div onClick={() => setConfirmDelete(null)} style={{ position: "fixed", inset: 0, background: "rgba(10,20,40,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 2000, padding: 16 }}>
-          <div onClick={(e) => e.stopPropagation()} style={{ ...cardStyle, padding: 24, width: "100%", maxWidth: 360, textAlign: "center" }}>
+        <div onClick={() => setConfirmDelete(null)} className="modalOverlayAnim" style={{ position: "fixed", inset: 0, background: "rgba(10,20,40,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 2000, padding: 16 }}>
+          <div onClick={(e) => e.stopPropagation()} className="modalPop" style={{ ...cardStyle, padding: 24, width: "100%", maxWidth: 360, textAlign: "center" }}>
             <div style={{ fontSize: 15, fontWeight: 800, marginBottom: 8, color: "var(--t1)" }}>{lang === "en" ? "Delete this station?" : "Hapus SPBU ini?"}</div>
             <div style={{ fontSize: 13, color: "var(--t3)", marginBottom: 18 }}><strong style={{ color: "var(--t1)" }}>{confirmDelete.name}</strong> akan dihapus permanen.</div>
             <div style={{ display: "flex", gap: 10 }}>
@@ -4102,6 +4143,7 @@ function VehiclesTab() {
       {showForm && (
         <div
           onClick={() => setShowForm(false)}
+          className="modalOverlayAnim"
           style={{
             position: "fixed",
             inset: 0,
@@ -4115,6 +4157,7 @@ function VehiclesTab() {
         >
           <div
             onClick={(e) => e.stopPropagation()}
+            className="modalPop"
             style={{ ...cardStyle, padding: 24, width: "100%", maxWidth: 520, maxHeight: "90vh", overflowY: "auto" }}
           >
             <div style={{ fontSize: 16, fontWeight: 800, marginBottom: 18, color: "var(--t1)" }}>
@@ -4212,9 +4255,10 @@ function VehiclesTab() {
       {confirmDelete && (
         <div
           onClick={() => setConfirmDelete(null)}
+          className="modalOverlayAnim"
           style={{ position: "fixed", inset: 0, background: "rgba(10,20,40,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 2000, padding: 16 }}
         >
-          <div onClick={(e) => e.stopPropagation()} style={{ ...cardStyle, padding: 24, width: "100%", maxWidth: 360, textAlign: "center" }}>
+          <div onClick={(e) => e.stopPropagation()} className="modalPop" style={{ ...cardStyle, padding: 24, width: "100%", maxWidth: 360, textAlign: "center" }}>
             <div style={{ fontSize: 15, fontWeight: 800, marginBottom: 8, color: "var(--t1)" }}>{lang === "en" ? "Delete this vehicle?" : "Hapus kendaraan?"}</div>
             <div style={{ fontSize: 13, color: "var(--t3)", marginBottom: 18 }}>
               <strong style={{ color: "var(--t1)" }}>{confirmDelete.nopol}</strong> akan dihapus permanen.
