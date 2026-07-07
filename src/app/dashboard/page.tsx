@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import type { CSSProperties } from "react";
 import dynamic from "next/dynamic";
 import styles from "./dashboard.module.css";
@@ -128,6 +129,59 @@ const TAB_CONFIG: { id: DashboardTab; icon: string; labelId: string; labelEn: st
 
 /** Hook sederhana untuk deteksi viewport mobile vs desktop, dipakai untuk
  *  memilih presentasi yang berbeda (tabel di PC, kartu di HP) dari data yang sama. */
+/** Renders its children directly into document.body via a Portal — this
+ *  makes position:fixed centering bulletproof regardless of ANY ancestor
+ *  CSS (transforms, animations, overflow, etc.), which was the root cause
+ *  of a recurring "modal stuck at the top / off-center" bug. Every modal
+ *  in this file should use this instead of a raw `<div style={{position:
+ *  "fixed", ...}}>` wrapper. */
+function ModalPortal({
+  onOverlayClick,
+  children,
+  maxWidth = 480,
+}: {
+  onOverlayClick?: () => void;
+  children: React.ReactNode;
+  maxWidth?: number;
+}) {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+  if (!mounted) return null;
+
+  return createPortal(
+    <div
+      onClick={onOverlayClick}
+      className="modalOverlayAnim"
+      style={{
+        position: "fixed",
+        inset: 0,
+        background: "rgba(10,20,40,0.55)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        zIndex: 3000,
+        padding: "24px 16px",
+        overflowY: "auto",
+      }}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="modalPop"
+        style={{
+          width: "100%",
+          maxWidth,
+          maxHeight: "calc(100vh - 48px)",
+          overflowY: "auto",
+          margin: "auto",
+        }}
+      >
+        {children}
+      </div>
+    </div>,
+    document.body
+  );
+}
+
 function useIsMobile(breakpoint = 860) {
   const [isMobile, setIsMobile] = useState(false);
 
@@ -4809,54 +4863,70 @@ function DriversMasterPanel({ cardStyle }: { cardStyle: CSSProperties }) {
       </div>
 
       {showForm && (
-        <div onClick={() => setShowForm(false)} className="modalOverlayAnim" style={{ position: "fixed", inset: 0, background: "rgba(10,20,40,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 2000, padding: 16 }}>
-          <div onClick={(e) => e.stopPropagation()} className="modalPop" style={{ ...cardStyle, padding: 24, width: "100%", maxWidth: 420, maxHeight: "90vh", overflowY: "auto" }}>
-            <div style={{ fontSize: 16, fontWeight: 800, marginBottom: 18, color: "var(--t1)" }}>
-              {editing ? (lang === "en" ? "Edit Driver" : "Edit Driver") : (lang === "en" ? "Add Driver" : "Tambah Driver")}
-            </div>
-            <div style={{ marginBottom: 12 }}>
-              <label style={labelStyle}>AVATAR</label>
-              <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                {AVATAR_EMOJIS.map((em) => (
-                  <button key={em} type="button" onClick={() => setFormAvatar(em)} style={{ width: 36, height: 36, borderRadius: "50%", fontSize: 16, cursor: "pointer", background: formAvatar === em ? "var(--brand)" : "var(--bg2)", border: formAvatar === em ? "2px solid var(--brand2)" : "1px solid var(--border2)" }}>{em}</button>
-                ))}
+        <ModalPortal onOverlayClick={() => setShowForm(false)} maxWidth={440}>
+          <div style={{ ...cardStyle, padding: 0, overflow: "hidden" }}>
+            <div style={{ padding: "20px 24px", background: "linear-gradient(135deg, var(--brand), var(--brand2))", display: "flex", alignItems: "center", gap: 12 }}>
+              <div style={{ width: 40, height: 40, borderRadius: 12, background: "rgba(255,255,255,0.18)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20 }}>🧑‍✈️</div>
+              <div style={{ fontSize: 16, fontWeight: 800, color: "#fff" }}>
+                {editing ? (lang === "en" ? "Edit Driver" : "Edit Driver") : (lang === "en" ? "Add Driver" : "Tambah Driver")}
               </div>
             </div>
-            <div style={{ marginBottom: 12 }}>
-              <label style={labelStyle}>{lang === "en" ? "NAME" : "NAMA"} *</label>
-              <input className="premiumInput" style={inputStyle} value={formNama} onChange={(e) => setFormNama(e.target.value)} />
-            </div>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 12 }}>
-              <div>
-                <label style={labelStyle}>{lang === "en" ? "PHONE" : "NO. HP"}</label>
-                <input className="premiumInput" style={inputStyle} value={formPhone} onChange={(e) => setFormPhone(e.target.value)} placeholder="0812xxxxxxx" />
+            <div style={{ padding: 24 }}>
+              <div style={{ marginBottom: 16 }}>
+                <label style={labelStyle}>AVATAR</label>
+                <div style={{ display: "flex", gap: 8, flexWrap: "wrap", padding: 12, background: "var(--bg2)", borderRadius: 12 }}>
+                  {AVATAR_EMOJIS.map((em) => (
+                    <button
+                      key={em} type="button" onClick={() => setFormAvatar(em)}
+                      style={{
+                        width: 38, height: 38, borderRadius: "50%", fontSize: 17, cursor: "pointer",
+                        background: formAvatar === em ? "linear-gradient(135deg, var(--brand), var(--brand2))" : "var(--surface)",
+                        border: formAvatar === em ? "2px solid var(--brand2)" : "1px solid var(--border2)",
+                        boxShadow: formAvatar === em ? "var(--shadow-brand)" : "none",
+                        transition: "transform 0.15s ease",
+                        transform: formAvatar === em ? "scale(1.08)" : "scale(1)",
+                      }}
+                    >{em}</button>
+                  ))}
+                </div>
               </div>
-              <div>
-                <label style={labelStyle}>EMAIL</label>
-                <input className="premiumInput" style={inputStyle} value={formEmail} onChange={(e) => setFormEmail(e.target.value)} />
+              <div style={{ marginBottom: 14 }}>
+                <label style={labelStyle}>{lang === "en" ? "NAME" : "NAMA"} *</label>
+                <input className="premiumInput" style={inputStyle} value={formNama} onChange={(e) => setFormNama(e.target.value)} />
               </div>
-            </div>
-            {!editing && (
-              <div style={{ marginBottom: 12 }}>
-                <label style={labelStyle}>{lang === "en" ? "INITIAL PIN (min. 4 digits)" : "PIN AWAL (min. 4 digit)"} *</label>
-                <input className="premiumInput" style={inputStyle} type="password" inputMode="numeric" value={formPin} onChange={(e) => setFormPin(e.target.value.replace(/\D/g, ""))} placeholder="1234" />
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 14 }}>
+                <div>
+                  <label style={labelStyle}>{lang === "en" ? "PHONE" : "NO. HP"}</label>
+                  <input className="premiumInput" style={inputStyle} value={formPhone} onChange={(e) => setFormPhone(e.target.value)} placeholder="0812xxxxxxx" />
+                </div>
+                <div>
+                  <label style={labelStyle}>EMAIL</label>
+                  <input className="premiumInput" style={inputStyle} value={formEmail} onChange={(e) => setFormEmail(e.target.value)} />
+                </div>
               </div>
-            )}
-            <div style={{ marginBottom: 18, display: "flex", alignItems: "center", gap: 8 }}>
-              <input type="checkbox" checked={formAktif} onChange={(e) => setFormAktif(e.target.checked)} id="driverAktif" />
-              <label htmlFor="driverAktif" style={{ fontSize: 12.5, color: "var(--t2)" }}>{lang === "en" ? "Active" : "Aktif"}</label>
-            </div>
-            <div style={{ display: "flex", gap: 10 }}>
-              <button onClick={() => setShowForm(false)} style={{ flex: 1, padding: "10px", borderRadius: 10, border: "1px solid var(--border2)", background: "var(--surface2)", color: "var(--t2)", fontWeight: 700, cursor: "pointer" }}>{t.actionCancel}</button>
-              <button className="pillBtn" onClick={handleSave} disabled={!canSave || saving} style={{ flex: 1, justifyContent: "center", opacity: canSave && !saving ? 1 : 0.5 }}>{saving ? t.actionSaving : t.actionSave}</button>
+              {!editing && (
+                <div style={{ marginBottom: 14, padding: 14, background: "var(--gold-soft)", borderRadius: 12, border: "1px solid var(--gold)" }}>
+                  <label style={{ ...labelStyle, color: "var(--gold2)" }}>🔑 {lang === "en" ? "INITIAL PIN (min. 4 digits)" : "PIN AWAL (min. 4 digit)"} *</label>
+                  <input className="premiumInput" style={inputStyle} type="password" inputMode="numeric" value={formPin} onChange={(e) => setFormPin(e.target.value.replace(/\D/g, ""))} placeholder="1234" />
+                </div>
+              )}
+              <div style={{ marginBottom: 18, display: "flex", alignItems: "center", gap: 8 }}>
+                <input type="checkbox" checked={formAktif} onChange={(e) => setFormAktif(e.target.checked)} id="driverAktif" />
+                <label htmlFor="driverAktif" style={{ fontSize: 12.5, color: "var(--t2)" }}>{lang === "en" ? "Active" : "Aktif"}</label>
+              </div>
+              <div style={{ display: "flex", gap: 10 }}>
+                <button onClick={() => setShowForm(false)} style={{ flex: 1, padding: "11px", borderRadius: 10, border: "1px solid var(--border2)", background: "var(--surface2)", color: "var(--t2)", fontWeight: 700, cursor: "pointer" }}>{t.actionCancel}</button>
+                <button className="pillBtn" onClick={handleSave} disabled={!canSave || saving} style={{ flex: 1, justifyContent: "center", opacity: canSave && !saving ? 1 : 0.5 }}>{saving ? t.actionSaving : t.actionSave}</button>
+              </div>
             </div>
           </div>
-        </div>
+        </ModalPortal>
       )}
 
       {pinTarget && (
-        <div onClick={() => setPinTarget(null)} className="modalOverlayAnim" style={{ position: "fixed", inset: 0, background: "rgba(10,20,40,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 2000, padding: 16 }}>
-          <div onClick={(e) => e.stopPropagation()} className="modalPop" style={{ ...cardStyle, padding: 24, width: "100%", maxWidth: 360 }}>
+        <ModalPortal onOverlayClick={() => setPinTarget(null)} maxWidth={360}>
+          <div style={{ ...cardStyle, padding: 24 }}>
+            <div style={{ fontSize: 28, marginBottom: 8 }}>🔑</div>
             <div style={{ fontSize: 15, fontWeight: 800, marginBottom: 4, color: "var(--t1)" }}>{lang === "en" ? "Reset PIN" : "Reset PIN"}</div>
             <div style={{ fontSize: 12, color: "var(--t3)", marginBottom: 16 }}>{pinTarget.nama}</div>
             <input className="premiumInput" style={inputStyle} type="password" inputMode="numeric" value={newPin} onChange={(e) => setNewPin(e.target.value.replace(/\D/g, ""))} placeholder={lang === "en" ? "New PIN (min. 4 digits)" : "PIN baru (min. 4 digit)"} />
@@ -4865,12 +4935,13 @@ function DriversMasterPanel({ cardStyle }: { cardStyle: CSSProperties }) {
               <button className="pillBtn" onClick={handleResetPin} disabled={newPin.length < 4 || pinSaving} style={{ flex: 1, justifyContent: "center", opacity: newPin.length >= 4 && !pinSaving ? 1 : 0.5 }}>{pinSaving ? t.actionSaving : (lang === "en" ? "Reset" : "Reset")}</button>
             </div>
           </div>
-        </div>
+        </ModalPortal>
       )}
 
       {confirmDelete && (
-        <div onClick={() => setConfirmDelete(null)} className="modalOverlayAnim" style={{ position: "fixed", inset: 0, background: "rgba(10,20,40,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 2000, padding: 16 }}>
-          <div onClick={(e) => e.stopPropagation()} className="modalPop" style={{ ...cardStyle, padding: 24, width: "100%", maxWidth: 360, textAlign: "center" }}>
+        <ModalPortal onOverlayClick={() => setConfirmDelete(null)} maxWidth={360}>
+          <div style={{ ...cardStyle, padding: 24, textAlign: "center" }}>
+            <div style={{ fontSize: 28, marginBottom: 8 }}>⚠️</div>
             <div style={{ fontSize: 15, fontWeight: 800, marginBottom: 8, color: "var(--t1)" }}>{lang === "en" ? "Delete this driver?" : "Hapus driver ini?"}</div>
             <div style={{ fontSize: 13, color: "var(--t3)", marginBottom: 18 }}><strong style={{ color: "var(--t1)" }}>{confirmDelete.nama}</strong> {lang === "en" ? "will be permanently deleted." : "akan dihapus permanen."}</div>
             <div style={{ display: "flex", gap: 10 }}>
@@ -4878,7 +4949,7 @@ function DriversMasterPanel({ cardStyle }: { cardStyle: CSSProperties }) {
               <button onClick={handleDelete} style={{ flex: 1, padding: "10px", borderRadius: 10, border: "none", background: "var(--red)", color: "#fff", fontWeight: 700, cursor: "pointer" }}>{t.actionYesDelete}</button>
             </div>
           </div>
-        </div>
+        </ModalPortal>
       )}
     </div>
   );
@@ -4972,8 +5043,8 @@ function EmployeesMasterPanel({ cardStyle }: { cardStyle: CSSProperties }) {
       </div>
 
       {showForm && (
-        <div onClick={() => setShowForm(false)} className="modalOverlayAnim" style={{ position: "fixed", inset: 0, background: "rgba(10,20,40,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 2000, padding: 16 }}>
-          <div onClick={(e) => e.stopPropagation()} className="modalPop" style={{ ...cardStyle, padding: 24, width: "100%", maxWidth: 380 }}>
+        <ModalPortal onOverlayClick={() => setShowForm(false)} maxWidth={380}>
+          <div style={{ ...cardStyle, padding: 24 }}>
             <div style={{ fontSize: 16, fontWeight: 800, marginBottom: 18, color: "var(--t1)" }}>{editing ? (lang === "en" ? "Edit Employee" : "Edit Pegawai") : (lang === "en" ? "Add Employee" : "Tambah Pegawai")}</div>
             <div style={{ marginBottom: 12 }}>
               <label style={labelStyle}>{lang === "en" ? "NAME" : "NAMA"} *</label>
@@ -4992,12 +5063,12 @@ function EmployeesMasterPanel({ cardStyle }: { cardStyle: CSSProperties }) {
               <button className="pillBtn" onClick={handleSave} disabled={!canSave || saving} style={{ flex: 1, justifyContent: "center", opacity: canSave && !saving ? 1 : 0.5 }}>{saving ? t.actionSaving : t.actionSave}</button>
             </div>
           </div>
-        </div>
+        </ModalPortal>
       )}
 
       {confirmDelete && (
-        <div onClick={() => setConfirmDelete(null)} className="modalOverlayAnim" style={{ position: "fixed", inset: 0, background: "rgba(10,20,40,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 2000, padding: 16 }}>
-          <div onClick={(e) => e.stopPropagation()} className="modalPop" style={{ ...cardStyle, padding: 24, width: "100%", maxWidth: 360, textAlign: "center" }}>
+        <ModalPortal onOverlayClick={() => setConfirmDelete(null)} maxWidth={360}>
+          <div style={{ ...cardStyle, padding: 24, textAlign: "center" }}>
             <div style={{ fontSize: 15, fontWeight: 800, marginBottom: 8, color: "var(--t1)" }}>{lang === "en" ? "Delete this employee?" : "Hapus pegawai ini?"}</div>
             <div style={{ fontSize: 13, color: "var(--t3)", marginBottom: 18 }}><strong style={{ color: "var(--t1)" }}>{confirmDelete.nama}</strong> {lang === "en" ? "will be permanently deleted." : "akan dihapus permanen."}</div>
             <div style={{ display: "flex", gap: 10 }}>
@@ -5005,7 +5076,7 @@ function EmployeesMasterPanel({ cardStyle }: { cardStyle: CSSProperties }) {
               <button onClick={handleDelete} style={{ flex: 1, padding: "10px", borderRadius: 10, border: "none", background: "var(--red)", color: "#fff", fontWeight: 700, cursor: "pointer" }}>{t.actionYesDelete}</button>
             </div>
           </div>
-        </div>
+        </ModalPortal>
       )}
     </div>
   );
@@ -5092,8 +5163,8 @@ function JobTypesMasterPanel({ cardStyle }: { cardStyle: CSSProperties }) {
       </div>
 
       {showForm && (
-        <div onClick={() => setShowForm(false)} className="modalOverlayAnim" style={{ position: "fixed", inset: 0, background: "rgba(10,20,40,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 2000, padding: 16 }}>
-          <div onClick={(e) => e.stopPropagation()} className="modalPop" style={{ ...cardStyle, padding: 24, width: "100%", maxWidth: 360 }}>
+        <ModalPortal onOverlayClick={() => setShowForm(false)} maxWidth={360}>
+          <div style={{ ...cardStyle, padding: 24 }}>
             <div style={{ fontSize: 16, fontWeight: 800, marginBottom: 18, color: "var(--t1)" }}>{editing ? (lang === "en" ? "Edit Job Type" : "Edit Jenis Pekerjaan") : (lang === "en" ? "Add Job Type" : "Tambah Jenis Pekerjaan")}</div>
             <div style={{ marginBottom: 18 }}>
               <label style={labelStyle}>LABEL *</label>
@@ -5104,12 +5175,12 @@ function JobTypesMasterPanel({ cardStyle }: { cardStyle: CSSProperties }) {
               <button className="pillBtn" onClick={handleSave} disabled={!canSave || saving} style={{ flex: 1, justifyContent: "center", opacity: canSave && !saving ? 1 : 0.5 }}>{saving ? t.actionSaving : t.actionSave}</button>
             </div>
           </div>
-        </div>
+        </ModalPortal>
       )}
 
       {confirmDelete && (
-        <div onClick={() => setConfirmDelete(null)} className="modalOverlayAnim" style={{ position: "fixed", inset: 0, background: "rgba(10,20,40,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 2000, padding: 16 }}>
-          <div onClick={(e) => e.stopPropagation()} className="modalPop" style={{ ...cardStyle, padding: 24, width: "100%", maxWidth: 360, textAlign: "center" }}>
+        <ModalPortal onOverlayClick={() => setConfirmDelete(null)} maxWidth={360}>
+          <div style={{ ...cardStyle, padding: 24, textAlign: "center" }}>
             <div style={{ fontSize: 15, fontWeight: 800, marginBottom: 8, color: "var(--t1)" }}>{lang === "en" ? "Delete this job type?" : "Hapus jenis pekerjaan ini?"}</div>
             <div style={{ fontSize: 13, color: "var(--t3)", marginBottom: 18 }}><strong style={{ color: "var(--t1)" }}>{confirmDelete.label}</strong> {lang === "en" ? "will be permanently deleted." : "akan dihapus permanen."}</div>
             <div style={{ display: "flex", gap: 10 }}>
@@ -5117,7 +5188,7 @@ function JobTypesMasterPanel({ cardStyle }: { cardStyle: CSSProperties }) {
               <button onClick={handleDelete} style={{ flex: 1, padding: "10px", borderRadius: 10, border: "none", background: "var(--red)", color: "#fff", fontWeight: 700, cursor: "pointer" }}>{t.actionYesDelete}</button>
             </div>
           </div>
-        </div>
+        </ModalPortal>
       )}
     </div>
   );
