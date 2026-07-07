@@ -852,3 +852,72 @@ export async function deleteJobType(id: string): Promise<void> {
   const { error } = await supabase.from("job_types").delete().eq("id", id);
   if (error) throw error;
 }
+
+/* ════════════════════════════════════════════════════════════
+   APP SETTINGS — simple key-value config (e.g. manager_email for
+   claim notification emails), editable by any authenticated admin/GA.
+════════════════════════════════════════════════════════════ */
+
+export async function getAppSetting(key: string): Promise<string> {
+  const { data, error } = await supabase.from("app_settings").select("value").eq("key", key).maybeSingle();
+  if (error) throw error;
+  return data?.value ?? "";
+}
+
+export async function setAppSetting(key: string, value: string): Promise<void> {
+  const { error } = await supabase.from("app_settings").upsert({ key, value, updated_at: new Date().toISOString() });
+  if (error) throw error;
+}
+
+/* ════════════════════════════════════════════════════════════
+   CLAIM EMAIL NOTIFICATIONS — sends via the `send-claim-email` Supabase
+   Edge Function (Resend). Two templates: a friendly confirmation for
+   the driver, and a formal record-keeping notice for the manager.
+   Both calls are best-effort — a missing/misconfigured email address,
+   or the Edge Function not being deployed yet, must never block the
+   claim itself from being saved (that already happened before this
+   is called).
+════════════════════════════════════════════════════════════ */
+
+export interface ClaimEmailInput {
+  driverName: string;
+  periodDate: string;
+  submissionDate: string;
+  items: { type: string; expr: string; total: number }[];
+  total: number;
+  note?: string;
+  lang?: "id" | "en";
+}
+
+async function invokeClaimEmail(
+  recipientType: "driver" | "manager",
+  toEmail: string,
+  input: ClaimEmailInput
+): Promise<{ ok: boolean; error?: string }> {
+  if (!toEmail) return { ok: false, error: "No recipient email configured" };
+  try {
+    const { error } = await supabase.functions.invoke("send-claim-email", {
+      body: { recipientType, toEmail, ...input },
+    });
+    if (error) return { ok: false, error: error.message };
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "Failed to send email" };
+  }
+}
+
+/** Sends both notification emails for a newly-submitted claim (driver +
+ *  manager, if their addresses are available) and returns a per-recipient
+ *  result so the UI can show a soft warning without blocking anything —
+ *  the claim record itself is already saved by the time this runs. */
+export async function sendClaimNotificationEmails(
+  driverEmail: string | null | undefined,
+  input: ClaimEmailInput
+): Promise<{ driver: { ok: boolean; error?: string } | null; manager: { ok: boolean; error?: string } | null }> {
+  const managerEmail = await getAppSetting("manager_email").catch(() => "");
+  const [driverResult, managerResult] = await Promise.all([
+    driverEmail ? invokeClaimEmail("driver", driverEmail, input) : Promise.resolve(null),
+    managerEmail ? invokeClaimEmail("manager", managerEmail, input) : Promise.resolve(null),
+  ]);
+  return { driver: driverResult, manager: managerResult };
+}

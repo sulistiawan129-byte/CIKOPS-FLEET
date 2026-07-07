@@ -41,6 +41,9 @@ import {
   getClaims,
   addClaim,
   deleteClaim,
+  sendClaimNotificationEmails,
+  getAppSetting,
+  setAppSetting,
   getOvertimes,
   addOvertime,
   deleteOvertime,
@@ -2192,6 +2195,27 @@ function ClaimsTab() {
       });
       setShowForm(false);
       await load();
+
+      // Best-effort email notifications — driver gets a friendly
+      // confirmation, manager gets a formal record copy. Never blocks
+      // or fails the claim submission itself; only logged if it fails
+      // (e.g. Edge Function not deployed yet, or no email on file).
+      const driverEmail = drivers.find((d) => d.id === formDriverId)?.email;
+      const driverName = drivers.find((d) => d.id === formDriverId)?.nama || "-";
+      sendClaimNotificationEmails(driverEmail, {
+        driverName,
+        periodDate,
+        submissionDate,
+        items,
+        total: grandTotal,
+        note,
+        lang,
+      })
+        .then((res) => {
+          if (res.driver && !res.driver.ok) console.warn("Driver claim email failed:", res.driver.error);
+          if (res.manager && !res.manager.ok) console.warn("Manager claim email failed:", res.manager.error);
+        })
+        .catch((e) => console.warn("Claim email notification failed:", e));
     } catch (e) {
       alert(e instanceof Error ? e.message : "Gagal menyimpan klaim");
     } finally {
@@ -2302,18 +2326,18 @@ function ClaimsTab() {
         </button>
       </div>
 
-      <div className="statPop" style={{ display: "flex", gap: 28, padding: "14px 20px", marginBottom: 16, ...cardStyle, borderLeft: "3px solid var(--gold)" }}>
+      <div className="statPop" style={{ display: "flex", gap: 28, padding: "16px 22px", marginBottom: 18, ...cardStyle, borderLeft: "3px solid var(--gold)" }}>
         <div>
           <div style={{ fontSize: 13, color: "var(--t3)", fontWeight: 600 }}>{lang === "en" ? "Claims" : "Klaim"}</div>
-          <div className="numGrad" style={{ fontSize: 20, fontWeight: 800 }}>{filtered.length}</div>
+          <div className="numGrad" style={{ fontSize: 21, fontWeight: 800 }}>{filtered.length}</div>
         </div>
-        <div style={{ borderLeft: "1px solid var(--border)", paddingLeft: 28 }}>
+        <div style={{ borderLeft: "1px solid var(--border2)", paddingLeft: 28 }}>
           <div style={{ fontSize: 13, color: "var(--t3)", fontWeight: 600 }}>Total</div>
-          <div style={{ fontSize: 20, fontWeight: 800, color: "var(--t1)" }}>Rp {fmtRp(totalFiltered)}</div>
+          <div style={{ fontSize: 21, fontWeight: 800, color: "var(--t1)" }}>Rp {fmtRp(totalFiltered)}</div>
         </div>
-        <div style={{ borderLeft: "1px solid var(--border)", paddingLeft: 28 }}>
+        <div style={{ borderLeft: "1px solid var(--border2)", paddingLeft: 28 }}>
           <div style={{ fontSize: 13, color: "var(--t3)", fontWeight: 600 }}>{lang === "en" ? "Active Drivers" : "Driver Aktif"}</div>
-          <div style={{ fontSize: 20, fontWeight: 800, color: "var(--t1)" }}>{uniqueDriversFiltered}</div>
+          <div style={{ fontSize: 21, fontWeight: 800, color: "var(--t1)" }}>{uniqueDriversFiltered}</div>
         </div>
       </div>
 
@@ -2321,12 +2345,12 @@ function ClaimsTab() {
 
       <div className="statPop" style={{ ...cardStyle, overflow: "hidden" }}>
         {!loading && filtered.length > 0 && !isMobileClaims && (
-          <div style={{ display: "grid", gridTemplateColumns: "140px 110px 1fr 1fr 120px 40px", gap: 14, padding: "10px 18px", borderBottom: "1px solid var(--border)", background: "var(--bg2)" }}>
-            <div style={{ fontSize: 12.5, fontWeight: 700, color: "var(--t3)", textTransform: "uppercase", letterSpacing: "0.07em" }}>{lang === "en" ? "Claim Period" : "Periode Klaim"}</div>
-            <div style={{ fontSize: 12.5, fontWeight: 700, color: "var(--t3)", textTransform: "uppercase", letterSpacing: "0.07em" }}>{lang === "en" ? "Submitted" : "Diajukan"}</div>
-            <div style={{ fontSize: 12.5, fontWeight: 700, color: "var(--t3)", textTransform: "uppercase", letterSpacing: "0.07em" }}>Driver</div>
-            <div style={{ fontSize: 12.5, fontWeight: 700, color: "var(--t3)", textTransform: "uppercase", letterSpacing: "0.07em" }}>{lang === "en" ? "Claim Details" : "Rincian"}</div>
-            <div style={{ fontSize: 12.5, fontWeight: 700, color: "var(--t3)", textTransform: "uppercase", letterSpacing: "0.07em", textAlign: "right" }}>Total</div>
+          <div style={{ display: "grid", gridTemplateColumns: "140px 110px 1fr 1fr 120px 40px", gap: 14, padding: "12px 18px", background: "var(--navy)" }}>
+            <div style={{ fontSize: 12.5, fontWeight: 700, color: "rgba(255,255,255,0.85)", textTransform: "uppercase", letterSpacing: "0.07em" }}>{lang === "en" ? "Claim Period" : "Periode Klaim"}</div>
+            <div style={{ fontSize: 12.5, fontWeight: 700, color: "rgba(255,255,255,0.85)", textTransform: "uppercase", letterSpacing: "0.07em" }}>{lang === "en" ? "Submitted" : "Diajukan"}</div>
+            <div style={{ fontSize: 12.5, fontWeight: 700, color: "rgba(255,255,255,0.85)", textTransform: "uppercase", letterSpacing: "0.07em" }}>Driver</div>
+            <div style={{ fontSize: 12.5, fontWeight: 700, color: "rgba(255,255,255,0.85)", textTransform: "uppercase", letterSpacing: "0.07em" }}>{lang === "en" ? "Claim Details" : "Rincian"}</div>
+            <div style={{ fontSize: 12.5, fontWeight: 700, color: "rgba(255,255,255,0.85)", textTransform: "uppercase", letterSpacing: "0.07em", textAlign: "right" }}>Total</div>
             <div />
           </div>
         )}
@@ -2376,31 +2400,31 @@ function ClaimsTab() {
                     </button>
                   </div>
                   {isOpen && (
-                    <div className="tabContent" style={{ padding: "0 18px 18px", background: "var(--bg2)" }}>
-                      <div style={{ display: "flex", gap: 20, fontSize: 13.5, color: "var(--t3)", marginBottom: 10, paddingLeft: isMobileClaims ? 0 : 154 }}>
-                        <span><strong style={{ color: "var(--t2)" }}>{lang === "en" ? "Period" : "Periode"}:</strong> {wk.label}</span>
-                        <span><strong style={{ color: "var(--t2)" }}>{lang === "en" ? "Submitted" : "Diajukan"}:</strong> {new Date(c.submissionDate).toLocaleDateString(lang === "en" ? "en-GB" : "id-ID", { day: "numeric", month: "short", year: "numeric" })}</span>
-                      </div>
-                      <div style={{ paddingLeft: isMobileClaims ? 0 : 154 }}>
+                    <div className="tabContent" style={{ padding: "16px 18px 18px", background: "var(--bg2)", borderTop: "1px solid var(--border2)" }}>
+                      <div style={{ ...cardStyle, background: "var(--surface)", padding: 16 }}>
+                        <div style={{ display: "flex", gap: 20, fontSize: 13.5, color: "var(--t3)", marginBottom: 12, flexWrap: "wrap" }}>
+                          <span><strong style={{ color: "var(--t2)" }}>{lang === "en" ? "Period" : "Periode"}:</strong> {wk.label}</span>
+                          <span><strong style={{ color: "var(--t2)" }}>{lang === "en" ? "Submitted" : "Diajukan"}:</strong> {new Date(c.submissionDate).toLocaleDateString(lang === "en" ? "en-GB" : "id-ID", { day: "numeric", month: "short", year: "numeric" })}</span>
+                        </div>
                         <table style={{ width: "100%", fontSize: 12, borderCollapse: "collapse" }}>
                           <thead>
                             <tr style={{ color: "var(--t3)", textAlign: "left" }}>
-                              <th style={{ paddingBottom: 6, fontSize: 12.5, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em" }}>{lang === "en" ? "Type" : "Jenis"}</th>
-                              <th style={{ paddingBottom: 6, fontSize: 12.5, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em" }}>{lang === "en" ? "Claim Details" : "Rincian"}</th>
-                              <th style={{ paddingBottom: 6, textAlign: "right", fontSize: 12.5, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em" }}>{lang === "en" ? "Amount" : "Nominal"}</th>
+                              <th style={{ paddingBottom: 8, fontSize: 12.5, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em" }}>{lang === "en" ? "Type" : "Jenis"}</th>
+                              <th style={{ paddingBottom: 8, fontSize: 12.5, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em" }}>{lang === "en" ? "Claim Details" : "Rincian"}</th>
+                              <th style={{ paddingBottom: 8, textAlign: "right", fontSize: 12.5, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em" }}>{lang === "en" ? "Amount" : "Nominal"}</th>
                             </tr>
                           </thead>
                           <tbody>
                             {c.items.map((item, idx) => (
                               <tr key={idx} style={{ borderTop: "1px solid var(--border)" }}>
-                                <td style={{ padding: "7px 0" }}><span style={tagStyle(CLAIM_TYPE_COLOR[item.type] || "var(--t3)")}>{item.type}</span></td>
-                                <td style={{ padding: "7px 0", fontFamily: "var(--mono)", color: "var(--t3)", fontSize: 11.5 }}>{item.expr}</td>
-                                <td style={{ padding: "7px 0", textAlign: "right", fontWeight: 700, color: "var(--t1)" }}>Rp {fmtRp(item.total)}</td>
+                                <td style={{ padding: "8px 0" }}><span style={tagStyle(CLAIM_TYPE_COLOR[item.type] || "var(--t3)")}>{item.type}</span></td>
+                                <td style={{ padding: "8px 0", fontFamily: "var(--mono)", color: "var(--t3)", fontSize: 11.5 }}>{item.expr}</td>
+                                <td style={{ padding: "8px 0", textAlign: "right", fontWeight: 700, color: "var(--t1)" }}>Rp {fmtRp(item.total)}</td>
                               </tr>
                             ))}
                             <tr style={{ borderTop: "2px solid var(--border2)" }}>
-                              <td colSpan={2} style={{ padding: "8px 0", fontWeight: 800, color: "var(--t1)" }}>TOTAL</td>
-                              <td className="numGrad" style={{ padding: "8px 0", textAlign: "right", fontWeight: 800 }}>Rp {fmtRp(c.total)}</td>
+                              <td colSpan={2} style={{ padding: "10px 0", fontWeight: 800, color: "var(--t1)" }}>TOTAL</td>
+                              <td className="numGrad" style={{ padding: "10px 0", textAlign: "right", fontWeight: 800 }}>Rp {fmtRp(c.total)}</td>
                             </tr>
                           </tbody>
                         </table>
@@ -4715,17 +4739,18 @@ const AVATAR_EMOJIS = ["🧑", "👨", "👩", "🧔", "👨‍🦱", "👩‍�
 
 function MasterDataTab() {
   const { lang } = useLang();
-  const [sub, setSub] = useState<"drivers" | "employees" | "jobtypes">("drivers");
+  const [sub, setSub] = useState<"drivers" | "employees" | "jobtypes" | "settings">("drivers");
 
   const cardStyle: CSSProperties = { background: "linear-gradient(180deg, var(--surface2), var(--surface))", border: "1px solid var(--border2)", borderRadius: "var(--r2)", boxShadow: "var(--shadow-md)" };
 
   return (
     <div style={{ padding: 20 }}>
-      <div style={{ display: "flex", gap: 8, marginBottom: 18 }}>
+      <div style={{ display: "flex", gap: 8, marginBottom: 18, flexWrap: "wrap" }}>
         {([
           { id: "drivers", label: lang === "en" ? "Drivers" : "Driver", icon: "🧑‍✈️" },
           { id: "employees", label: lang === "en" ? "Employees" : "Pegawai", icon: "👤" },
           { id: "jobtypes", label: lang === "en" ? "Job Types" : "Jenis Pekerjaan", icon: "🧰" },
+          { id: "settings", label: lang === "en" ? "Settings" : "Pengaturan", icon: "⚙️" },
         ] as const).map((s) => (
           <button
             key={s.id}
@@ -4746,6 +4771,82 @@ function MasterDataTab() {
       {sub === "drivers" && <DriversMasterPanel cardStyle={cardStyle} />}
       {sub === "employees" && <EmployeesMasterPanel cardStyle={cardStyle} />}
       {sub === "jobtypes" && <JobTypesMasterPanel cardStyle={cardStyle} />}
+      {sub === "settings" && <SettingsPanel cardStyle={cardStyle} />}
+    </div>
+  );
+}
+
+/* ── Settings sub-panel — currently just the manager notification
+   email used by the Claims email feature, but a natural home for any
+   future app-wide config. ── */
+function SettingsPanel({ cardStyle }: { cardStyle: CSSProperties }) {
+  const { lang, t } = useLang();
+  const [managerEmail, setManagerEmail] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      setManagerEmail(await getAppSetting("manager_email"));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Gagal memuat pengaturan");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+  useEffect(() => { load(); }, [load]);
+
+  async function handleSave() {
+    setSaving(true);
+    setSaved(false);
+    try {
+      await setAppSetting("manager_email", managerEmail.trim());
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2500);
+    } catch (e) {
+      alert(e instanceof Error ? e.message : "Gagal menyimpan pengaturan");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  const inputStyle: CSSProperties = { width: "100%", padding: "9px 12px", borderRadius: 10, border: "1px solid var(--border2)", background: "var(--bg2)", color: "var(--t1)", fontSize: 13, fontFamily: "var(--font)" };
+  const labelStyle: CSSProperties = { fontSize: 11, fontWeight: 700, color: "var(--t2)", marginBottom: 5, display: "block" };
+
+  if (loading) return <div style={{ padding: 40, textAlign: "center", color: "var(--t3)" }}>{t.actionLoading}</div>;
+
+  return (
+    <div className="statPop" style={{ ...cardStyle, padding: 24, maxWidth: 480 }}>
+      <div style={{ fontSize: 14, fontWeight: 800, color: "var(--t1)", marginBottom: 4 }}>
+        📧 {lang === "en" ? "Claim Email Notifications" : "Notifikasi Email Klaim"}
+      </div>
+      <div style={{ fontSize: 12, color: "var(--t3)", marginBottom: 18, lineHeight: 1.5 }}>
+        {lang === "en"
+          ? "Every time a claim is submitted, the driver gets a confirmation email and this manager address gets a formal copy for record-keeping."
+          : "Setiap kali klaim diajukan, driver dapat email konfirmasi dan alamat manager ini dapat salinan formal untuk dokumentasi."}
+      </div>
+
+      {error && <div style={{ padding: 10, borderRadius: 8, background: "var(--red-soft)", color: "var(--red)", marginBottom: 14, fontSize: 12.5 }}>{error}</div>}
+
+      <label style={labelStyle}>{lang === "en" ? "MANAGER EMAIL" : "EMAIL MANAGER"}</label>
+      <input
+        className="premiumInput"
+        style={inputStyle}
+        type="email"
+        value={managerEmail}
+        onChange={(e) => setManagerEmail(e.target.value)}
+        placeholder="manager@company.com"
+      />
+      <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 14 }}>
+        <button className="pillBtn" onClick={handleSave} disabled={saving}>
+          {saving ? t.actionSaving : t.actionSave}
+        </button>
+        {saved && <span style={{ fontSize: 12.5, color: "var(--green)", fontWeight: 600 }}>✓ {lang === "en" ? "Saved" : "Tersimpan"}</span>}
+      </div>
     </div>
   );
 }
