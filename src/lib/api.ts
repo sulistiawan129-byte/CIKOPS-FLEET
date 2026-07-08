@@ -220,26 +220,27 @@ export async function updateTaskStatus(
   taskId: string,
   status: TaskStatus
 ): Promise<void> {
-  const patch: Record<string, unknown> = { status };
-  if (status === "ON GOING") patch.accepted_at = new Date().toISOString();
-  if (status === "DONE") patch.completed_at = new Date().toISOString();
-  const { error } = await supabase.from("tasks").update(patch).eq("id", taskId);
+  // Hanya dua transisi yang valid didorong dari sisi admin:
+  // ASSIGNED -> ON GOING, dan ON GOING -> DONE.
+  if (status !== "ON GOING" && status !== "DONE") {
+    throw new Error(`Transisi status tidak didukung dari dashboard: ${status}`);
+  }
+  const { error } = await supabase.rpc("admin_update_task_status", {
+    p_task_id: taskId,
+    p_new_status: status,
+  });
   if (error) throw error;
 }
+
 
 export async function cancelTaskByAdmin(
   taskId: string,
   reason?: string
 ): Promise<void> {
-  const { error } = await supabase
-    .from("tasks")
-    .update({
-      status: "CANCELLED",
-      cancelled_at: new Date().toISOString(),
-      cancelled_by: "admin",
-      cancel_reason: reason || null,
-    })
-    .eq("id", taskId);
+  const { error } = await supabase.rpc("admin_cancel_task", {
+    p_task_id: taskId,
+    p_reason: reason || null,
+  });
   if (error) throw error;
 }
 
