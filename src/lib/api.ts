@@ -307,8 +307,17 @@ export async function updateVehicle(
 }
 
 export async function deleteVehicle(id: string): Promise<void> {
-  const { error } = await supabase.from("vehicles").delete().eq("id", id);
+  const { data, error } = await supabase
+    .from("vehicles")
+    .delete()
+    .eq("id", id)
+    .select("id");
   if (error) throw error;
+  if (!data || data.length === 0) {
+    throw new Error(
+      "Penghapusan tidak diizinkan — akun Anda mungkin tidak memiliki hak akses admin untuk menghapus kendaraan."
+    );
+  }
 }
 
 /* ════════════════════════════════════════════════════════════
@@ -803,8 +812,17 @@ export async function resetDriverPin(id: string, newPin: string): Promise<void> 
 }
 
 export async function deleteDriver(id: string): Promise<void> {
-  const { error } = await supabase.from("drivers").delete().eq("id", id);
+  const { data, error } = await supabase
+    .from("drivers")
+    .delete()
+    .eq("id", id)
+    .select("id"); // wajib .select() supaya kita bisa cek data.length
   if (error) throw error;
+  if (!data || data.length === 0) {
+    throw new Error(
+      "Penghapusan tidak diizinkan — akun Anda mungkin tidak memiliki hak akses admin untuk menghapus driver."
+    );
+  }
 }
 
 export async function getAllEmployeesFull(): Promise<Employee[]> {
