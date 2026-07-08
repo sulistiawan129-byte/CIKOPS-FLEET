@@ -29,6 +29,10 @@ import {
   deleteJobType,
   getEmployees,
   getJobTypes,
+  getCanteenReportsForMonth,
+  getAllCanteenReports,
+  saveCanteenReport,
+  deleteCanteenReport,
   getTasksByDate,
   getTasksByRange,
   getVehicles,
@@ -61,7 +65,8 @@ import {
   updateGasStation,
   deleteGasStation,
 } from "@/lib/api";
-import type { Claim, ClaimItem, Overtime, Plant, Kantong, DriverTier, GasStation, FuelEntry } from "@/lib/types";
+import type { Claim, ClaimItem, Overtime, Plant, Kantong, DriverTier, GasStation, FuelEntry, CanteenReport } from "@/lib/types";
+import { computeCanteenKPI } from "@/lib/types";
 import { exportTandaTerima } from "@/lib/tandaTerima";
 import {
   buildFleetReportData,
@@ -116,7 +121,8 @@ export type DashboardTab =
   | "opfund"
   | "gasstations"
   | "reports"
-  | "masterdata";
+  | "masterdata"
+  | "canteen";
 
 const TAB_CONFIG: { id: DashboardTab; icon: string; labelId: string; labelEn: string }[] = [
   { id: "overview", icon: "📊", labelId: "Ringkasan", labelEn: "Overview" },
@@ -129,6 +135,7 @@ const TAB_CONFIG: { id: DashboardTab; icon: string; labelId: string; labelEn: st
   { id: "gasstations", icon: "⛽", labelId: "Pom Bensin", labelEn: "Gas Stations" },
   { id: "reports", icon: "📈", labelId: "Report", labelEn: "Reports" },
   { id: "masterdata", icon: "🗄️", labelId: "Master Data", labelEn: "Master Data" },
+  { id: "canteen", icon: "🍱", labelId: "Kantin", labelEn: "Canteen" },
 ];
 
 /** Hook sederhana untuk deteksi viewport mobile vs desktop, dipakai untuk
@@ -654,6 +661,7 @@ export default function DashboardPage() {
           {activeTab === "gasstations" && <GasStationsTab />}
           {activeTab === "reports" && <ReportsTab />}
           {activeTab === "masterdata" && <MasterDataTab />}
+          {activeTab === "canteen" && <CanteenTab />}
         </div>
       )}
         </div>
@@ -5366,6 +5374,352 @@ function JobTypesMasterPanel({ cardStyle }: { cardStyle: CSSProperties }) {
           <div style={{ ...cardStyle, padding: 24, textAlign: "center" }}>
             <div style={{ fontSize: 15, fontWeight: 800, marginBottom: 8, color: "var(--t1)" }}>{lang === "en" ? "Delete this job type?" : "Hapus jenis pekerjaan ini?"}</div>
             <div style={{ fontSize: 13, color: "var(--t3)", marginBottom: 18 }}><strong style={{ color: "var(--t1)" }}>{confirmDelete.label}</strong> {lang === "en" ? "will be permanently deleted." : "akan dihapus permanen."}</div>
+            <div style={{ display: "flex", gap: 10 }}>
+              <button onClick={() => setConfirmDelete(null)} style={{ flex: 1, padding: "10px", borderRadius: 10, border: "1px solid var(--border2)", background: "var(--surface2)", color: "var(--t2)", fontWeight: 700, cursor: "pointer" }}>{t.actionCancel}</button>
+              <button onClick={handleDelete} style={{ flex: 1, padding: "10px", borderRadius: 10, border: "none", background: "var(--red)", color: "#fff", fontWeight: 700, cursor: "pointer" }}>{t.actionYesDelete}</button>
+            </div>
+          </div>
+        </ModalPortal>
+      )}
+    </div>
+  );
+}
+
+/* ════════════════════════════════════════════════════════════
+   CANTEEN — merged from the standalone Canteen Ops (GAS) system.
+   Same flow as the original: a daily entry form (per-shift order +
+   leftover for Snack/Meal), and a dashboard summarizing efficiency,
+   trends, and shift breakdown for the selected month.
+════════════════════════════════════════════════════════════ */
+
+const SHIFT_LABELS = ["Shift 1", "Shift 2", "Shift 3"];
+
+function fmtCanteenDate(d: string, lang: string): string {
+  try {
+    return new Date(d + "T00:00:00").toLocaleDateString(lang === "en" ? "en-GB" : "id-ID", { day: "2-digit", month: "short", year: "numeric" });
+  } catch {
+    return d;
+  }
+}
+
+function CanteenTab() {
+  const { lang } = useLang();
+  const [sub, setSub] = useState<"entry" | "dashboard">("dashboard");
+  const cardStyle: CSSProperties = { background: "linear-gradient(180deg, var(--surface2), var(--surface))", border: "1px solid var(--border2)", borderRadius: "var(--r2)", boxShadow: "var(--shadow-md)" };
+
+  return (
+    <div style={{ padding: 20 }}>
+      <div style={{ display: "flex", gap: 8, marginBottom: 18 }}>
+        {([
+          { id: "dashboard", label: lang === "en" ? "Dashboard" : "Dashboard", icon: "📊" },
+          { id: "entry", label: lang === "en" ? "Daily Entry" : "Input Harian", icon: "📝" },
+        ] as const).map((s) => (
+          <button
+            key={s.id}
+            className="tabPill"
+            onClick={() => setSub(s.id)}
+            style={{
+              padding: "9px 18px", borderRadius: "var(--pill)", border: "none", cursor: "pointer",
+              fontSize: 13, fontWeight: 700,
+              background: sub === s.id ? "linear-gradient(135deg, var(--green), #0d8a4f)" : "var(--surface2)",
+              color: sub === s.id ? "#fff" : "var(--t2)",
+            }}
+          >
+            {s.icon} {s.label}
+          </button>
+        ))}
+      </div>
+      {sub === "dashboard" && <CanteenDashboardPanel cardStyle={cardStyle} />}
+      {sub === "entry" && <CanteenEntryPanel cardStyle={cardStyle} onSaved={() => setSub("dashboard")} />}
+    </div>
+  );
+}
+
+/* ── Daily Entry sub-panel ── */
+function CanteenEntryPanel({ cardStyle, onSaved }: { cardStyle: CSSProperties; onSaved: () => void }) {
+  const { lang, t } = useLang();
+  const [reportDate, setReportDate] = useState(todayStr());
+  const [snackOrder, setSnackOrder] = useState<[string, string, string]>(["", "", ""]);
+  const [snackLeftover, setSnackLeftover] = useState<[string, string, string]>(["", "", ""]);
+  const [mealOrder, setMealOrder] = useState<[string, string, string]>(["", "", ""]);
+  const [mealLeftover, setMealLeftover] = useState<[string, string, string]>(["", "", ""]);
+  const [submittedBy, setSubmittedBy] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  const num = (arr: [string, string, string]) => arr.map((v) => Number(v) || 0) as [number, number, number];
+  const sum = (arr: [number, number, number]) => arr[0] + arr[1] + arr[2];
+
+  const sOrd = sum(num(snackOrder)), sLft = sum(num(snackLeftover)), sCon = Math.max(0, sOrd - sLft);
+  const mOrd = sum(num(mealOrder)), mLft = sum(num(mealLeftover)), mCon = Math.max(0, mOrd - mLft);
+  const sEff = sOrd > 0 ? (sCon / sOrd) * 100 : 0;
+  const mEff = mOrd > 0 ? (mCon / mOrd) * 100 : 0;
+
+  const hasOverflow =
+    snackOrder.some((v, i) => Number(snackLeftover[i]) > Number(v) && Number(v) > 0) ||
+    mealOrder.some((v, i) => Number(mealLeftover[i]) > Number(v) && Number(v) > 0);
+  const allZero = [...snackOrder, ...mealOrder].every((v) => !Number(v));
+  const canSave = reportDate && !allZero && !hasOverflow;
+
+  async function handleSubmit() {
+    if (!canSave) return;
+    setSaving(true);
+    try {
+      await saveCanteenReport({
+        reportDate,
+        snackOrder: num(snackOrder),
+        snackLeftover: num(snackLeftover),
+        mealOrder: num(mealOrder),
+        mealLeftover: num(mealLeftover),
+        submittedBy: submittedBy.trim() || (lang === "en" ? "Canteen Operator" : "Operator Kantin"),
+      });
+      setSnackOrder(["", "", ""]); setSnackLeftover(["", "", ""]);
+      setMealOrder(["", "", ""]); setMealLeftover(["", "", ""]);
+      onSaved();
+    } catch (e) {
+      alert(e instanceof Error ? e.message : "Gagal menyimpan laporan");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  const inputStyle: CSSProperties = { width: "100%", padding: "9px 10px", borderRadius: 10, border: "1px solid var(--border2)", background: "var(--bg2)", color: "var(--t1)", fontSize: 13, fontFamily: "var(--font)", textAlign: "center" };
+  const labelStyle: CSSProperties = { fontSize: 11, fontWeight: 700, color: "var(--t2)", marginBottom: 5, display: "block" };
+
+  function ShiftGrid({ category, order, leftover, setOrder, setLeftover, color }: {
+    category: string; order: [string, string, string]; leftover: [string, string, string];
+    setOrder: (v: [string, string, string]) => void; setLeftover: (v: [string, string, string]) => void; color: string;
+  }) {
+    return (
+      <div className="statPop" style={{ ...cardStyle, padding: 18, borderTop: `3px solid ${color}` }}>
+        <div style={{ fontSize: 14, fontWeight: 800, color: "var(--t1)", marginBottom: 14 }}>{category}</div>
+        <div style={{ display: "grid", gridTemplateColumns: "80px 1fr 1fr", gap: 8, marginBottom: 8 }}>
+          <div />
+          <div style={{ fontSize: 10.5, fontWeight: 700, color: "var(--t3)", textAlign: "center", textTransform: "uppercase" }}>{lang === "en" ? "Order" : "Order"}</div>
+          <div style={{ fontSize: 10.5, fontWeight: 700, color: "var(--t3)", textAlign: "center", textTransform: "uppercase" }}>{lang === "en" ? "Leftover" : "Sisa"}</div>
+        </div>
+        {SHIFT_LABELS.map((sh, i) => (
+          <div key={i} style={{ display: "grid", gridTemplateColumns: "80px 1fr 1fr", gap: 8, marginBottom: 8, alignItems: "center" }}>
+            <div style={{ fontSize: 12, color: "var(--t2)", fontWeight: 600 }}>{sh}</div>
+            <input className="premiumInput" style={inputStyle} type="number" min="0" placeholder="0" value={order[i]} onChange={(e) => { const v = [...order] as [string, string, string]; v[i] = e.target.value; setOrder(v); }} />
+            <input className="premiumInput" style={{ ...inputStyle, borderColor: Number(leftover[i]) > Number(order[i]) && Number(order[i]) > 0 ? "var(--red)" : undefined }} type="number" min="0" placeholder="0" value={leftover[i]} onChange={(e) => { const v = [...leftover] as [string, string, string]; v[i] = e.target.value; setLeftover(v); }} />
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <div className="statPop" style={{ ...cardStyle, padding: 18, marginBottom: 16 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+          <div>
+            <label style={labelStyle}>{lang === "en" ? "REPORT DATE" : "TANGGAL LAPORAN"} *</label>
+            <input className="premiumInput" style={{ ...inputStyle, textAlign: "left" }} type="date" value={reportDate} onChange={(e) => setReportDate(e.target.value)} />
+          </div>
+          <div>
+            <label style={labelStyle}>{lang === "en" ? "SUBMITTED BY" : "DIINPUT OLEH"}</label>
+            <input className="premiumInput" style={{ ...inputStyle, textAlign: "left" }} value={submittedBy} onChange={(e) => setSubmittedBy(e.target.value)} placeholder={lang === "en" ? "Canteen Operator" : "Operator Kantin"} />
+          </div>
+        </div>
+      </div>
+
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 16 }}>
+        <ShiftGrid category={`🥐 ${lang === "en" ? "Snack" : "Snack"}`} order={snackOrder} leftover={snackLeftover} setOrder={setSnackOrder} setLeftover={setSnackLeftover} color="var(--green)" />
+        <ShiftGrid category={`🍱 ${lang === "en" ? "Meal" : "Meal"}`} order={mealOrder} leftover={mealLeftover} setOrder={setMealOrder} setLeftover={setMealLeftover} color="var(--brand)" />
+      </div>
+
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 16 }}>
+        <div className="statPop" style={{ ...cardStyle, padding: 16 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, marginBottom: 6 }}><span style={{ color: "var(--t3)" }}>{lang === "en" ? "Total Ordered" : "Total Order"}</span><span style={{ fontWeight: 700, color: "var(--t1)" }}>{fmtRp(sOrd)}</span></div>
+          <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, marginBottom: 6 }}><span style={{ color: "var(--t3)" }}>{lang === "en" ? "Consumed" : "Terpakai"}</span><span style={{ fontWeight: 700, color: "var(--green)" }}>{fmtRp(sCon)}</span></div>
+          <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12 }}><span style={{ color: "var(--t3)" }}>{lang === "en" ? "Leftover" : "Sisa"}</span><span style={{ fontWeight: 700, color: "var(--red)" }}>{fmtRp(sLft)}</span></div>
+          <div style={{ marginTop: 10, height: 6, borderRadius: 4, background: "var(--border)", overflow: "hidden" }}><div style={{ height: "100%", width: `${sEff}%`, background: "var(--green)" }} /></div>
+          <div style={{ textAlign: "right", fontSize: 11, fontWeight: 700, color: "var(--green)", marginTop: 4 }}>{sEff.toFixed(1)}% eff</div>
+        </div>
+        <div className="statPop" style={{ ...cardStyle, padding: 16 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, marginBottom: 6 }}><span style={{ color: "var(--t3)" }}>{lang === "en" ? "Total Ordered" : "Total Order"}</span><span style={{ fontWeight: 700, color: "var(--t1)" }}>{fmtRp(mOrd)}</span></div>
+          <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, marginBottom: 6 }}><span style={{ color: "var(--t3)" }}>{lang === "en" ? "Consumed" : "Terpakai"}</span><span style={{ fontWeight: 700, color: "var(--brand)" }}>{fmtRp(mCon)}</span></div>
+          <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12 }}><span style={{ color: "var(--t3)" }}>{lang === "en" ? "Leftover" : "Sisa"}</span><span style={{ fontWeight: 700, color: "var(--red)" }}>{fmtRp(mLft)}</span></div>
+          <div style={{ marginTop: 10, height: 6, borderRadius: 4, background: "var(--border)", overflow: "hidden" }}><div style={{ height: "100%", width: `${mEff}%`, background: "var(--brand)" }} /></div>
+          <div style={{ textAlign: "right", fontSize: 11, fontWeight: 700, color: "var(--brand)", marginTop: 4 }}>{mEff.toFixed(1)}% eff</div>
+        </div>
+      </div>
+
+      {hasOverflow && <div style={{ padding: 12, borderRadius: 10, background: "var(--red-soft)", color: "var(--red)", marginBottom: 14, fontSize: 12.5 }}>{lang === "en" ? "Leftover can't be greater than order — check the highlighted fields." : "Sisa tidak boleh lebih besar dari order — cek field yang ditandai merah."}</div>}
+
+      <button className="pillBtn" onClick={handleSubmit} disabled={!canSave || saving} style={{ width: "100%", justifyContent: "center", padding: 14, opacity: canSave && !saving ? 1 : 0.5 }}>
+        {saving ? t.actionSaving : (lang === "en" ? "Save Report" : "Simpan Laporan")}
+      </button>
+    </div>
+  );
+}
+
+/* ── Dashboard sub-panel ── */
+function CanteenDashboardPanel({ cardStyle }: { cardStyle: CSSProperties }) {
+  const { lang, t } = useLang();
+  const now = new Date();
+  const [month, setMonth] = useState(`${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`);
+  const [rows, setRows] = useState<CanteenReport[]>([]);
+  const [availableMonths, setAvailableMonths] = useState<string[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState<CanteenReport | null>(null);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const [monthRows, allRows] = await Promise.all([getCanteenReportsForMonth(month), getAllCanteenReports()]);
+      setRows(monthRows);
+      const months = [...new Set(allRows.map((r) => r.reportDate.slice(0, 7)))].sort().reverse();
+      setAvailableMonths(months.length > 0 ? months : [month]);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Gagal memuat data kantin");
+    } finally {
+      setLoading(false);
+    }
+  }, [month]);
+  useEffect(() => { load(); }, [load]);
+
+  async function handleDelete() {
+    if (!confirmDelete) return;
+    try {
+      await deleteCanteenReport(confirmDelete.id);
+      setConfirmDelete(null);
+      await load();
+    } catch (e) {
+      alert(e instanceof Error ? e.message : "Gagal menghapus laporan");
+    }
+  }
+
+  const kpi = useMemo(() => computeCanteenKPI(rows), [rows]);
+  const overallEff = Math.round(((kpi.snackEff + kpi.mealEff) / 2) * 10) / 10;
+
+  const shiftTotals = useMemo(() => {
+    const s: [number, number, number] = [0, 0, 0];
+    const m: [number, number, number] = [0, 0, 0];
+    rows.forEach((r) => { for (let i = 0; i < 3; i++) { s[i] += r.snackOrder[i]; m[i] += r.mealOrder[i]; } });
+    return { snack: s, meal: m };
+  }, [rows]);
+
+  const chartW = 640, chartH = 160, pad = 30;
+  const maxOrd = Math.max(...rows.map((r) => r.snackOrder[0] + r.snackOrder[1] + r.snackOrder[2] + r.mealOrder[0] + r.mealOrder[1] + r.mealOrder[2]), 1);
+  const snackPts = rows.map((r, i) => {
+    const x = pad + (rows.length > 1 ? (i / (rows.length - 1)) * (chartW - pad * 2) : 0);
+    const total = r.snackOrder[0] + r.snackOrder[1] + r.snackOrder[2];
+    const y = chartH - pad - (total / maxOrd) * (chartH - pad * 2 - 10);
+    return `${x.toFixed(1)},${y.toFixed(1)}`;
+  }).join(" ");
+  const mealPts = rows.map((r, i) => {
+    const x = pad + (rows.length > 1 ? (i / (rows.length - 1)) * (chartW - pad * 2) : 0);
+    const total = r.mealOrder[0] + r.mealOrder[1] + r.mealOrder[2];
+    const y = chartH - pad - (total / maxOrd) * (chartH - pad * 2 - 10);
+    return `${x.toFixed(1)},${y.toFixed(1)}`;
+  }).join(" ");
+
+  return (
+    <div>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 18, flexWrap: "wrap", gap: 10 }}>
+        <select className="premiumInput" value={month} onChange={(e) => setMonth(e.target.value)} style={{ padding: "9px 14px", borderRadius: "var(--pill)", border: "1px solid var(--border2)", background: "var(--bg2)", color: "var(--t1)", fontSize: 13 }}>
+          {availableMonths.map((m) => (
+            <option key={m} value={m}>{new Date(m + "-01").toLocaleDateString(lang === "en" ? "en-GB" : "id-ID", { month: "long", year: "numeric" })}</option>
+          ))}
+        </select>
+      </div>
+
+      {error && <div style={{ padding: 12, borderRadius: 10, background: "var(--red-soft)", color: "var(--red)", marginBottom: 14, fontSize: 13 }}>{error}</div>}
+
+      {loading ? (
+        <div style={{ textAlign: "center", padding: 40, color: "var(--t3)" }}>{t.actionLoading}</div>
+      ) : (
+        <>
+          {/* KPI cards */}
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 12, marginBottom: 18 }}>
+            {[
+              { label: lang === "en" ? "Snack Ordered" : "Snack Order", value: fmtRp(kpi.totalSnackOrder), color: "var(--green)" },
+              { label: lang === "en" ? "Snack Efficiency" : "Efisiensi Snack", value: `${kpi.snackEff}%`, color: "var(--green)" },
+              { label: lang === "en" ? "Meal Ordered" : "Meal Order", value: fmtRp(kpi.totalMealOrder), color: "var(--brand)" },
+              { label: lang === "en" ? "Meal Efficiency" : "Efisiensi Meal", value: `${kpi.mealEff}%`, color: "var(--brand)" },
+              { label: lang === "en" ? "Overall Efficiency" : "Efisiensi Keseluruhan", value: `${overallEff}%`, color: overallEff >= 95 ? "var(--green)" : overallEff >= 90 ? "var(--orange)" : "var(--red)" },
+            ].map((s, i) => (
+              <div key={i} className="statPop" style={{ ...cardStyle, padding: 14, textAlign: "center", animationDelay: `${i * 0.05}s` }}>
+                <div className="numGrad" style={{ fontSize: 18, fontWeight: 800, fontFamily: "var(--mono)" }}>{s.value}</div>
+                <div style={{ fontSize: 10.5, color: "var(--t3)", marginTop: 4 }}>{s.label}</div>
+              </div>
+            ))}
+          </div>
+
+          {/* Trend chart + Shift breakdown */}
+          <div style={{ display: "grid", gridTemplateColumns: "1.5fr 1fr", gap: 16, marginBottom: 18 }}>
+            <div className="statPop" style={{ ...cardStyle, padding: 20 }}>
+              <div style={{ fontSize: 13, fontWeight: 800, color: "var(--t1)", marginBottom: 4 }}>{lang === "en" ? "Daily Order Trend" : "Tren Order Harian"}</div>
+              <div style={{ display: "flex", gap: 14, fontSize: 11, marginBottom: 12 }}>
+                <span style={{ display: "flex", alignItems: "center", gap: 5 }}><span style={{ width: 8, height: 8, borderRadius: 4, background: "var(--green)" }} />Snack</span>
+                <span style={{ display: "flex", alignItems: "center", gap: 5 }}><span style={{ width: 8, height: 8, borderRadius: 4, background: "var(--brand)" }} />Meal</span>
+              </div>
+              {rows.length === 0 ? (
+                <div style={{ textAlign: "center", padding: 30, color: "var(--t3)", fontSize: 12 }}>{t.actionNoDataYet}</div>
+              ) : (
+                <svg viewBox={`0 0 ${chartW} ${chartH}`} width="100%" height={chartH}>
+                  {[0.25, 0.5, 0.75].map((f) => (<line key={f} x1={pad} x2={chartW - pad} y1={pad + f * (chartH - pad * 2 - 10)} y2={pad + f * (chartH - pad * 2 - 10)} stroke="var(--border)" strokeWidth={1} />))}
+                  <polyline points={snackPts} fill="none" stroke="var(--green)" strokeWidth={2.5} strokeLinejoin="round" strokeLinecap="round" />
+                  <polyline points={mealPts} fill="none" stroke="var(--brand)" strokeWidth={2.5} strokeLinejoin="round" strokeLinecap="round" />
+                </svg>
+              )}
+            </div>
+            <div className="statPop" style={{ ...cardStyle, padding: 20 }}>
+              <div style={{ fontSize: 13, fontWeight: 800, color: "var(--t1)", marginBottom: 14 }}>{lang === "en" ? "Shift Breakdown" : "Breakdown Shift"}</div>
+              {SHIFT_LABELS.map((sh, i) => {
+                const sTot = shiftTotals.snack[0] + shiftTotals.snack[1] + shiftTotals.snack[2] || 1;
+                const mTot = shiftTotals.meal[0] + shiftTotals.meal[1] + shiftTotals.meal[2] || 1;
+                return (
+                  <div key={i} style={{ marginBottom: 10 }}>
+                    <div style={{ fontSize: 11.5, fontWeight: 700, color: "var(--t2)", marginBottom: 4 }}>{sh}</div>
+                    <div style={{ display: "flex", gap: 6, alignItems: "center", marginBottom: 3 }}>
+                      <div style={{ flex: 1, height: 6, borderRadius: 4, background: "var(--border)", overflow: "hidden" }}><div style={{ height: "100%", width: `${(shiftTotals.snack[i] / sTot) * 100}%`, background: "var(--green)" }} /></div>
+                      <span style={{ fontSize: 10.5, color: "var(--t3)", minWidth: 40, textAlign: "right" }}>{fmtRp(shiftTotals.snack[i])}</span>
+                    </div>
+                    <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                      <div style={{ flex: 1, height: 6, borderRadius: 4, background: "var(--border)", overflow: "hidden" }}><div style={{ height: "100%", width: `${(shiftTotals.meal[i] / mTot) * 100}%`, background: "var(--brand)" }} /></div>
+                      <span style={{ fontSize: 10.5, color: "var(--t3)", minWidth: 40, textAlign: "right" }}>{fmtRp(shiftTotals.meal[i])}</span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Detail table */}
+          <div className="statPop" style={{ ...cardStyle, overflow: "hidden" }}>
+            <div style={{ padding: "13px 18px", borderBottom: "1px solid var(--border)", fontWeight: 800, fontSize: 13, color: "var(--t1)" }}>{lang === "en" ? "Daily Detail" : "Detail Harian"}</div>
+            {rows.length === 0 ? (
+              <div style={{ textAlign: "center", padding: 30, color: "var(--t3)", fontSize: 12 }}>{t.actionNoDataYet}</div>
+            ) : (
+              rows.slice().reverse().map((r) => {
+                const sOrd = r.snackOrder[0] + r.snackOrder[1] + r.snackOrder[2];
+                const sLft = r.snackLeftover[0] + r.snackLeftover[1] + r.snackLeftover[2];
+                const mOrd = r.mealOrder[0] + r.mealOrder[1] + r.mealOrder[2];
+                const mLft = r.mealLeftover[0] + r.mealLeftover[1] + r.mealLeftover[2];
+                return (
+                  <div key={r.id} className="rowHover" style={{ display: "flex", alignItems: "center", gap: 14, padding: "11px 18px", borderBottom: "1px solid var(--border)" }}>
+                    <div style={{ minWidth: 100, fontSize: 12.5, fontWeight: 700, color: "var(--t1)" }}>{fmtCanteenDate(r.reportDate, lang)}</div>
+                    <div style={{ flex: 1, fontSize: 11.5, color: "var(--t3)" }}>🥐 {fmtRp(sOrd)} order · sisa {fmtRp(sLft)}</div>
+                    <div style={{ flex: 1, fontSize: 11.5, color: "var(--t3)" }}>🍱 {fmtRp(mOrd)} order · sisa {fmtRp(mLft)}</div>
+                    <button onClick={() => setConfirmDelete(r)} style={{ border: "none", background: "none", color: "var(--red)", cursor: "pointer", fontSize: 13 }}>🗑️</button>
+                  </div>
+                );
+              })
+            )}
+          </div>
+        </>
+      )}
+
+      {confirmDelete && (
+        <ModalPortal onOverlayClick={() => setConfirmDelete(null)} maxWidth={360}>
+          <div style={{ ...cardStyle, padding: 24, textAlign: "center" }}>
+            <div style={{ fontSize: 28, marginBottom: 8 }}>⚠️</div>
+            <div style={{ fontSize: 15, fontWeight: 800, marginBottom: 8, color: "var(--t1)" }}>{lang === "en" ? "Delete this report?" : "Hapus laporan ini?"}</div>
+            <div style={{ fontSize: 13, color: "var(--t3)", marginBottom: 18 }}><strong style={{ color: "var(--t1)" }}>{fmtCanteenDate(confirmDelete.reportDate, lang)}</strong> {lang === "en" ? "will be permanently deleted." : "akan dihapus permanen."}</div>
             <div style={{ display: "flex", gap: 10 }}>
               <button onClick={() => setConfirmDelete(null)} style={{ flex: 1, padding: "10px", borderRadius: 10, border: "1px solid var(--border2)", background: "var(--surface2)", color: "var(--t2)", fontWeight: 700, cursor: "pointer" }}>{t.actionCancel}</button>
               <button onClick={handleDelete} style={{ flex: 1, padding: "10px", borderRadius: 10, border: "none", background: "var(--red)", color: "#fff", fontWeight: 700, cursor: "pointer" }}>{t.actionYesDelete}</button>

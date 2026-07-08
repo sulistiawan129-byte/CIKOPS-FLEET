@@ -15,6 +15,7 @@ import type {
   TaskDetail,
   TaskStatus,
   Vehicle,
+  CanteenReport,
 } from "./types";
 
 /* ════════════════════════════════════════════════════════════
@@ -931,4 +932,84 @@ export async function sendClaimNotificationEmails(
     managerEmail ? invokeClaimEmail("manager", managerEmail, input) : Promise.resolve(null),
   ]);
   return { driver: driverResult, manager: managerResult };
+}
+
+/* ════════════════════════════════════════════════════════════
+   CANTEEN — merged from the standalone Canteen Ops system.
+════════════════════════════════════════════════════════════ */
+
+interface CanteenReportRow {
+  id: string;
+  report_date: string;
+  snack_order_1: number; snack_order_2: number; snack_order_3: number;
+  snack_leftover_1: number; snack_leftover_2: number; snack_leftover_3: number;
+  meal_order_1: number; meal_order_2: number; meal_order_3: number;
+  meal_leftover_1: number; meal_leftover_2: number; meal_leftover_3: number;
+  submitted_by: string | null;
+  created_at: string;
+}
+
+function mapCanteenRow(row: CanteenReportRow): CanteenReport {
+  return {
+    id: row.id,
+    reportDate: row.report_date,
+    snackOrder: [Number(row.snack_order_1) || 0, Number(row.snack_order_2) || 0, Number(row.snack_order_3) || 0],
+    snackLeftover: [Number(row.snack_leftover_1) || 0, Number(row.snack_leftover_2) || 0, Number(row.snack_leftover_3) || 0],
+    mealOrder: [Number(row.meal_order_1) || 0, Number(row.meal_order_2) || 0, Number(row.meal_order_3) || 0],
+    mealLeftover: [Number(row.meal_leftover_1) || 0, Number(row.meal_leftover_2) || 0, Number(row.meal_leftover_3) || 0],
+    submittedBy: row.submitted_by ?? "",
+    createdAt: row.created_at,
+  };
+}
+
+/** Gets all canteen reports for a given "YYYY-MM" month. */
+export async function getCanteenReportsForMonth(month: string): Promise<CanteenReport[]> {
+  const { data, error } = await supabase
+    .from("canteen_reports")
+    .select("*")
+    .gte("report_date", `${month}-01`)
+    .lte("report_date", `${month}-31`)
+    .order("report_date", { ascending: true });
+  if (error) throw error;
+  return ((data as CanteenReportRow[]) ?? []).map(mapCanteenRow);
+}
+
+/** Gets every canteen report on file — used for the monthly-history /
+ *  month-picker views, where we need to know which months have data. */
+export async function getAllCanteenReports(): Promise<CanteenReport[]> {
+  const { data, error } = await supabase.from("canteen_reports").select("*").order("report_date", { ascending: true });
+  if (error) throw error;
+  return ((data as CanteenReportRow[]) ?? []).map(mapCanteenRow);
+}
+
+export interface CanteenReportInput {
+  reportDate: string;
+  snackOrder: [number, number, number];
+  snackLeftover: [number, number, number];
+  mealOrder: [number, number, number];
+  mealLeftover: [number, number, number];
+  submittedBy: string;
+}
+
+/** Saving a report for a date that already has one REPLACES it (upsert
+ *  on report_date) — matches the original system, where submitting the
+ *  same day again was how you corrected a mistake, not a duplicate. */
+export async function saveCanteenReport(input: CanteenReportInput): Promise<void> {
+  const { error } = await supabase.from("canteen_reports").upsert(
+    {
+      report_date: input.reportDate,
+      snack_order_1: input.snackOrder[0], snack_order_2: input.snackOrder[1], snack_order_3: input.snackOrder[2],
+      snack_leftover_1: input.snackLeftover[0], snack_leftover_2: input.snackLeftover[1], snack_leftover_3: input.snackLeftover[2],
+      meal_order_1: input.mealOrder[0], meal_order_2: input.mealOrder[1], meal_order_3: input.mealOrder[2],
+      meal_leftover_1: input.mealLeftover[0], meal_leftover_2: input.mealLeftover[1], meal_leftover_3: input.mealLeftover[2],
+      submitted_by: input.submittedBy,
+    },
+    { onConflict: "report_date" }
+  );
+  if (error) throw error;
+}
+
+export async function deleteCanteenReport(id: string): Promise<void> {
+  const { error } = await supabase.from("canteen_reports").delete().eq("id", id);
+  if (error) throw error;
 }

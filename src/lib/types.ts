@@ -222,3 +222,57 @@ export function computeDriverSummaries(
 
   return summaries.sort((a, b) => b.total - a.total);
 }
+
+/* ════════════════════════════════════════════════════════════
+   CANTEEN — merged from the standalone Canteen Ops system. Each row
+   is one day's report, broken down per shift (1/2/3) per category
+   (snack/meal). "Consumed" is always derived (order − leftover), it's
+   never stored directly — matching how the original GAS-based system
+   computed it.
+════════════════════════════════════════════════════════════ */
+
+export interface CanteenReport {
+  id: string;
+  reportDate: string; // yyyy-mm-dd
+  snackOrder: [number, number, number]; // per shift 1/2/3
+  snackLeftover: [number, number, number];
+  mealOrder: [number, number, number];
+  mealLeftover: [number, number, number];
+  submittedBy: string;
+  createdAt: string;
+}
+
+export interface CanteenKPI {
+  days: number;
+  totalSnackOrder: number;
+  totalSnackConsumed: number;
+  totalSnackLeftover: number;
+  totalMealOrder: number;
+  totalMealConsumed: number;
+  totalMealLeftover: number;
+  snackEff: number; // %
+  mealEff: number; // %
+}
+
+export function computeCanteenKPI(rows: CanteenReport[]): CanteenKPI {
+  let totalSnackOrder = 0, totalSnackLeftover = 0, totalMealOrder = 0, totalMealLeftover = 0;
+  rows.forEach((r) => {
+    totalSnackOrder += r.snackOrder[0] + r.snackOrder[1] + r.snackOrder[2];
+    totalSnackLeftover += r.snackLeftover[0] + r.snackLeftover[1] + r.snackLeftover[2];
+    totalMealOrder += r.mealOrder[0] + r.mealOrder[1] + r.mealOrder[2];
+    totalMealLeftover += r.mealLeftover[0] + r.mealLeftover[1] + r.mealLeftover[2];
+  });
+  const totalSnackConsumed = Math.max(0, totalSnackOrder - totalSnackLeftover);
+  const totalMealConsumed = Math.max(0, totalMealOrder - totalMealLeftover);
+  return {
+    days: rows.length,
+    totalSnackOrder,
+    totalSnackConsumed,
+    totalSnackLeftover,
+    totalMealOrder,
+    totalMealConsumed,
+    totalMealLeftover,
+    snackEff: totalSnackOrder > 0 ? Math.round((totalSnackConsumed / totalSnackOrder) * 10000) / 100 : 0,
+    mealEff: totalMealOrder > 0 ? Math.round((totalMealConsumed / totalMealOrder) * 10000) / 100 : 0,
+  };
+}
