@@ -1733,15 +1733,19 @@ function OverviewTab({ setActiveTab, myProfile }: { setActiveTab: (t: DashboardT
 
   // Computed BEFORE the loading-gate (hooks must be called unconditionally)
   // so the hero KPI numbers can animate with a count-up effect on load.
-  const docBucketsPre = { urgent: 0, mid: 0, safe: 0 };
-  vehicles.forEach((v) => {
-    [v.kir_date, v.service_date, v.stnk_date].forEach((d) => {
-      const days = daysUntil(d);
-      if (days <= 7) docBucketsPre.urgent++;
-      else if (days <= 30) docBucketsPre.mid++;
-      else docBucketsPre.safe++;
-    });
+  const docBucketsPre = { urgent: 0, mid: 0, safe: 0, noData: 0 };
+vehicles.forEach((v) => {
+  [v.kir_date, v.service_date, v.stnk_date].forEach((d) => {
+    if (!d) {
+      docBucketsPre.noData++;
+      return;
+    }
+    const days = daysUntil(d);
+    if (days <= 7) docBucketsPre.urgent++;
+    else if (days <= 30) docBucketsPre.mid++;
+    else docBucketsPre.safe++;
   });
+});
   const urgentDocsPre = docBucketsPre.urgent + docBucketsPre.mid;
   const activeDriversPre = new Set(claims.map((c) => c.driver_id)).size;
 
