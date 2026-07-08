@@ -79,7 +79,6 @@ function buildRecapSection(
     { gasoline: 0, toll: 0, parking: 0, others: 0, total: 0 }
   );
 
-  lines.push(escapeCsv("PT. FRISIAN FLAG INDONESIA"));
   lines.push(escapeCsv("REKAPITULASI BIAYA OPERASIONAL KENDARAAN " + new Date().getFullYear()));
   lines.push(escapeCsv(sectionTitle));
   lines.push("");

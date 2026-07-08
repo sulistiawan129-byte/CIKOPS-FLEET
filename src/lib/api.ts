@@ -44,7 +44,7 @@ export async function getVehicles(): Promise<Vehicle[]> {
 export async function getEmployees(): Promise<Employee[]> {
   const { data, error } = await supabase
     .from("employees")
-    .select("id, nik, nama, departement")
+    .select("id, nama, departement")
     .order("nama", { ascending: true });
   if (error) throw error;
   return data ?? [];
@@ -812,7 +812,6 @@ export async function getAllEmployeesFull(): Promise<Employee[]> {
 }
 
 export interface EmployeeInput {
-  nik: string | null;
   nama: string;
   departement: string | null;
 }

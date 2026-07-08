@@ -5153,7 +5153,6 @@ function EmployeesMasterPanel({ cardStyle }: { cardStyle: CSSProperties }) {
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<Employee | null>(null);
   const [formNama, setFormNama] = useState("");
-  const [formNik, setFormNik] = useState("");
   const [formDept, setFormDept] = useState("");
   const [saving, setSaving] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState<Employee | null>(null);
@@ -5171,15 +5170,15 @@ function EmployeesMasterPanel({ cardStyle }: { cardStyle: CSSProperties }) {
   }, []);
   useEffect(() => { load(); }, [load]);
 
-  function openAdd() { setEditing(null); setFormNama(""); setFormNik(""); setFormDept(""); setShowForm(true); }
-  function openEdit(e: Employee) { setEditing(e); setFormNama(e.nama); setFormNik(e.nik || ""); setFormDept(e.departement || ""); setShowForm(true); }
+  function openAdd() { setEditing(null); setFormNama(""); setFormDept(""); setShowForm(true); }
+  function openEdit(e: Employee) { setEditing(e); setFormNama(e.nama); setFormDept(e.departement || ""); setShowForm(true); }
   const canSave = formNama.trim() !== "";
 
   async function handleSave() {
     if (!canSave) return;
     setSaving(true);
     try {
-      const payload: EmployeeInput = { nama: formNama.trim(), nik: formNik.trim() || null, departement: formDept.trim() || null };
+      const payload: EmployeeInput = { nama: formNama.trim(), departement: formDept.trim() || null };
       if (editing) await updateEmployee(editing.id, payload);
       else await addEmployee(payload);
       setShowForm(false);
@@ -5221,7 +5220,6 @@ function EmployeesMasterPanel({ cardStyle }: { cardStyle: CSSProperties }) {
             <div key={emp.id} className="rowHover" style={{ display: "flex", alignItems: "center", gap: 14, padding: "12px 18px", borderBottom: "1px solid var(--border)" }}>
               <div style={{ flex: 1 }}>
                 <div style={{ fontSize: 13, fontWeight: 700, color: "var(--t1)" }}>{emp.nama}</div>
-                <div style={{ fontSize: 13, color: "var(--t3)" }}>NIK: {emp.nik || "-"}</div>
               </div>
               <div style={{ fontSize: 12, color: "var(--t2)" }}>{emp.departement || "-"}</div>
               <button onClick={() => openEdit(emp)} style={{ border: "1px solid var(--border2)", background: "var(--surface2)", borderRadius: 8, padding: "6px 9px", cursor: "pointer", fontSize: 12 }}>✏️</button>
@@ -5238,10 +5236,6 @@ function EmployeesMasterPanel({ cardStyle }: { cardStyle: CSSProperties }) {
             <div style={{ marginBottom: 12 }}>
               <label style={labelStyle}>{lang === "en" ? "NAME" : "NAMA"} *</label>
               <input className="premiumInput" style={inputStyle} value={formNama} onChange={(e) => setFormNama(e.target.value)} />
-            </div>
-            <div style={{ marginBottom: 12 }}>
-              <label style={labelStyle}>NIK</label>
-              <input className="premiumInput" style={inputStyle} value={formNik} onChange={(e) => setFormNik(e.target.value)} />
             </div>
             <div style={{ marginBottom: 18 }}>
               <label style={labelStyle}>{lang === "en" ? "DEPARTMENT" : "DEPARTEMEN"}</label>

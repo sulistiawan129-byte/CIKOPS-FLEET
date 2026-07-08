@@ -30,7 +30,6 @@ export interface Vehicle {
 
 export interface Employee {
   id: string;
-  nik: string | null;
   nama: string;
   departement: string | null;
 }
