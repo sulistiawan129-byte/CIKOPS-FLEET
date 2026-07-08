@@ -1810,7 +1810,22 @@ vehicles.forEach((v) => {
 
   // ── Composite Operational Health Score — the signature premium element,
   // synthesizing every module into one number instead of raw stats alone. ──
-  const docHealthPct = totalDocs > 0 ? Math.max(0, 100 - ((docBuckets.urgent * 2 + docBuckets.mid) / (totalDocs * 2)) * 100) : 100;
+  const docHealthPct = totalDocs > 0
+       ? Math.max(
+           0,
+           100 -
+             ((docBuckets.urgent * 2 + docBuckets.mid + docBuckets.noData * 1.5) /
+               (totalDocs * 2)) *
+               100
+         )
+       : 100;
+ 
+   (totalDocs sendiri sudah otomatis benar karena dihitung dari
+   docBuckets.urgent + docBuckets.mid + docBuckets.safe + docBuckets.noData
+   — pastikan baris totalDocs juga ditambah docBuckets.noData:
+ 
+     const totalDocs = docBuckets.urgent + docBuckets.mid + docBuckets.safe + docBuckets.noData;
+   )
   const budgetHealthPct = kantong?.totalBudget ? Math.max(0, 100 - Math.min(100, (Math.abs(gap) / kantong.totalBudget) * 100)) : 100;
   const claimTrendHealthPct = claimTrendPct === null ? 100 : Math.max(0, Math.min(100, 100 - Math.max(0, claimTrendPct)));
   const taskHealthPct = todayTasks.length > 0 ? taskCompletionToday : 100;
