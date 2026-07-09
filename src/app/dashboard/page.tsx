@@ -429,12 +429,13 @@ const [masterDataInitialSub, setMasterDataInitialSub] = useState<"drivers" | "em
           </div>
         </div>
         <nav style={{ flex: 1, overflowY: "auto", padding: "10px 10px" }}>
-          {TAB_CONFIG
-            .filter((tabItem) =>
-        myProfile?.accessScope === "tasks_only"
-         ? ["tasks", "vehicles", "masterdata"].includes(tabItem.id)
-         : true
-     ).map((tabItem) => (
+         {TAB_CONFIG
+       .filter((tabItem) =>
+         myProfile?.accessScope === "tasks_only"
+           ? ["tasks", "vehicles", "masterdata", "claims", "reports"].includes(tabItem.id)
+           : true
+       )
+       .map((tabItem) => (
             <button
               key={tabItem.id}
               className="tabPill"
