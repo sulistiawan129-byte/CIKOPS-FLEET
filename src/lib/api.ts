@@ -359,10 +359,24 @@ function mapClaimRow(row: ClaimRow): Claim {
 export async function getClaims(): Promise<Claim[]> {
   const { data, error } = await supabase
     .from("claims")
-    .select("*, drivers(nama, email)")
-    .order("period_date", { ascending: false });
+    .select(`
+      id, driver_id, period_date, submission_date, items, total, status, note, plant,
+      drivers ( nama )
+    `)
+    .order("submission_date", { ascending: false });
   if (error) throw error;
-  return (data as unknown as ClaimRow[] ?? []).map(mapClaimRow);
+  return (data ?? []).map((row: any) => ({
+    id: row.id,
+    driverId: row.driver_id,
+    driverName: row.drivers?.nama ?? "-",
+    periodDate: row.period_date,
+    submissionDate: row.submission_date,
+    items: row.items,
+    total: row.total,
+    status: row.status,
+    note: row.note,
+    plant: row.plant,
+  }));
 }
 
 export interface AddClaimInput {
