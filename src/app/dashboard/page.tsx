@@ -249,6 +249,7 @@ export default function DashboardPage() {
    }, [user?.id]);
   const isMobile = useIsMobile();
   const [activeTab, setActiveTab] = useState<DashboardTab>("overview");
+const [masterDataInitialSub, setMasterDataInitialSub] = useState<"drivers" | "employees" | "jobtypes">("drivers");
 
   const [dateFilter, setDateFilter] = useState(todayStr());
   const [statusFilter, setStatusFilter] = useState<TaskStatus | null>(null);
@@ -1450,10 +1451,60 @@ function CreateTaskModal({
     <div className={`${styles.modalOverlay} modalOverlayAnim`} onClick={waMessage ? undefined : onClose}>
       <div className={`${styles.modalBox} modalPop`} onClick={(e) => e.stopPropagation()}>
         {waMessage ? (
-          // ... isi bagian waMessage TIDAK BERUBAH, sama seperti sebelumnya
-          <>{/* konten existing tetap sama */}</>
-        ) : (
-          <>
+  <>
+    <div className={styles.modalHeader}>
+      <div className={styles.modalTitle}>✅ Tugas Berhasil Dibuat</div>
+    </div>
+    <div style={{ padding: "0 24px 20px" }}>
+      <div style={{ fontSize: 12.5, color: "var(--t3)", marginBottom: 10 }}>
+        Bagikan detail penugasan ini ke driver/grup terkait via WhatsApp:
+      </div>
+      <div
+        style={{
+          background: "var(--bg2)",
+          border: "1px solid var(--border2)",
+          borderRadius: 12,
+          padding: 16,
+          fontSize: 13,
+          color: "var(--t1)",
+          whiteSpace: "pre-wrap",
+          lineHeight: 1.6,
+          marginBottom: 16,
+          maxHeight: 260,
+          overflowY: "auto",
+          fontFamily: "var(--font)",
+        }}
+      >
+        {waMessage}
+      </div>
+      <div style={{ display: "flex", gap: 10 }}>
+        <button
+          type="button"
+          onClick={() => {
+            setWaMessage(null);
+            onCreated();
+          }}
+          style={{ flex: 1, padding: "11px", borderRadius: 10, border: "1px solid var(--border2)", background: "var(--surface2)", color: "var(--t2)", fontWeight: 700, cursor: "pointer" }}
+        >
+          Selesai
+        </button>
+        
+          href={`https://wa.me/?text=${encodeURIComponent(waMessage)}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          onClick={() => {
+            setWaMessage(null);
+            onCreated();
+          }}
+          className="pillBtn"
+          style={{ flex: 2, justifyContent: "center", textDecoration: "none", background: "linear-gradient(135deg, #25d366, #128c7e)" }}
+        >
+          💬 Kirim via WhatsApp
+        </a>
+      </div>
+    </div>
+  </>
+) : (
             <div className={styles.modalHeader}>
               <div className={styles.modalTitle}>Tugaskan Driver</div>
               <button className={styles.modalClose} onClick={onClose}>✕</button>
@@ -1685,7 +1736,6 @@ vehicles.forEach((v) => {
     else if (days <= 30) docBucketsPre.mid++;
     else docBucketsPre.safe++;
   });
-});
   const urgentDocsPre = docBucketsPre.urgent + docBucketsPre.mid;
   const activeDriversPre = new Set(claims.map((c) => c.driver_id)).size;
 
@@ -1747,25 +1797,16 @@ vehicles.forEach((v) => {
   const taskCancelledToday = todayTasks.filter((t) => t.status === "CANCELLED").length;
   const taskNonCancelled = todayTasks.length - taskCancelledToday;
   const taskCompletionToday = taskNonCancelled > 0 ? (taskDoneToday / taskNonCancelled) * 100 : 100;
-
-  // ── Composite Operational Health Score — the signature premium element,
-  // synthesizing every module into one number instead of raw stats alone. ──
-  const docHealthPct = totalDocs > 0
-       ? Math.max(
-           0,
-           100 -
-             ((docBuckets.urgent * 2 + docBuckets.mid + docBuckets.noData * 1.5) /
-               (totalDocs * 2)) *
-               100
-         )
-       : 100;
- 
-   (totalDocs sendiri sudah otomatis benar karena dihitung dari
-   docBuckets.urgent + docBuckets.mid + docBuckets.safe + docBuckets.noData
-   — pastikan baris totalDocs juga ditambah docBuckets.noData:
- 
-     const totalDocs = docBuckets.urgent + docBuckets.mid + docBuckets.safe + docBuckets.noData;
-   )
+const totalDocs = docBuckets.urgent + docBuckets.mid + docBuckets.safe + docBuckets.noData;
+const docHealthPct = totalDocs > 0
+    ? Math.max(
+        0,
+        100 -
+          ((docBuckets.urgent * 2 + docBuckets.mid + docBuckets.noData * 1.5) /
+            (totalDocs * 2)) *
+            100
+      )
+    : 100;
   const budgetHealthPct = kantong?.totalBudget ? Math.max(0, 100 - Math.min(100, (Math.abs(gap) / kantong.totalBudget) * 100)) : 100;
   const claimTrendHealthPct = claimTrendPct === null ? 100 : Math.max(0, Math.min(100, 100 - Math.max(0, claimTrendPct)));
   const taskHealthPct = todayTasks.length > 0 ? taskCompletionToday : 100;
