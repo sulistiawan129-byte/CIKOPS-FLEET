@@ -676,19 +676,6 @@ export default function DriverPanelPage() {
   </div>
 )}
  
-{driversLoading && (
-  <div className={styles.loadingWrap}>
-    <div className={styles.spinner} />
-    <div className={styles.loadingTxt}>{t.memuatDriver}</div>
-  </div>
-)}
- 
-{driversError && (
-  <div className={styles.errBox}>
-    <div className={styles.errTxt}>{driversError}</div>
-  </div>
-)}
- 
 {!driversLoading && !driversError && (
   filteredDrivers.length === 0 ? (
     <div style={{ textAlign: "center", padding: "32px 16px", color: "rgba(255,255,255,0.6)", fontSize: 13 }}>
@@ -697,6 +684,7 @@ export default function DriverPanelPage() {
   ) : (
     <div className={styles.driverGrid}>
       {filteredDrivers.map((d) => (
+        <button
           key={d.id}
           className={`${styles.driverCard} ${selectedDriver?.id === d.id ? styles.driverCardSelected : ""}`}
           onClick={() => selectDriver(d)}
@@ -709,18 +697,7 @@ export default function DriverPanelPage() {
             <div className={styles.driverCardName}>
               {d.nama}
               {hasMultiplePlants && (
-                <span
-                  style={{
-                    marginLeft: 7,
-                    fontSize: 9.5,
-                    fontWeight: 800,
-                    padding: "1px 6px",
-                    borderRadius: 5,
-                    background: "rgba(61,111,242,0.1)",
-                    color: "var(--brand)",
-                    verticalAlign: "middle",
-                  }}
-                >
+                <span style={{ marginLeft: 7, fontSize: 9.5, fontWeight: 800, padding: "1px 6px", borderRadius: 5, background: "rgba(61,111,242,0.1)", color: "var(--brand)", verticalAlign: "middle" }}>
                   {d.plant || "CIK"}
                 </span>
               )}
