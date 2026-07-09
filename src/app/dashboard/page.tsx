@@ -1774,19 +1774,18 @@ function OverviewTab({ setActiveTab, myProfile }: { setActiveTab: (t: DashboardT
   // Computed BEFORE the loading-gate (hooks must be called unconditionally)
   // so the hero KPI numbers can animate with a count-up effect on load.
   const docBucketsPre = { urgent: 0, mid: 0, safe: 0, noData: 0 };
-vehicles.forEach((v) => {
-  [v.kir_date, v.service_date, v.stnk_date].forEach((d) => {
-    if (!d) {
-      docBucketsPre.noData++;
-      return;
-    }
-   const days = daysUntil(d);
-    if (days <= 7) docBucketsPre.urgent++;
-    else if (days <= 30) docBucketsPre.mid++;
-    else docBucketsPre.safe++;
+  vehicles.forEach((v) => {
+    [v.kir_date, v.service_date, v.stnk_date].forEach((d) => {
+      if (!d) {
+        docBucketsPre.noData++;
+        return;
+      }
+      const days = daysUntil(d);
+      if (days <= 7) docBucketsPre.urgent++;
+      else if (days <= 30) docBucketsPre.mid++;
+      else docBucketsPre.safe++;
+    });
   });
-});
-const urgentDocsPre = docBucketsPre.urgent + docBucketsPre.mid;
   const urgentDocsPre = docBucketsPre.urgent + docBucketsPre.mid;
   const activeDriversPre = new Set(claims.map((c) => c.driver_id)).size;
 
@@ -1806,7 +1805,7 @@ const urgentDocsPre = docBucketsPre.urgent + docBucketsPre.mid;
   const activeV = vehicles.filter((v) => v.aktif).length;
   const maintenanceV = vehicles.length - activeV;
   const docBuckets = docBucketsPre;
-  const totalDocs = docBuckets.urgent + docBuckets.mid + docBuckets.safe;
+  const totalDocs = docBuckets.urgent + docBuckets.mid + docBuckets.safe + docBuckets.noData;
   const urgentDocs = docBuckets.urgent + docBuckets.mid;
 
   // ── Claims ──
@@ -1848,8 +1847,10 @@ const urgentDocsPre = docBucketsPre.urgent + docBucketsPre.mid;
   const taskCancelledToday = todayTasks.filter((t) => t.status === "CANCELLED").length;
   const taskNonCancelled = todayTasks.length - taskCancelledToday;
   const taskCompletionToday = taskNonCancelled > 0 ? (taskDoneToday / taskNonCancelled) * 100 : 100;
-const totalDocs = docBuckets.urgent + docBuckets.mid + docBuckets.safe + docBuckets.noData;
-const docHealthPct = totalDocs > 0
+
+  // ── Composite Operational Health Score — the signature premium element,
+  // synthesizing every module into one number instead of raw stats alone. ──
+  const docHealthPct = totalDocs > 0
     ? Math.max(
         0,
         100 -
@@ -2129,7 +2130,6 @@ const docHealthPct = totalDocs > 0
     </div>
   );
 }
-
 const CLAIM_TYPES = ["Gasoline", "Toll", "Parking", "Service", "Maintenance", "Other"];
 const CLAIM_TYPE_COLOR: Record<string, string> = {
   Gasoline: "var(--green)",
