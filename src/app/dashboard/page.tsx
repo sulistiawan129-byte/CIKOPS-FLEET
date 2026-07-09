@@ -1780,11 +1780,13 @@ vehicles.forEach((v) => {
       docBucketsPre.noData++;
       return;
     }
-    const days = daysUntil(d);
+   const days = daysUntil(d);
     if (days <= 7) docBucketsPre.urgent++;
     else if (days <= 30) docBucketsPre.mid++;
     else docBucketsPre.safe++;
   });
+});
+const urgentDocsPre = docBucketsPre.urgent + docBucketsPre.mid;
   const urgentDocsPre = docBucketsPre.urgent + docBucketsPre.mid;
   const activeDriversPre = new Set(claims.map((c) => c.driver_id)).size;
 
@@ -4471,9 +4473,8 @@ function VehiclesTab() {
       service_date: form.service_date || null,
       stnk_date: form.stnk_date || null,
       dept: form.dept || null,
-     default_driver_id: form.default_driver_id || null,
-  plant: form.plant,
- };
+      default_driver_id: form.default_driver_id || null,
+      plant: form.plant,
     };
     try {
       if (editing) {
