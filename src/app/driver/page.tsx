@@ -697,7 +697,6 @@ export default function DriverPanelPage() {
   ) : (
     <div className={styles.driverGrid}>
       {filteredDrivers.map((d) => (
-        <button
           key={d.id}
           className={`${styles.driverCard} ${selectedDriver?.id === d.id ? styles.driverCardSelected : ""}`}
           onClick={() => selectDriver(d)}
