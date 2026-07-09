@@ -36,8 +36,8 @@ export default function DriverPanelPage() {
   const [driversError, setDriversError] = useState<string | null>(null);
 
   const [selectedDriver, setSelectedDriver] = useState<Driver | null>(null);
-   const [driverSearch, setDriverSearch] = useState("");
- const [driverPlantFilter, setDriverPlantFilter] = useState<"all" | "CIK" | "PRB">("all");
+  const [driverSearch, setDriverSearch] = useState("");
+  const [driverPlantFilter, setDriverPlantFilter] = useState<"all" | "CIK" | "PRB">("all");
   const [pin, setPin] = useState("");
   const [pinError, setPinError] = useState(false);
   const [pinBusy, setPinBusy] = useState(false);
@@ -178,11 +178,10 @@ export default function DriverPanelPage() {
       utter.rate = 1;
       utter.pitch = 1;
       utter.volume = 1;
-      // Batalkan ucapan sebelumnya yang masih berjalan agar tidak menumpuk
       window.speechSynthesis.cancel();
       window.speechSynthesis.speak(utter);
     } catch {
-      // Web Speech API tidak tersedia/diblokir — abaikan, getar & bunyi tetap jalan.
+      // Web Speech API tidak tersedia/diblokir — abaikan.
     }
   }
 
@@ -208,14 +207,12 @@ export default function DriverPanelPage() {
 
   function notifyNewTask(destination?: string) {
     if (typeof navigator !== "undefined" && navigator.vibrate) {
-      // Pola getar lebih panjang & berulang agar lebih terasa di kantong/saku
       navigator.vibrate([260, 110, 260, 110, 260]);
     }
     playNotificationSound();
     speakNewTaskAnnouncement(destination);
   }
 
-  // ── today tasks loader + realtime ──
   const loadTodayTasks = useCallback(
     async (driverId: string) => {
       setTodayLoading(true);
@@ -258,9 +255,6 @@ export default function DriverPanelPage() {
       loadTodayTasks(loggedDriver.id);
     });
 
-    // ── Standby: saat tab/app kembali aktif (HP dinyalakan dari sleep,
-    //    pindah app lalu balik lagi), realtime channel kadang sudah mati
-    //    diam-diam. Re-subscribe + refresh paksa agar driver tetap live. ──
     function handleVisibilityOrFocus() {
       if (document.visibilityState === "visible") {
         loadTodayTasks(loggedDriver!.id);
@@ -283,8 +277,6 @@ export default function DriverPanelPage() {
     window.addEventListener("focus", handleVisibilityOrFocus);
     window.addEventListener("online", handleOnline);
 
-    // ── Polling fallback ringan: jaga-jaga jika realtime channel diam
-    //    tanpa terdeteksi putus. Tidak menggantikan realtime, hanya jaring pengaman. ──
     const pollInterval = setInterval(() => {
       if (document.visibilityState === "visible") {
         loadTodayTasks(loggedDriver!.id);
@@ -305,7 +297,6 @@ export default function DriverPanelPage() {
     setTimeout(() => setToast(null), 2200);
   }
 
-  // ── PIN entry flow ──
   function selectDriver(d: Driver) {
     setSelectedDriver(d);
   }
@@ -377,7 +368,6 @@ export default function DriverPanelPage() {
     setHistoryApplied(false);
   }
 
-  // ── task actions ──
   async function handleAccept(task: TaskDetail) {
     if (!loggedDriver) return;
     setActionBusyId(task.id);
@@ -430,7 +420,6 @@ export default function DriverPanelPage() {
     }
   }
 
-  // ── history ──
   async function applyHistoryFilter() {
     if (!loggedDriver) return;
     const today = todayLocalISODate();
@@ -462,11 +451,10 @@ export default function DriverPanelPage() {
   }, [historyTasks, historyStatusFilter]);
 
   const hasMultiplePlants = useMemo(
-  () => new Set(drivers.map((d) => d.plant || "CIK")).size > 1,
-   [drivers]
+    () => new Set(drivers.map((d) => d.plant || "CIK")).size > 1,
+    [drivers]
   );
 
-  // ── PIN change modal ──
   function openPinModal() {
     setPinModalOpen(true);
     setPinModalStep("old");
@@ -518,7 +506,6 @@ export default function DriverPanelPage() {
       setPinModalStep("confirm");
       return;
     }
-    // confirm step
     if (value !== pinModalNew) {
       setPinModalError(t.pinBaruTidakCocok);
       setPinModalConfirm("");
@@ -550,21 +537,16 @@ export default function DriverPanelPage() {
   const stats = useMemo(() => computeStats(todayTasks), [todayTasks]);
 
   const filteredDrivers = useMemo(() => {
-  let list = drivers;
-   if (driverPlantFilter !== "all") {
-     list = list.filter((d) => (d.plant || "CIK") === driverPlantFilter);
-   }
+    let list = drivers;
+    if (driverPlantFilter !== "all") {
+      list = list.filter((d) => (d.plant || "CIK") === driverPlantFilter);
+    }
     if (driverSearch.trim()) {
       const q = driverSearch.trim().toLowerCase();
       list = list.filter((d) => d.nama.toLowerCase().includes(q));
     }
     return list;
   }, [drivers, driverPlantFilter, driverSearch]);
- 
-
-  /* ════════════════════════════════════════════════
-     RENDER
-  ════════════════════════════════════════════════ */
 
   if (screen === "splash") {
     return (
@@ -619,120 +601,120 @@ export default function DriverPanelPage() {
           </div>
 
           <div className={styles.sectionLabel}>{t.pilihDriver}</div>
- 
-{/* Search box — filter nama real-time */}
-{!driversLoading && !driversError && drivers.length > 6 && (
-  <div
-    style={{
-      display: "flex",
-      alignItems: "center",
-      gap: 8,
-      background: "#fff",
-      borderRadius: 16,
-      padding: "12px 16px",
-      marginBottom: 10,
-      boxShadow: "0 6px 18px rgba(11,30,77,0.1)",
-    }}
-  >
-    <span style={{ fontSize: 15, opacity: 0.5 }}>🔍</span>
-    <input
-      value={driverSearch}
-      onChange={(e) => setDriverSearch(e.target.value)}
-      placeholder={lang === "en" ? "Search driver name..." : "Cari nama driver..."}
-      style={{
-        flex: 1,
-        border: "none",
-        outline: "none",
-        fontSize: 14,
-        fontFamily: "var(--font)",
-        color: "var(--t1)",
-        background: "transparent",
-      }}
-    />
-    {driverSearch && (
-      <button
-        onClick={() => setDriverSearch("")}
-        style={{ border: "none", background: "none", color: "var(--t3)", fontSize: 14, cursor: "pointer", padding: 2 }}
-      >
-        ✕
-      </button>
-    )}
-  </div>
-)}
- 
-{/* Filter Plant — HANYA muncul kalau memang ada >1 plant di data */}
-{!driversLoading && !driversError && hasMultiplePlants && (
-  <div style={{ display: "flex", gap: 8, marginBottom: 14 }}>
-    {(["all", "CIK", "PRB"] as const).map((p) => (
-      <button
-        key={p}
-        onClick={() => setDriverPlantFilter(p)}
-        className={`${styles.chip} ${driverPlantFilter === p ? styles.chipOn : ""}`}
-        style={{ flex: 1 }}
-      >
-        {p === "all" ? (lang === "en" ? "All Plants" : "Semua Plant") : p}
-      </button>
-    ))}
-  </div>
-)}
- 
-{!driversLoading && !driversError && (
-  filteredDrivers.length === 0 ? (
-    <div style={{ textAlign: "center", padding: "32px 16px", color: "rgba(255,255,255,0.6)", fontSize: 13 }}>
-      {lang === "en" ? "No driver found." : "Driver tidak ditemukan."}
-    </div>
-  ) : (
-    <div className={styles.driverGrid}>
-      {filteredDrivers.map((d) => (
-        <button
-          key={d.id}
-          className={`${styles.driverCard} ${selectedDriver?.id === d.id ? styles.driverCardSelected : ""}`}
-          onClick={() => selectDriver(d)}
-        >
-          <div className={styles.driverAvatar}>
-            {d.avatar_emoji || "🧑‍✈️"}
-            <span className={styles.driverAvatarDot} />
-          </div>
-          <div className={styles.driverCardBody}>
-            <div className={styles.driverCardName}>
-              {d.nama}
-              {hasMultiplePlants && (
-                <span style={{ marginLeft: 7, fontSize: 9.5, fontWeight: 800, padding: "1px 6px", borderRadius: 5, background: "rgba(61,111,242,0.1)", color: "var(--brand)", verticalAlign: "middle" }}>
-                  {d.plant || "CIK"}
-                </span>
+
+          {!driversLoading && !driversError && drivers.length > 6 && (
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+                background: "#fff",
+                borderRadius: 16,
+                padding: "12px 16px",
+                marginBottom: 10,
+                boxShadow: "0 6px 18px rgba(11,30,77,0.1)",
+              }}
+            >
+              <span style={{ fontSize: 15, opacity: 0.5 }}>🔍</span>
+              <input
+                value={driverSearch}
+                onChange={(e) => setDriverSearch(e.target.value)}
+                placeholder={lang === "en" ? "Search driver name..." : "Cari nama driver..."}
+                style={{
+                  flex: 1,
+                  border: "none",
+                  outline: "none",
+                  fontSize: 14,
+                  fontFamily: "var(--font)",
+                  color: "var(--t1)",
+                  background: "transparent",
+                }}
+              />
+              {driverSearch && (
+                <button
+                  onClick={() => setDriverSearch("")}
+                  style={{ border: "none", background: "none", color: "var(--t3)", fontSize: 14, cursor: "pointer", padding: 2 }}
+                >
+                  ✕
+                </button>
               )}
             </div>
-            <div className={styles.driverCardRole}>
-              <span>●</span> {t.online}
-            </div>
-          </div>
-          <div className={styles.driverCardChevron}>›</div>
-        </button>
-      ))}
-    </div>
-  )
-)}
+          )}
+
+          {!driversLoading && !driversError && hasMultiplePlants && (
+            <div style={{ display: "flex", gap: 8, marginBottom: 14 }}>
+              {(["all", "CIK", "PRB"] as const).map((p) => (
                 <button
-                  key={d.id}
-                  className={`${styles.driverCard} ${
-                    selectedDriver?.id === d.id ? styles.driverCardSelected : ""
-                  }`}
-                  onClick={() => selectDriver(d)}
+                  key={p}
+                  onClick={() => setDriverPlantFilter(p)}
+                  className={`${styles.chip} ${driverPlantFilter === p ? styles.chipOn : ""}`}
+                  style={{ flex: 1 }}
                 >
-                  <div className={styles.driverAvatar}>
-                    {d.avatar_emoji || "🧑‍✈️"}
-                    <span className={styles.driverAvatarDot} />
-                  </div>
-                  <div className={styles.driverCardBody}>
-                    <div className={styles.driverCardName}>{d.nama}</div>
-                    <div className={styles.driverCardRole}>
-                      <span>●</span> {t.online}
-                    </div>
-                  </div>
-                  <div className={styles.driverCardChevron}>›</div>
+                  {p === "all" ? (lang === "en" ? "All Plants" : "Semua Plant") : p}
                 </button>
               ))}
             </div>
+          )}
+
+          {driversLoading && (
+            <div className={styles.loadingWrap}>
+              <div className={styles.spinner} />
+              <div className={styles.loadingTxt}>{t.memuatDriver}</div>
+            </div>
+          )}
+
+          {driversError && (
+            <div className={styles.errBox}>
+              <div className={styles.errTxt}>{driversError}</div>
+            </div>
+          )}
+
+          {!driversLoading && !driversError && (
+            filteredDrivers.length === 0 ? (
+              <div style={{ textAlign: "center", padding: "32px 16px", color: "rgba(255,255,255,0.6)", fontSize: 13 }}>
+                {lang === "en" ? "No driver found." : "Driver tidak ditemukan."}
+              </div>
+            ) : (
+              <div className={styles.driverGrid}>
+                {filteredDrivers.map((d) => (
+                  <button
+                    key={d.id}
+                    className={`${styles.driverCard} ${selectedDriver?.id === d.id ? styles.driverCardSelected : ""}`}
+                    onClick={() => selectDriver(d)}
+                  >
+                    <div className={styles.driverAvatar}>
+                      {d.avatar_emoji || "🧑‍✈️"}
+                      <span className={styles.driverAvatarDot} />
+                    </div>
+                    <div className={styles.driverCardBody}>
+                      <div className={styles.driverCardName}>
+                        {d.nama}
+                        {hasMultiplePlants && (
+                          <span
+                            style={{
+                              marginLeft: 7,
+                              fontSize: 9.5,
+                              fontWeight: 800,
+                              padding: "1px 6px",
+                              borderRadius: 5,
+                              background: "rgba(61,111,242,0.1)",
+                              color: "var(--brand)",
+                              verticalAlign: "middle",
+                            }}
+                          >
+                            {d.plant || "CIK"}
+                          </span>
+                        )}
+                      </div>
+                      <div className={styles.driverCardRole}>
+                        <span>●</span> {t.online}
+                      </div>
+                    </div>
+                    <div className={styles.driverCardChevron}>›</div>
+                  </button>
+                ))}
+              </div>
+            )
           )}
 
           <button
@@ -1010,10 +992,6 @@ export default function DriverPanelPage() {
 
   return null;
 }
-
-/* ════════════════════════════════════════════════
-   SUB-COMPONENTS
-════════════════════════════════════════════════ */
 
 function Numpad({
   onDigit,
