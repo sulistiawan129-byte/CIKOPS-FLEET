@@ -66,6 +66,7 @@ export interface Claim {
   status: string;
   note: string;
   submittedAt: string;
+  plant: Plant;
 }
 
 export interface Overtime {
