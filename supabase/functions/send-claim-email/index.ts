@@ -1,22 +1,19 @@
 // Supabase Edge Function: send-claim-email
+// VERSI SMTP GMAIL — menggantikan Resend sepenuhnya, tidak butuh
+// verifikasi domain, bisa kirim ke email manapun langsung dari
+// akun Gmail kamu (dengan App Password).
 //
-// Sends a claim notification email via Resend (https://resend.com).
-// Two templates are used depending on `recipientType`:
-//   - "driver"  → friendly, casual confirmation that their claim was received
-//   - "manager" → formal, professional notice for record-keeping purposes
-//
-// Setup required before this works (see README section at the bottom):
-//   1. Create a free Resend account and verify a sending domain.
-//   2. `supabase secrets set RESEND_API_KEY=re_xxxxxxxx`
-//   3. `supabase functions deploy send-claim-email`
-//
-// Invoked from the frontend via:
-//   supabase.functions.invoke('send-claim-email', { body: { ...payload } })
+// Setup:
+//   supabase secrets set GMAIL_USER=emailkamu@gmail.com
+//   supabase secrets set GMAIL_APP_PASSWORD=xxxxxxxxxxxxxxxx (tanpa spasi)
+//   supabase functions deploy send-claim-email --no-verify-jwt
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { SMTPClient } from "https://deno.land/x/denomailer@1.6.0/mod.ts";
 
-const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY") ?? "";
-const FROM_EMAIL = Deno.env.get("CLAIM_EMAIL_FROM") ?? "CIKOPS Fleet Ops <onboarding@resend.dev>";
+const GMAIL_USER = Deno.env.get("GMAIL_USER") ?? "";
+const GMAIL_APP_PASSWORD = Deno.env.get("GMAIL_APP_PASSWORD") ?? "";
+const FROM_NAME = "CIKOPS Fleet Ops";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -31,7 +28,7 @@ interface ClaimItem {
 
 interface ClaimEmailPayload {
   recipientType: "driver" | "manager";
-  toEmail: string;
+  toEmail: string | string[];
   driverName: string;
   periodDate: string;
   submissionDate: string;
@@ -71,7 +68,6 @@ function itemsTableRows(items: ClaimItem[]): string {
     .join("");
 }
 
-/** Friendly, casual confirmation email sent to the driver themselves. */
 function driverTemplate(p: ClaimEmailPayload): { subject: string; html: string } {
   const id = (p.lang ?? "id") === "id";
   const subject = id
@@ -124,7 +120,6 @@ function driverTemplate(p: ClaimEmailPayload): { subject: string; html: string }
   return { subject, html };
 }
 
-/** Formal, professional notice sent to the manager for record-keeping. */
 function managerTemplate(p: ClaimEmailPayload): { subject: string; html: string } {
   const id = (p.lang ?? "id") === "id";
   const subject = id
@@ -197,15 +192,19 @@ serve(async (req) => {
   }
 
   try {
-    if (!RESEND_API_KEY) {
+    if (!GMAIL_USER || !GMAIL_APP_PASSWORD) {
       return new Response(
-        JSON.stringify({ error: "RESEND_API_KEY is not configured on this Edge Function." }),
+        JSON.stringify({ error: "GMAIL_USER / GMAIL_APP_PASSWORD belum diset di secrets." }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
     const payload: ClaimEmailPayload = await req.json();
-    if (!payload.toEmail || !payload.driverName || !payload.items) {
+    const recipients = (Array.isArray(payload.toEmail) ? payload.toEmail : [payload.toEmail])
+      .map((e) => e.trim())
+      .filter(Boolean);
+
+    if (recipients.length === 0 || !payload.driverName || !payload.items) {
       return new Response(JSON.stringify({ error: "Missing required fields." }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -215,29 +214,26 @@ serve(async (req) => {
     const { subject, html } =
       payload.recipientType === "manager" ? managerTemplate(payload) : driverTemplate(payload);
 
-    const resendRes = await fetch("https://api.resend.com/emails", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${RESEND_API_KEY}`,
-        "Content-Type": "application/json",
+    const client = new SMTPClient({
+      connection: {
+        hostname: "smtp.gmail.com",
+        port: 465,
+        tls: true,
+        auth: { username: GMAIL_USER, password: GMAIL_APP_PASSWORD },
       },
-      body: JSON.stringify({
-        from: FROM_EMAIL,
-        to: [payload.toEmail],
-        subject,
-        html,
-      }),
     });
 
-    const resendData = await resendRes.json();
-    if (!resendRes.ok) {
-      return new Response(JSON.stringify({ error: resendData }), {
-        status: resendRes.status,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
+    await client.send({
+      from: `${FROM_NAME} <${GMAIL_USER}>`,
+      to: recipients,
+      subject,
+      content: "Email ini memerlukan HTML untuk ditampilkan dengan benar.",
+      html,
+    });
 
-    return new Response(JSON.stringify({ success: true, id: resendData.id }), {
+    await client.close();
+
+    return new Response(JSON.stringify({ success: true, recipients }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (err) {
