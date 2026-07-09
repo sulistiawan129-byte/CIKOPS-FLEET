@@ -25,7 +25,7 @@ import type {
 export async function getDrivers(): Promise<Driver[]> {
   const { data, error } = await supabase
     .from("drivers")
-    .select("id, nama, no_hp, avatar_emoji, aktif, tier_id, email")
+    .select("id, nama, no_hp, avatar_emoji, aktif, tier_id, email, plant")
     .eq("aktif", true)
     .order("nama", { ascending: true });
   if (error) throw error;
@@ -35,7 +35,7 @@ export async function getDrivers(): Promise<Driver[]> {
 export async function getVehicles(): Promise<Vehicle[]> {
   const { data, error } = await supabase
     .from("vehicles")
-    .select("id, nopol, jenis, aktif")
+    .select("id, nopol, jenis, aktif, plant")
     .eq("aktif", true)
     .order("nopol", { ascending: true });
   if (error) throw error;
@@ -199,8 +199,10 @@ export interface CreateTaskInput {
   requestor: string;
   departement: string;
   perihal?: string;
-}
+  plant: Plant; 
+  }
 
+  
 export async function createTask(input: CreateTaskInput): Promise<void> {
   const { error } = await supabase.from("tasks").insert({
     tanggal: input.tanggal,
@@ -212,6 +214,7 @@ export async function createTask(input: CreateTaskInput): Promise<void> {
     departement: input.departement,
     perihal: input.perihal || "",
     status: "ASSIGNED",
+    plant: input.plant,
   });
   if (error) throw error;
 }
@@ -752,17 +755,24 @@ export async function deleteGasStation(id: string): Promise<void> {
 export interface MyProfile {
   fullName: string | null;
   role: string;
+  plantScope: Plant | null; // null = lihat semua plant (admin/GA global)
+  accessScope: "full" | "tasks_only";
 }
 
 export async function getMyProfile(userId: string): Promise<MyProfile | null> {
   try {
     const { data, error } = await supabase
       .from("profiles")
-      .select("full_name, role")
+      .select("full_name, role, plant_scope, access_scope")
       .eq("id", userId)
       .maybeSingle();
     if (error || !data) return null;
-    return { fullName: data.full_name, role: data.role };
+    return {
+      fullName: data.full_name,
+      role: data.role,
+      plantScope: (data.plant_scope as Plant | null) ?? null,
+      accessScope: (data.access_scope as "full" | "tasks_only") ?? "full",
+    };
   } catch {
     return null;
   }
@@ -778,18 +788,18 @@ export async function getMyProfile(userId: string): Promise<MyProfile | null> {
 export async function getAllDriversFull(): Promise<Driver[]> {
   const { data, error } = await supabase
     .from("drivers")
-    .select("id, nama, no_hp, avatar_emoji, aktif, tier_id, email")
+    .select("id, nama, no_hp, avatar_emoji, aktif, tier_id, email, plant")
     .order("nama", { ascending: true });
   if (error) throw error;
   return data ?? [];
 }
-
 export interface DriverInput {
   nama: string;
   no_hp: string | null;
   email: string | null;
   avatar_emoji: string | null;
   aktif: boolean;
+  plant?: Plant;
 }
 
 export async function addDriver(input: DriverInput, initialPin?: string): Promise<Driver> {
