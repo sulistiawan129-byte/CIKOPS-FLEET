@@ -4912,6 +4912,7 @@ function DriversMasterPanel({ cardStyle }: { cardStyle: CSSProperties }) {
   const [formAvatar, setFormAvatar] = useState(AVATAR_EMOJIS[0]);
   const [formAktif, setFormAktif] = useState(true);
   const [formPin, setFormPin] = useState("");
+  const [formPlant, setFormPlant] = useState<Plant>("CIK");
   const [saving, setSaving] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState<Driver | null>(null);
 
@@ -4935,15 +4936,17 @@ function DriversMasterPanel({ cardStyle }: { cardStyle: CSSProperties }) {
   useEffect(() => { load(); }, [load]);
 
   function openAdd() {
-    setEditing(null);
+     setEditing(null);
     setFormNama(""); setFormPhone(""); setFormEmail(""); setFormAvatar(AVATAR_EMOJIS[0]); setFormAktif(true); setFormPin("");
+   setFormPlant("CIK");
     setShowForm(true);
   }
-  function openEdit(d: Driver) {
-    setEditing(d);
-    setFormNama(d.nama); setFormPhone(d.no_hp || ""); setFormEmail(d.email || ""); setFormAvatar(d.avatar_emoji || AVATAR_EMOJIS[0]); setFormAktif(d.aktif); setFormPin("");
-    setShowForm(true);
-  }
+   function openEdit(d: Driver) {
+  setEditing(d);
+ setFormNama(d.nama); setFormPhone(d.no_hp || ""); setFormEmail(d.email || ""); setFormAvatar(d.avatar_emoji || AVATAR_EMOJIS[0]); setFormAktif(d.aktif); setFormPin("");
+   setFormPlant(d.plant || "CIK");
+   setShowForm(true);
+ }
 
   const canSave = formNama.trim() !== "" && (!!editing || formPin.length >= 4);
 
@@ -4951,7 +4954,7 @@ function DriversMasterPanel({ cardStyle }: { cardStyle: CSSProperties }) {
     if (!canSave) return;
     setSaving(true);
     try {
-      const payload: DriverInput = { nama: formNama.trim(), no_hp: formPhone.trim() || null, email: formEmail.trim() || null, avatar_emoji: formAvatar, aktif: formAktif };
+      const payload: DriverInput = { nama: formNama.trim(), no_hp: formPhone.trim() || null, email: formEmail.trim() || null, avatar_emoji: formAvatar, aktif: formAktif, plant: formPlant };
       if (editing) await updateDriver(editing.id, payload);
       else await addDriver(payload, formPin);
       setShowForm(false);
@@ -5011,7 +5014,17 @@ function DriversMasterPanel({ cardStyle }: { cardStyle: CSSProperties }) {
             <div key={d.id} className="rowHover" style={{ display: "flex", alignItems: "center", gap: 14, padding: "12px 18px", borderBottom: "1px solid var(--border)" }}>
               <div style={{ width: 38, height: 38, borderRadius: "50%", background: "var(--bg2)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, flexShrink: 0 }}>{d.avatar_emoji || "🧑"}</div>
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 13, fontWeight: 700, color: "var(--t1)" }}>{d.nama}</div>
+                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+     <span style={{ fontSize: 13, fontWeight: 700, color: "var(--t1)" }}>{d.nama}</span>
+  <span
+     style={{
+       fontSize: 9.5, fontWeight: 800, padding: "1px 7px", borderRadius: 6,
+        background: "var(--bg2)", color: PLANT_COLOR[d.plant || "CIK"], border: `1px solid ${PLANT_COLOR[d.plant || "CIK"]}33`,
+      }}
+    >
+      {d.plant || "CIK"}
+    </span>
+  </div>
                 <div style={{ fontSize: 13, color: "var(--t3)" }}>{d.no_hp || "-"} {d.email ? `· ${d.email}` : ""}</div>
               </div>
               <div style={{ fontSize: 13, color: "var(--t3)", minWidth: 90 }}>
@@ -5055,6 +5068,31 @@ function DriversMasterPanel({ cardStyle }: { cardStyle: CSSProperties }) {
                     >{em}</button>
                   ))}
                 </div>
+              </div>
+              <div style={{ marginBottom: 14 }}>
+     <label style={labelStyle}>PLANT *</label>
+    <div style={{ display: "flex", gap: 8 }}>
+      {(["CIK", "PRB"] as Plant[]).map((p) => (
+        <button
+           key={p}
+          type="button"
+          onClick={() => setFormPlant(p)}
+          style={{
+           flex: 1,
+            padding: "9px",
+            borderRadius: 10,
+            fontWeight: 800,
+            fontSize: 13,
+            cursor: "pointer",
+            border: formPlant === p ? `1px solid ${PLANT_COLOR[p]}` : "1px solid var(--border2)",
+            background: formPlant === p ? "var(--bg2)" : "transparent",
+            color: formPlant === p ? PLANT_COLOR[p] : "var(--t3)",
+          }}
+        >
+          {p}
+        </button>
+      ))}
+     </div>
               </div>
               <div style={{ marginBottom: 14 }}>
                 <label style={labelStyle}>{lang === "en" ? "NAME" : "NAMA"} *</label>
