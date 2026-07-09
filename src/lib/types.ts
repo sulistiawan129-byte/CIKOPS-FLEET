@@ -9,6 +9,7 @@ export interface Driver {
   // Added by the FleetOS merge migration:
   email?: string | null;
   tier_id?: string | null;
+  plant?: Plant;
 }
 
 export interface Vehicle {
@@ -26,6 +27,7 @@ export interface Vehicle {
   stnk_date?: string | null;
   dept?: string | null;
   default_driver_id?: string | null;
+  plant?: Plant;
 }
 
 export interface Employee {
@@ -139,6 +141,7 @@ export interface TaskDetail {
   cancelled_at: string | null;
   cancelled_by: string | null;
   cancel_reason: string | null;
+  plant: Plant;
 }
 
 export interface TaskStats {
