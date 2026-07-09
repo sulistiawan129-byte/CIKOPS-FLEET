@@ -1451,68 +1451,68 @@ function CreateTaskModal({
     <div className={`${styles.modalOverlay} modalOverlayAnim`} onClick={waMessage ? undefined : onClose}>
       <div className={`${styles.modalBox} modalPop`} onClick={(e) => e.stopPropagation()}>
         {waMessage ? (
-  <>
-    <div className={styles.modalHeader}>
-      <div className={styles.modalTitle}>✅ Tugas Berhasil Dibuat</div>
-    </div>
-    <div style={{ padding: "0 24px 20px" }}>
-      <div style={{ fontSize: 12.5, color: "var(--t3)", marginBottom: 10 }}>
-        Bagikan detail penugasan ini ke driver/grup terkait via WhatsApp:
-      </div>
-      <div
-        style={{
-          background: "var(--bg2)",
-          border: "1px solid var(--border2)",
-          borderRadius: 12,
-          padding: 16,
-          fontSize: 13,
-          color: "var(--t1)",
-          whiteSpace: "pre-wrap",
-          lineHeight: 1.6,
-          marginBottom: 16,
-          maxHeight: 260,
-          overflowY: "auto",
-          fontFamily: "var(--font)",
-        }}
-      >
-        {waMessage}
-      </div>
-      <div style={{ display: "flex", gap: 10 }}>
-        <button
-          type="button"
-          onClick={() => {
-            setWaMessage(null);
-            onCreated();
-          }}
-          style={{ flex: 1, padding: "11px", borderRadius: 10, border: "1px solid var(--border2)", background: "var(--surface2)", color: "var(--t2)", fontWeight: 700, cursor: "pointer" }}
-        >
-          Selesai
-        </button>
-        
-          href={`https://wa.me/?text=${encodeURIComponent(waMessage)}`}
-          target="_blank"
-          rel="noopener noreferrer"
-          onClick={() => {
-            setWaMessage(null);
-            onCreated();
-          }}
-          className="pillBtn"
-          style={{ flex: 2, justifyContent: "center", textDecoration: "none", background: "linear-gradient(135deg, #25d366, #128c7e)" }}
-        >
-          💬 Kirim via WhatsApp
-        </a>
-      </div>
-    </div>
-  </>
-) : (
+          <>
+            <div className={styles.modalHeader}>
+              <div className={styles.modalTitle}>✅ Tugas Berhasil Dibuat</div>
+            </div>
+            <div style={{ padding: "0 24px 20px" }}>
+              <div style={{ fontSize: 12.5, color: "var(--t3)", marginBottom: 10 }}>
+                Bagikan detail penugasan ini ke driver/grup terkait via WhatsApp:
+              </div>
+              <div
+                style={{
+                  background: "var(--bg2)",
+                  border: "1px solid var(--border2)",
+                  borderRadius: 12,
+                  padding: 16,
+                  fontSize: 13,
+                  color: "var(--t1)",
+                  whiteSpace: "pre-wrap",
+                  lineHeight: 1.6,
+                  marginBottom: 16,
+                  maxHeight: 260,
+                  overflowY: "auto",
+                  fontFamily: "var(--font)",
+                }}
+              >
+                {waMessage}
+              </div>
+              <div style={{ display: "flex", gap: 10 }}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setWaMessage(null);
+                    onCreated();
+                  }}
+                  style={{ flex: 1, padding: "11px", borderRadius: 10, border: "1px solid var(--border2)", background: "var(--surface2)", color: "var(--t2)", fontWeight: 700, cursor: "pointer" }}
+                >
+                  Selesai
+                </button>
+                
+                  href={`https://wa.me/?text=${encodeURIComponent(waMessage)}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={() => {
+                    setWaMessage(null);
+                    onCreated();
+                  }}
+                  className="pillBtn"
+                  style={{ flex: 2, justifyContent: "center", textDecoration: "none", background: "linear-gradient(135deg, #25d366, #128c7e)" }}
+                >
+                  💬 Kirim via WhatsApp
+                </a>
+              </div>
+            </div>
+          </>
+        ) : (
+          <>
             <div className={styles.modalHeader}>
               <div className={styles.modalTitle}>Tugaskan Driver</div>
               <button className={styles.modalClose} onClick={onClose}>✕</button>
             </div>
- 
+
             <form onSubmit={handleSubmit}>
               <div className={styles.formGrid}>
-                {/* ── FIELD BARU: Plant — dikunci kalau akun scoped, bisa dipilih kalau global ── */}
                 <div className={`${styles.formField} ${styles.formFieldFull}`}>
                   <label className={styles.formLabel}>Plant *</label>
                   {lockedPlant ? (
@@ -1557,12 +1557,12 @@ function CreateTaskModal({
                     </div>
                   )}
                 </div>
- 
+
                 <div className={styles.formField}>
                   <label className={styles.formLabel}>Tanggal *</label>
                   <input type="date" className={styles.formInput} value={tanggal} onChange={(e) => setTanggal(e.target.value)} />
                 </div>
- 
+
                 <div className={styles.formField}>
                   <label className={styles.formLabel}>Driver *</label>
                   <select className={styles.formSelect} value={driverId} onChange={(e) => setDriverId(e.target.value)}>
@@ -1572,7 +1572,7 @@ function CreateTaskModal({
                     ))}
                   </select>
                 </div>
- 
+
                 <div className={styles.formField}>
                   <label className={styles.formLabel}>Kendaraan *</label>
                   <select className={styles.formSelect} value={vehicleId} onChange={(e) => setVehicleId(e.target.value)}>
@@ -1582,13 +1582,62 @@ function CreateTaskModal({
                     ))}
                   </select>
                 </div>
- 
-                {/* ...sisa field (Jenis Pekerjaan, Tujuan, Requestor, Departemen, Perihal)
-                    TIDAK BERUBAH, sama persis seperti versi sebelumnya... */}
+
+                <div className={styles.formField}>
+                  <label className={styles.formLabel}>Jenis Pekerjaan *</label>
+                  <select className={styles.formSelect} value={jenisPekerjaan} onChange={(e) => setJenisPekerjaan(e.target.value)}>
+                    <option value="">Pilih jenis</option>
+                    {jobTypes.map((j) => (
+                      <option key={j.id} value={j.label}>{j.label}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className={`${styles.formField} ${styles.formFieldFull}`}>
+                  <label className={styles.formLabel}>Tujuan *</label>
+                  <input
+                    type="text"
+                    className={styles.formInput}
+                    placeholder="Contoh: Kantor Cabang Selatan"
+                    value={tujuan}
+                    onChange={(e) => setTujuan(e.target.value)}
+                  />
+                </div>
+
+                <div className={styles.formField}>
+                  <label className={styles.formLabel}>Requestor *</label>
+                  <select className={styles.formSelect} value={requestor} onChange={(e) => handleRequestorPick(e.target.value)}>
+                    <option value="">Pilih pegawai</option>
+                    {employees.map((emp) => (
+                      <option key={emp.id} value={emp.nama}>{emp.nama}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className={styles.formField}>
+                  <label className={styles.formLabel}>Departemen</label>
+                  <input
+                    type="text"
+                    className={styles.formInput}
+                    placeholder="Otomatis terisi"
+                    value={departement}
+                    onChange={(e) => setDepartement(e.target.value)}
+                  />
+                </div>
+
+                <div className={`${styles.formField} ${styles.formFieldFull}`}>
+                  <label className={styles.formLabel}>Perihal (opsional)</label>
+                  <textarea
+                    className={styles.formTextarea}
+                    placeholder="Catatan tambahan untuk driver..."
+                    value={perihal}
+                    onChange={(e) => setPerihal(e.target.value)}
+                  />
+                </div>
               </div>
- 
+
               {formError && <div className={styles.formError}>{formError}</div>}
- 
+
               <div className={styles.modalActions}>
                 <button type="button" className={styles.btnCancel} onClick={onClose}>Batal</button>
                 <button type="submit" className={styles.btnSubmit} disabled={busy}>
