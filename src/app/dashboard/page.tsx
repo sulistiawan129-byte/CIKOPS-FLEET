@@ -4284,6 +4284,7 @@ type VehicleFormState = {
   stnk_date: string;
   dept: string;
   default_driver_id: string;
+  plant: Plant;
 };
 
 const BLANK_VEHICLE_FORM: VehicleFormState = {
@@ -4299,6 +4300,7 @@ const BLANK_VEHICLE_FORM: VehicleFormState = {
   stnk_date: "",
   dept: "",
   default_driver_id: "",
+  plant: "CIK",
 };
 
 function VehiclesTab() {
@@ -4357,6 +4359,7 @@ function VehiclesTab() {
       stnk_date: v.stnk_date || "",
       dept: v.dept || "",
       default_driver_id: v.default_driver_id || "",
+      plant: v.plant || "CIK",
     });
     setShowForm(true);
   }
@@ -4378,7 +4381,9 @@ function VehiclesTab() {
       service_date: form.service_date || null,
       stnk_date: form.stnk_date || null,
       dept: form.dept || null,
-      default_driver_id: form.default_driver_id || null,
+     default_driver_id: form.default_driver_id || null,
+  plant: form.plant,
+ };
     };
     try {
       if (editing) {
@@ -4500,9 +4505,19 @@ function VehiclesTab() {
                 />
                 <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 10 }}>
                   <div>
-                    <div style={{ fontFamily: "var(--mono)", fontWeight: 700, fontSize: 15, color: "var(--t1)" }}>
-                      {v.nopol}
-                    </div>
+                   <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+     <span style={{ fontFamily: "var(--mono)", fontWeight: 700, fontSize: 15, color: "var(--t1)" }}>
+      {v.nopol}
+    </span>
+    <span
+      style={{
+       fontSize: 9.5, fontWeight: 800, padding: "1px 7px", borderRadius: 6,
+       background: "var(--bg2)", color: PLANT_COLOR[v.plant || "CIK"], border: `1px solid ${PLANT_COLOR[v.plant || "CIK"]}33`,
+     }}
+   >
+      {v.plant || "CIK"}
+    </span>
+  </div>
                     <div style={{ fontSize: 13, color: "var(--t3)" }}>
                       {v.jenis} · {v.year}
                     </div>
@@ -4605,6 +4620,31 @@ function VehiclesTab() {
             </div>
             <div style={{ padding: 24 }}>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                <div>
+    <label style={labelStyle}>PLANT *</label>
+     <div style={{ display: "flex", gap: 6 }}>
+      {(["CIK", "PRB"] as Plant[]).map((p) => (
+        <button
+         key={p}
+         type="button"
+          onClick={() => setForm({ ...form, plant: p })}
+          style={{
+            flex: 1,
+            padding: "9px",
+            borderRadius: 10,
+            fontWeight: 800,
+            fontSize: 12.5,
+           cursor: "pointer",
+            border: form.plant === p ? `1px solid ${PLANT_COLOR[p]}` : "1px solid var(--border2)",
+            background: form.plant === p ? "var(--bg2)" : "transparent",
+            color: form.plant === p ? PLANT_COLOR[p] : "var(--t3)",
+          }}
+         >
+           {p}
+       </button>
+      ))}
+    </div>
+  </div>
                 <div>
                   <label style={labelStyle}>{t.fieldPlateNumber} *</label>
                   <input className="premiumInput" style={inputStyle} value={form.nopol} onChange={(e) => setForm({ ...form, nopol: e.target.value })} placeholder="B 1234 XY" />
