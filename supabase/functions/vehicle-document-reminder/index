@@ -1,29 +1,13 @@
 // Supabase Edge Function: vehicle-document-reminder
-//
-// Dijalankan TERJADWAL (cron harian, lihat migration cron di bawah),
-// BUKAN dipanggil dari frontend. Mengecek kolom kir_date, service_date,
-// stnk_date di tabel `vehicles`, dan mengirim email peringatan ke
-// manager_email (dari app_settings) saat jatuh di salah satu ambang
-// batas: H-30, H-14, H-7, H-1, atau sudah Expired.
-//
-// Anti-duplikat: setiap kombinasi (kendaraan, jenis dokumen, ambang
-// batas, tanggal dokumen) hanya dikirim SEKALI, dicatat di tabel
-// vehicle_doc_notifications. Kalau tanggal dokumennya diperpanjang
-// (berubah), kombinasi jadi baru lagi sehingga siklus notifikasi mulai
-// ulang secara alami — tidak perlu logika reset manual.
-//
-// Setup:
-//   1. Jalankan migration_vehicle_doc_notifications.sql lebih dulu.
-//   2. supabase functions deploy vehicle-document-reminder --no-verify-jwt
-//      (--no-verify-jwt penting karena dipanggil oleh pg_cron, bukan user
-//      dengan JWT valid)
-//   3. Jalankan migration_vehicle_doc_cron.sql untuk jadwalkan harian.
+// VERSI SMTP GMAIL — menggantikan Resend sepenuhnya.
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { SMTPClient } from "https://deno.land/x/denomailer@1.6.0/mod.ts";
 
-const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY") ?? "";
-const FROM_EMAIL = Deno.env.get("CLAIM_EMAIL_FROM") ?? "CIKOPS Fleet Ops <onboarding@resend.dev>";
+const GMAIL_USER = Deno.env.get("GMAIL_USER") ?? "";
+const GMAIL_APP_PASSWORD = Deno.env.get("GMAIL_APP_PASSWORD") ?? "";
+const FROM_NAME = "CIKOPS Fleet Ops";
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? "";
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
 
@@ -125,8 +109,8 @@ function buildEmailHtml(hits: DocHit[]): string {
 
 serve(async (req) => {
   try {
-    if (!RESEND_API_KEY) {
-      return new Response(JSON.stringify({ error: "RESEND_API_KEY belum diset" }), { status: 500 });
+    if (!GMAIL_USER || !GMAIL_APP_PASSWORD) {
+      return new Response(JSON.stringify({ error: "GMAIL_USER / GMAIL_APP_PASSWORD belum diset" }), { status: 500 });
     }
 
     const { data: vehicles, error: vErr } = await supabase
@@ -140,9 +124,10 @@ serve(async (req) => {
       .select("value")
       .eq("key", "manager_email")
       .maybeSingle();
-    const managerEmail = settingRow?.value ?? "";
+    const managerEmailRaw = settingRow?.value ?? "";
+    const managerEmails = managerEmailRaw.split(",").map((e) => e.trim()).filter(Boolean);
 
-    if (!managerEmail) {
+    if (managerEmails.length === 0) {
       return new Response(
         JSON.stringify({ skipped: true, reason: "manager_email belum diset di app_settings" }),
         { status: 200 }
@@ -164,7 +149,6 @@ serve(async (req) => {
         const threshold = matchThreshold(daysLeft);
         if (!threshold) continue;
 
-        // Cek apakah kombinasi ini sudah pernah dikirim sebelumnya.
         const { data: existing } = await supabase
           .from("vehicle_doc_notifications")
           .select("id")
@@ -174,7 +158,7 @@ serve(async (req) => {
           .eq("doc_date", dateVal)
           .maybeSingle();
 
-        if (existing) continue; // sudah pernah dikirim, skip
+        if (existing) continue;
 
         hits.push({
           vehicle: v,
@@ -196,18 +180,25 @@ serve(async (req) => {
     const html = buildEmailHtml(hits);
     const subject = `[Pengingat Dokumen] ${hits.length} kendaraan perlu perhatian`;
 
-    const resendRes = await fetch("https://api.resend.com/emails", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${RESEND_API_KEY}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ from: FROM_EMAIL, to: [managerEmail], subject, html }),
+    const client = new SMTPClient({
+      connection: {
+        hostname: "smtp.gmail.com",
+        port: 465,
+        tls: true,
+        auth: { username: GMAIL_USER, password: GMAIL_APP_PASSWORD },
+      },
     });
 
-    if (!resendRes.ok) {
-      const errData = await resendRes.json();
-      return new Response(JSON.stringify({ error: errData }), { status: 500 });
-    }
+    await client.send({
+      from: `${FROM_NAME} <${GMAIL_USER}>`,
+      to: managerEmails,
+      subject,
+      content: "Email ini memerlukan HTML untuk ditampilkan dengan benar.",
+      html,
+    });
 
-    // Catat semua yang barusan dikirim supaya tidak dobel besok.
+    await client.close();
+
     await supabase.from("vehicle_doc_notifications").insert(
       hits.map((h) => ({
         vehicle_id: h.vehicle.id,
