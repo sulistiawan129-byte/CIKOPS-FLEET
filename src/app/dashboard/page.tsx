@@ -665,18 +665,20 @@ const [masterDataInitialSub, setMasterDataInitialSub] = useState<"drivers" | "em
       {activeTab !== "tasks" && (
         <div key={activeTab} className="tabContent">
           {activeTab === "overview" && <OverviewTab setActiveTab={setActiveTab} myProfile={myProfile} />}
-          {activeTab === "vehicles" && <VehiclesTab />}
+          {activeTab === "vehicles" && <VehiclesTab />} <VehiclesTab myProfile={myProfile} />}
           {activeTab === "claims" && <ClaimsTab />}
           {activeTab === "overtime" && <OvertimeTab />}
           {activeTab === "driverbudget" && <DriverBudgetTab />}
           {activeTab === "opfund" && <OpFundTab />}
           {activeTab === "gasstations" && <GasStationsTab />}
           {activeTab === "reports" && <ReportsTab />}
-         {activeTab === "masterdata" && (
+        {activeTab === "masterdata" && (
   <MasterDataTab
-       initialSub={masterDataInitialSub}
-      restrictedToDriversOnly={myProfile?.accessScope === "tasks_only"}
-    />   )}
+    initialSub={masterDataInitialSub}
+    restrictedToDriversOnly={myProfile?.accessScope === "tasks_only"}
+    myProfile={myProfile}
+  />
+)}
           {activeTab === "canteen" && <CanteenTab />}
         </div>
       )}
@@ -1381,6 +1383,9 @@ function CreateTaskModal({
   // diganti manual lewat selector di bawah.
   const lockedPlant = myProfile?.plantScope ?? null;
   const [plant, setPlant] = useState<Plant>(lockedPlant ?? "CIK");
+  useEffect(() => {
+    if (lockedPlant) setPlant(lockedPlant);
+  }, [lockedPlant]);
   const [driverId, setDriverId] = useState("");
   const [vehicleId, setVehicleId] = useState("");
   const [jenisPekerjaan, setJenisPekerjaan] = useState("");
@@ -2287,16 +2292,22 @@ function ClaimsTab() {
     }
   }
 
-  async function handleDelete() {
-    if (!confirmDelete) return;
-    try {
-      await deleteClaim(confirmDelete.id);
-      setConfirmDelete(null);
-      await load();
-    } catch (e) {
-      alert(e instanceof Error ? e.message : "Gagal menghapus klaim");
+ async function handleDelete() {
+  if (!confirmDelete) return;
+  try {
+    const result = await deleteVehicle(confirmDelete.id); // ensure api.ts returns the deleted row(s)
+    if (!result) {
+      alert(lang === "en"
+        ? "Nothing was deleted — you may not have permission."
+        : "Tidak ada yang terhapus — kemungkinan Anda tidak punya izin.");
+      return;
     }
+    setConfirmDelete(null);
+    await load();
+  } catch (e) {
+    alert(e instanceof Error ? e.message : "Gagal menghapus kendaraan");
   }
+}
 
   function handleExportRecap() {
     setExportingRecap(true);
