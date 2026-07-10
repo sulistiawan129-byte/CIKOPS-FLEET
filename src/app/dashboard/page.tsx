@@ -2293,21 +2293,15 @@ function ClaimsTab() {
   }
 
  async function handleDelete() {
-  if (!confirmDelete) return;
-  try {
-    const result = await deleteVehicle(confirmDelete.id); // ensure api.ts returns the deleted row(s)
-    if (!result) {
-      alert(lang === "en"
-        ? "Nothing was deleted — you may not have permission."
-        : "Tidak ada yang terhapus — kemungkinan Anda tidak punya izin.");
-      return;
+    if (!confirmDelete) return;
+    try {
+      await deleteClaim(confirmDelete.id);
+      setConfirmDelete(null);
+      await load();
+    } catch (e) {
+      alert(e instanceof Error ? e.message : "Gagal menghapus klaim");
     }
-    setConfirmDelete(null);
-    await load();
-  } catch (e) {
-    alert(e instanceof Error ? e.message : "Gagal menghapus kendaraan");
   }
-}
 
   function handleExportRecap() {
     setExportingRecap(true);
@@ -4877,13 +4871,15 @@ function VehiclesTab({ myProfile }: { myProfile: MyProfile | null }) {
 const AVATAR_EMOJIS = ["🧑", "👨", "👩", "🧔", "👨‍🦱", "👩‍🦱", "👨‍🦳", "👩‍🦳", "🧑‍✈️", "🕺"];
 
 function MasterDataTab({
-initialSub = "drivers",
-     restrictedToDriversOnly = false,
- }: {
-   initialSub?: "drivers" | "employees" | "jobtypes";
-     restrictedToDriversOnly?: boolean;
-  }) {
-   const { lang } = useLang();
+  initialSub = "drivers",
+  restrictedToDriversOnly = false,
+  myProfile = null,
+}: {
+  initialSub?: "drivers" | "employees" | "jobtypes";
+  restrictedToDriversOnly?: boolean;
+  myProfile?: MyProfile | null;
+}) {
+  const { lang } = useLang();
    const [sub, setSub] = useState<"drivers" | "employees" | "jobtypes" | "settings">(
    restrictedToDriversOnly ? "drivers" : initialSub
    );
@@ -4917,7 +4913,7 @@ initialSub = "drivers",
         ))}
       </div>
 
-      {sub === "drivers" && <DriversMasterPanel cardStyle={cardStyle} />}
+      {sub === "drivers" && <DriversMasterPanel cardStyle={cardStyle} myProfile={myProfile} />}
       {sub === "employees" && <EmployeesMasterPanel cardStyle={cardStyle} />}
       {sub === "jobtypes" && <JobTypesMasterPanel cardStyle={cardStyle} />}
       {sub === "settings" && <SettingsPanel cardStyle={cardStyle} />}
@@ -5043,7 +5039,8 @@ function SettingsPanel({ cardStyle }: { cardStyle: CSSProperties }) {
 }
 
 /* ── Drivers sub-panel ── */
-function DriversMasterPanel({ cardStyle }: { cardStyle: CSSProperties }) {
+function DriversMasterPanel({ cardStyle, myProfile = null }: { cardStyle: CSSProperties; myProfile?: MyProfile | null }) {
+  const isAdmin = myProfile?.role === "admin";
   const { lang, t } = useLang();
   const [drivers, setDrivers] = useState<Driver[]>([]);
   const [tiers, setTiers] = useState<DriverTier[]>([]);
@@ -5181,7 +5178,9 @@ function DriversMasterPanel({ cardStyle }: { cardStyle: CSSProperties }) {
               </span>
               <button onClick={() => setPinTarget(d)} title="Reset PIN" style={{ border: "1px solid var(--border2)", background: "var(--surface2)", borderRadius: 8, padding: "6px 9px", cursor: "pointer", fontSize: 12 }}>🔑</button>
               <button onClick={() => openEdit(d)} style={{ border: "1px solid var(--border2)", background: "var(--surface2)", borderRadius: 8, padding: "6px 9px", cursor: "pointer", fontSize: 12 }}>✏️</button>
-              <button onClick={() => setConfirmDelete(d)} style={{ border: "1px solid var(--red)", background: "var(--red-soft)", color: "var(--red)", borderRadius: 8, padding: "6px 9px", cursor: "pointer", fontSize: 12 }}>🗑️</button>
+              {isAdmin && (
+                <button onClick={() => setConfirmDelete(d)} style={{ border: "1px solid var(--red)", background: "var(--red-soft)", color: "var(--red)", borderRadius: 8, padding: "6px 9px", cursor: "pointer", fontSize: 12 }}>🗑️</button>
+              )}
             </div>
           ))
         )}
