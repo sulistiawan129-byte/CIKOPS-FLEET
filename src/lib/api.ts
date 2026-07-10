@@ -337,6 +337,7 @@ interface ClaimRow {
   status: string;
   note: string | null;
   submitted_at: string;
+  plant: string;
   drivers: { nama: string; email: string | null } | null;
 }
 
@@ -353,6 +354,7 @@ function mapClaimRow(row: ClaimRow): Claim {
     status: row.status,
     note: row.note ?? "",
     submittedAt: row.submitted_at,
+    plant: row.plant,
   };
 }
 
