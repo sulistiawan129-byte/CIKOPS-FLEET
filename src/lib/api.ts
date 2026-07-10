@@ -354,7 +354,7 @@ function mapClaimRow(row: ClaimRow): Claim {
     status: row.status,
     note: row.note ?? "",
     submittedAt: row.submitted_at,
-    plant: row.plant,
+    plant: row.plant as Plant,
   };
 }
 
