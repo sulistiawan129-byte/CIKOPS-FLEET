@@ -95,18 +95,28 @@ export default function DriverPanelPage() {
   }, [loadDrivers]);
 
   // ── splash screen: tampil sebentar, lalu cek session tersimpan ──
-  useEffect(() => {
+ useEffect(() => {
     const fadeTimer = setTimeout(() => setSplashFading(true), 1300);
-    const nextTimer = setTimeout(() => {
+    const nextTimer = setTimeout(async () => {
       const savedSession = localStorage.getItem("cikops_driver_session");
       if (savedSession) {
         try {
           const parsed = JSON.parse(savedSession) as Driver;
           if (parsed && parsed.id) {
-            setLoggedDriver(parsed);
-            setScreen("app");
-            setTab("today");
-            return;
+            // Re-validate against the server instead of trusting the
+            // cached copy — catches accounts an admin has since
+            // deactivated or otherwise changed.
+            const freshList = await getDrivers();
+            const fresh = freshList.find((d) => d.id === parsed.id);
+            if (fresh && fresh.aktif) {
+              localStorage.setItem("cikops_driver_session", JSON.stringify(fresh));
+              setLoggedDriver(fresh);
+              setScreen("app");
+              setTab("today");
+              return;
+            }
+            // Driver no longer exists or was deactivated — force logout.
+            localStorage.removeItem("cikops_driver_session");
           }
         } catch {
           localStorage.removeItem("cikops_driver_session");
@@ -119,6 +129,27 @@ export default function DriverPanelPage() {
       clearTimeout(nextTimer);
     };
   }, []);
+
+  useEffect(() => {
+    if (screen !== "app" || !loggedDriver) return;
+    async function recheckStillActive() {
+      try {
+        const list = await getDrivers();
+        const fresh = list.find((d) => d.id === loggedDriver!.id);
+        if (!fresh || !fresh.aktif) {
+          showToast(lang === "en" ? "Your account was deactivated" : "Akun Anda telah dinonaktifkan");
+          logout();
+        }
+      } catch {
+        // best-effort — don't log the driver out just because this check failed offline
+      }
+    }
+    document.addEventListener("visibilitychange", () => {
+      if (document.visibilityState === "visible") recheckStillActive();
+    });
+    const id = setInterval(recheckStillActive, 5 * 60 * 1000); // every 5 min
+    return () => clearInterval(id);
+  }, [screen, loggedDriver]);
 
   function playNotificationSound() {
     try {
