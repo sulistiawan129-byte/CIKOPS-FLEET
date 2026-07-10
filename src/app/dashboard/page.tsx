@@ -665,7 +665,7 @@ const [masterDataInitialSub, setMasterDataInitialSub] = useState<"drivers" | "em
       {activeTab !== "tasks" && (
         <div key={activeTab} className="tabContent">
           {activeTab === "overview" && <OverviewTab setActiveTab={setActiveTab} myProfile={myProfile} />}
-          {activeTab === "vehicles" && <VehiclesTab />} <VehiclesTab myProfile={myProfile} />}
+          {activeTab === "vehicles" && <VehiclesTab myProfile={myProfile} />}
           {activeTab === "claims" && <ClaimsTab />}
           {activeTab === "overtime" && <OvertimeTab />}
           {activeTab === "driverbudget" && <DriverBudgetTab />}
@@ -4407,7 +4407,8 @@ const BLANK_VEHICLE_FORM: VehicleFormState = {
   plant: "CIK",
 };
 
-function VehiclesTab() {
+function VehiclesTab({ myProfile }: { myProfile: MyProfile | null }) {
+  const isAdmin = myProfile?.role === "admin";
   const { lang, t } = useLang();
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [drivers, setDrivers] = useState<Driver[]>([]);
@@ -4690,6 +4691,7 @@ function VehiclesTab() {
                   >
                     ✏️ {t.actionEdit}
                   </button>
+                  {isAdmin && (
                   <button
                     onClick={() => setConfirmDelete(v)}
                     style={{
@@ -4705,6 +4707,7 @@ function VehiclesTab() {
                   >
                     🗑️
                   </button>
+                   )}
                 </div>
               </div>
             );
