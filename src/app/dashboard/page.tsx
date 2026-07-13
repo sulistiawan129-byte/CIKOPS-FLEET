@@ -52,6 +52,7 @@ import {
   addOvertime,
   deleteOvertime,
   getCurrentKantong,
+  getKantongHistory,
   updateKantongBudget,
   resetKantong,
   createKantong,
@@ -1377,10 +1378,6 @@ function CreateTaskModal({
   onError: (msg: string) => void;
 }) {
   const [tanggal, setTanggal] = useState(todayStr());
-  // Kalau akun ini punya plant_scope (mis. PRB), plant task OTOMATIS
-  // terkunci ke situ — tidak ada pilihan lain, tidak bisa salah pilih.
-  // Kalau plant_scope null (admin/GA global), default 'CIK' tapi bisa
-  // diganti manual lewat selector di bawah.
   const lockedPlant = myProfile?.plantScope ?? null;
   const [plant, setPlant] = useState<Plant>(lockedPlant ?? "CIK");
   useEffect(() => {
@@ -1396,28 +1393,25 @@ function CreateTaskModal({
   const [formError, setFormError] = useState("");
   const [busy, setBusy] = useState(false);
   const [waMessage, setWaMessage] = useState<string | null>(null);
- 
-  // Dropdown driver/kendaraan HANYA menampilkan yang sesuai plant
-  // yang sedang dipilih — supaya tidak mungkin salah tugaskan driver
-  // CIK ke tugas PRB atau sebaliknya.
+
   const filteredDrivers = drivers.filter((d) => !d.plant || d.plant === plant);
   const filteredVehicles = vehicles.filter((v) => !v.plant || v.plant === plant);
- 
+
   function handleRequestorPick(name: string) {
     setRequestor(name);
     const emp = employees.find((e) => e.nama === name);
     if (emp?.departement) setDepartement(emp.departement);
   }
 
- async function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setFormError("");
- 
+
     if (!driverId || !vehicleId || !jenisPekerjaan || !tujuan || !requestor) {
       setFormError("Lengkapi semua field wajib (bertanda *)");
       return;
     }
- 
+
     setBusy(true);
     try {
       await createTask({
@@ -1452,7 +1446,13 @@ function CreateTaskModal({
       setBusy(false);
     }
   }
- 
+
+  const selectedDriverObj = drivers.find((d) => d.id === driverId);
+  const selectedVehicleObj = vehicles.find((v) => v.id === vehicleId);
+  const requiredFilled = [driverId, vehicleId, jenisPekerjaan, tujuan, requestor].filter(Boolean).length;
+  const requiredTotal = 5;
+  const previewEmpty = !driverId && !vehicleId && !tujuan && !jenisPekerjaan && !requestor;
+
   return (
     <div className={`${styles.modalOverlay} modalOverlayAnim`} onClick={waMessage ? undefined : onClose}>
       <div className={`${styles.modalBox} modalPop`} onClick={(e) => e.stopPropagation()}>
@@ -1494,7 +1494,7 @@ function CreateTaskModal({
                 >
                   Selesai
                 </button>
-                <a
+                
                   href={`https://wa.me/?text=${encodeURIComponent(waMessage)}`}
                   target="_blank"
                   rel="noopener noreferrer"
@@ -1513,14 +1513,33 @@ function CreateTaskModal({
         ) : (
           <>
             <div className={styles.modalHeader}>
-              <div className={styles.modalTitle}>Tugaskan Driver</div>
+              <div className={styles.modalTitle}>🗂️ Tugaskan Driver</div>
               <button className={styles.modalClose} onClick={onClose}>✕</button>
+            </div>
+
+            {/* ── Progress kelengkapan ── */}
+            <div style={{ padding: "2px 24px 14px" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: "var(--t3)", marginBottom: 5, fontWeight: 600 }}>
+                <span>Kelengkapan form</span>
+                <span>{requiredFilled}/{requiredTotal}</span>
+              </div>
+              <div style={{ height: 5, borderRadius: 4, background: "var(--border)", overflow: "hidden" }}>
+                <div
+                  style={{
+                    height: "100%",
+                    width: `${(requiredFilled / requiredTotal) * 100}%`,
+                    background: requiredFilled === requiredTotal ? "var(--green)" : "linear-gradient(90deg, var(--brand), var(--gold))",
+                    borderRadius: 4,
+                    transition: "width 0.3s ease, background 0.3s ease",
+                  }}
+                />
+              </div>
             </div>
 
             <form onSubmit={handleSubmit}>
               <div className={styles.formGrid}>
-                <div className={`${styles.formField} ${styles.formFieldFull}`}>
-                  <label className={styles.formLabel}>Plant *</label>
+                <div className={`${styles.formField} ${styles.formFieldFull} staggerItem`} style={{ animationDelay: "0s" }}>
+                  <label className={styles.formLabel}>🏭 Plant *</label>
                   {lockedPlant ? (
                     <div
                       style={{
@@ -1555,6 +1574,8 @@ function CreateTaskModal({
                             border: plant === p ? "2px solid var(--brand)" : "1px solid var(--border2)",
                             background: plant === p ? "var(--bg2)" : "transparent",
                             color: plant === p ? "var(--brand)" : "var(--t3)",
+                            transition: "transform 0.15s ease, border-color 0.15s ease",
+                            transform: plant === p ? "scale(1.02)" : "scale(1)",
                           }}
                         >
                           {p}
@@ -1564,24 +1585,24 @@ function CreateTaskModal({
                   )}
                 </div>
 
-                <div className={styles.formField}>
-                  <label className={styles.formLabel}>Tanggal *</label>
-                  <input type="date" className={styles.formInput} value={tanggal} onChange={(e) => setTanggal(e.target.value)} />
+                <div className={`${styles.formField} staggerItem`} style={{ animationDelay: "0.03s" }}>
+                  <label className={styles.formLabel}>📅 Tanggal *</label>
+                  <input type="date" className={`${styles.formInput} premiumInput`} value={tanggal} onChange={(e) => setTanggal(e.target.value)} />
                 </div>
 
-                <div className={styles.formField}>
-                  <label className={styles.formLabel}>Driver *</label>
-                  <select className={styles.formSelect} value={driverId} onChange={(e) => setDriverId(e.target.value)}>
+                <div className={`${styles.formField} staggerItem`} style={{ animationDelay: "0.06s" }}>
+                  <label className={styles.formLabel}>🧑‍✈️ Driver *</label>
+                  <select className={`${styles.formSelect} premiumInput`} value={driverId} onChange={(e) => setDriverId(e.target.value)}>
                     <option value="">Pilih driver</option>
                     {filteredDrivers.map((d) => (
-                      <option key={d.id} value={d.id}>{d.nama}</option>
+                      <option key={d.id} value={d.id}>{d.avatar_emoji || "🧑‍✈️"} {d.nama}</option>
                     ))}
                   </select>
                 </div>
 
-                <div className={styles.formField}>
-                  <label className={styles.formLabel}>Kendaraan *</label>
-                  <select className={styles.formSelect} value={vehicleId} onChange={(e) => setVehicleId(e.target.value)}>
+                <div className={`${styles.formField} staggerItem`} style={{ animationDelay: "0.09s" }}>
+                  <label className={styles.formLabel}>🚗 Kendaraan *</label>
+                  <select className={`${styles.formSelect} premiumInput`} value={vehicleId} onChange={(e) => setVehicleId(e.target.value)}>
                     <option value="">Pilih kendaraan</option>
                     {filteredVehicles.map((v) => (
                       <option key={v.id} value={v.id}>{v.nopol} {v.jenis ? `(${v.jenis})` : ""}</option>
@@ -1589,9 +1610,9 @@ function CreateTaskModal({
                   </select>
                 </div>
 
-                <div className={styles.formField}>
-                  <label className={styles.formLabel}>Jenis Pekerjaan *</label>
-                  <select className={styles.formSelect} value={jenisPekerjaan} onChange={(e) => setJenisPekerjaan(e.target.value)}>
+                <div className={`${styles.formField} staggerItem`} style={{ animationDelay: "0.12s" }}>
+                  <label className={styles.formLabel}>🧰 Jenis Pekerjaan *</label>
+                  <select className={`${styles.formSelect} premiumInput`} value={jenisPekerjaan} onChange={(e) => setJenisPekerjaan(e.target.value)}>
                     <option value="">Pilih jenis</option>
                     {jobTypes.map((j) => (
                       <option key={j.id} value={j.label}>{j.label}</option>
@@ -1599,20 +1620,20 @@ function CreateTaskModal({
                   </select>
                 </div>
 
-                <div className={`${styles.formField} ${styles.formFieldFull}`}>
-                  <label className={styles.formLabel}>Tujuan *</label>
+                <div className={`${styles.formField} ${styles.formFieldFull} staggerItem`} style={{ animationDelay: "0.15s" }}>
+                  <label className={styles.formLabel}>📍 Tujuan *</label>
                   <input
                     type="text"
-                    className={styles.formInput}
+                    className={`${styles.formInput} premiumInput`}
                     placeholder="Contoh: Kantor Cabang Selatan"
                     value={tujuan}
                     onChange={(e) => setTujuan(e.target.value)}
                   />
                 </div>
 
-                <div className={styles.formField}>
-                  <label className={styles.formLabel}>Requestor *</label>
-                  <select className={styles.formSelect} value={requestor} onChange={(e) => handleRequestorPick(e.target.value)}>
+                <div className={`${styles.formField} staggerItem`} style={{ animationDelay: "0.18s" }}>
+                  <label className={styles.formLabel}>👤 Requestor *</label>
+                  <select className={`${styles.formSelect} premiumInput`} value={requestor} onChange={(e) => handleRequestorPick(e.target.value)}>
                     <option value="">Pilih pegawai</option>
                     {employees.map((emp) => (
                       <option key={emp.id} value={emp.nama}>{emp.nama}</option>
@@ -1620,21 +1641,21 @@ function CreateTaskModal({
                   </select>
                 </div>
 
-                <div className={styles.formField}>
-                  <label className={styles.formLabel}>Departemen</label>
+                <div className={`${styles.formField} staggerItem`} style={{ animationDelay: "0.21s" }}>
+                  <label className={styles.formLabel}>🏢 Departemen</label>
                   <input
                     type="text"
-                    className={styles.formInput}
+                    className={`${styles.formInput} premiumInput`}
                     placeholder="Otomatis terisi"
                     value={departement}
                     onChange={(e) => setDepartement(e.target.value)}
                   />
                 </div>
 
-                <div className={`${styles.formField} ${styles.formFieldFull}`}>
-                  <label className={styles.formLabel}>Perihal (opsional)</label>
+                <div className={`${styles.formField} ${styles.formFieldFull} staggerItem`} style={{ animationDelay: "0.24s" }}>
+                  <label className={styles.formLabel}>📝 Perihal (opsional)</label>
                   <textarea
-                    className={styles.formTextarea}
+                    className={`${styles.formTextarea} premiumInput`}
                     placeholder="Catatan tambahan untuk driver..."
                     value={perihal}
                     onChange={(e) => setPerihal(e.target.value)}
@@ -1642,12 +1663,41 @@ function CreateTaskModal({
                 </div>
               </div>
 
+              {/* ── Live preview ── */}
+              <div style={{ margin: "4px 24px 0", padding: 16, borderRadius: 14, background: "var(--bg2)", border: "1px solid var(--border2)" }}>
+                <div style={{ fontSize: 11, fontWeight: 700, color: "var(--t3)", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 10 }}>
+                  👁️ Pratinjau Tugas
+                </div>
+                {previewEmpty ? (
+                  <div style={{ fontSize: 12.5, color: "var(--t3)", fontStyle: "italic" }}>
+                    Lengkapi form di atas untuk melihat ringkasan penugasan.
+                  </div>
+                ) : (
+                  <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
+                    {selectedDriverObj && (
+                      <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13 }}>
+                        <span>{selectedDriverObj.avatar_emoji || "🧑‍✈️"}</span>
+                        <strong style={{ color: "var(--t1)" }}>{selectedDriverObj.nama}</strong>
+                        <span style={{ fontSize: 10, fontWeight: 800, padding: "1px 7px", borderRadius: 6, background: "var(--surface)", color: "var(--brand)" }}>{plant}</span>
+                      </div>
+                    )}
+                    {selectedVehicleObj && (
+                      <div style={{ fontSize: 12.5, color: "var(--t2)" }}>🚗 {selectedVehicleObj.nopol}{selectedVehicleObj.jenis ? ` (${selectedVehicleObj.jenis})` : ""}</div>
+                    )}
+                    {jenisPekerjaan && <div style={{ fontSize: 12.5, color: "var(--t2)" }}>🧰 {jenisPekerjaan}</div>}
+                    {tujuan && <div style={{ fontSize: 12.5, color: "var(--t2)" }}>📍 {tujuan}</div>}
+                    {requestor && <div style={{ fontSize: 12.5, color: "var(--t2)" }}>👤 {requestor}{departement ? ` · ${departement}` : ""}</div>}
+                    {perihal.trim() && <div style={{ fontSize: 12.5, color: "var(--t3)", fontStyle: "italic" }}>📝 {perihal.trim()}</div>}
+                  </div>
+                )}
+              </div>
+
               {formError && <div className={styles.formError}>{formError}</div>}
 
               <div className={styles.modalActions}>
                 <button type="button" className={styles.btnCancel} onClick={onClose}>Batal</button>
                 <button type="submit" className={styles.btnSubmit} disabled={busy}>
-                  {busy ? "Menyimpan..." : "Tugaskan Driver"}
+                  {busy ? "Menyimpan..." : requiredFilled === requiredTotal ? "✓ Tugaskan Driver" : "Tugaskan Driver"}
                 </button>
               </div>
             </form>
@@ -3329,10 +3379,12 @@ function DriverBudgetTab() {
 function OpFundTab() {
   const { lang, t } = useLang();
   const [kantong, setKantong] = useState<Kantong | null>(null);
+  const [history, setHistory] = useState<Kantong[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showEdit, setShowEdit] = useState(false);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
+  const [gaugeReady, setGaugeReady] = useState(false);
 
   const [eBudget, setEBudget] = useState("");
   const [eOpDriver, setEOpDriver] = useState("");
@@ -3368,11 +3420,38 @@ function OpFundTab() {
     } finally {
       setLoading(false);
     }
+    // Trend history is best-effort — a failure here shouldn't block the
+    // main Dana Operasional view from rendering.
+    try {
+      setHistory(await getKantongHistory());
+    } catch {
+      setHistory([]);
+    }
   }, []);
 
   useEffect(() => {
     load();
   }, [load]);
+
+  // ── Hooks below must run unconditionally on every render (rules of
+  // hooks) — same pattern OverviewTab uses — so they're computed with
+  // safe fallbacks BEFORE the loading/error/no-data early returns. ──
+  const totalBudgetPre = kantong?.totalBudget ?? 0;
+  const outstandingPre = kantong
+    ? kantong.allocOpDriver + kantong.allocEmergency + kantong.cashAvailable + kantong.claimSubmitted + kantong.claimPaid
+    : 0;
+  const gapPre = outstandingPre - totalBudgetPre;
+  const animatedTotalBudget = useCountUp(totalBudgetPre);
+  const animatedOutstanding = useCountUp(outstandingPre);
+  const animatedGapAbs = useCountUp(Math.abs(gapPre));
+
+  useEffect(() => {
+    if (!loading && kantong) {
+      const timer = setTimeout(() => setGaugeReady(true), 80);
+      return () => clearTimeout(timer);
+    }
+    setGaugeReady(false);
+  }, [loading, kantong]);
 
   if (loading) return <div style={{ padding: 60, textAlign: "center", color: "var(--t3)" }}>{t.actionLoading}</div>;
   if (error) return <div style={{ padding: 30, margin: 20, borderRadius: 10, background: "var(--red-soft)", color: "var(--red)" }}>{error}</div>;
@@ -3490,58 +3569,152 @@ function OpFundTab() {
   const cardStyle: CSSProperties = { background: "linear-gradient(180deg, var(--surface2), var(--surface))", border: "1px solid var(--border2)", borderRadius: "var(--r2)", boxShadow: "var(--shadow-md)" };
   const inputStyle: CSSProperties = { width: "100%", padding: "9px 12px", borderRadius: 10, border: "1px solid var(--border2)", background: "var(--bg2)", color: "var(--t1)", fontSize: 13, fontFamily: "var(--font)" };
   const labelStyle: CSSProperties = { fontSize: 13, fontWeight: 700, color: "var(--t2)", marginBottom: 5, display: "block" };
-  const row = (label: string, sub: string, value: number, color?: string) => (
-    <div style={{ padding: "15px 22px" }}>
-      <div style={{ fontSize: 12.5, fontWeight: 700, color: "var(--t3)", textTransform: "uppercase", letterSpacing: "0.07em" as const }}>{label}</div>
-      <div style={{ fontSize: 12, color: "var(--t3)", marginTop: 1 }}>{sub}</div>
-      <div style={{ fontWeight: 800, fontSize: 18, color: color || "var(--t1)", marginTop: 6 }}>Rp {fmtRp(value)}</div>
-    </div>
-  );
+
+  // ── Composition bars — reuses the same "bar list" pattern already
+  // established in GasStationsTab's Fuel Type Distribution, applied
+  // here to how the total budget is composed across allocations. ──
+  const composition = [
+    { label: "Op Driver (A1)", value: kantong.allocOpDriver, color: "var(--orange)" },
+    { label: "Emergency (A2)", value: kantong.allocEmergency, color: "var(--red)" },
+    { label: "Cash Available (A4)", value: kantong.cashAvailable, color: "var(--green)" },
+    { label: lang === "en" ? "Claim Submitted (A5)" : "Klaim Diajukan (A5)", value: kantong.claimSubmitted, color: "var(--brand)" },
+    { label: lang === "en" ? "Claim Paid (A6)" : "Klaim Dibayar (A6)", value: kantong.claimPaid, color: "var(--purple)" },
+  ];
+
+  // ── Fund health ring — same visual technique as OverviewTab's
+  // Operational Health gauge, applied to how far the fund has drifted
+  // from balanced (gap = 0). ──
+  const fundHealthPct = kantong.totalBudget > 0
+    ? Math.max(0, 100 - Math.min(100, (Math.abs(gap) / kantong.totalBudget) * 100))
+    : 100;
+  const healthColor = fundHealthPct >= 90 ? "var(--green)" : fundHealthPct >= 70 ? "var(--brand)" : fundHealthPct >= 50 ? "var(--orange)" : "var(--red)";
+  const RG = 52, CIRCG = 2 * Math.PI * RG;
+  const gaugeOffset = CIRCG * (1 - fundHealthPct / 100);
+
+  // ── Trend chart — same SVG area+line technique as OverviewTab's
+  // "Claim Activity" chart, driven by kantong history per period
+  // instead of daily claims. ──
+  const trendData = history.map((h) => ({
+    period: h.period,
+    gap: h.allocOpDriver + h.allocEmergency + h.cashAvailable + h.claimSubmitted + h.claimPaid - h.totalBudget,
+  }));
+  const chartW = 640, chartH = 140, chartPad = 30;
+  const maxAbsGap = Math.max(...trendData.map((d) => Math.abs(d.gap)), 1);
+  const midY = chartH / 2;
+  const trendPoints = trendData.map((d, i) => {
+    const x = chartPad + (trendData.length > 1 ? (i / (trendData.length - 1)) * (chartW - chartPad * 2) : 0);
+    const y = midY - (d.gap / maxAbsGap) * (midY - chartPad / 2);
+    return `${x.toFixed(1)},${y.toFixed(1)}`;
+  }).join(" ");
 
   return (
     <div style={{ padding: 20 }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 18 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 18, flexWrap: "wrap", gap: 10 }}>
         <div style={{ fontSize: 12, color: "var(--t3)" }}>
-          Periode: <strong style={{ color: "var(--t1)" }}>{kantong.period}</strong> · Reset: {kantong.lastReset}
+          {lang === "en" ? "Period" : "Periode"}: <strong style={{ color: "var(--t1)" }}>{kantong.period}</strong> · Reset: {kantong.lastReset}
         </div>
         <div style={{ display: "flex", gap: 8 }}>
           <button onClick={() => setShowEdit(true)} style={{ padding: "8px 14px", borderRadius: 10, border: "1px solid var(--border2)", background: "var(--surface2)", color: "var(--t2)", fontWeight: 700, fontSize: 12, cursor: "pointer" }}>
             ✏️ {lang === "en" ? "Edit Values" : "Edit Nilai"}
           </button>
           <button onClick={() => setShowResetConfirm(true)} style={{ padding: "8px 14px", borderRadius: 10, border: "1px solid var(--red)", background: "var(--red-soft)", color: "var(--red)", fontWeight: 700, fontSize: 12, cursor: "pointer" }}>
-            🔄 Reset Periode
+            🔄 {lang === "en" ? "Reset Period" : "Reset Periode"}
           </button>
         </div>
       </div>
 
-      <div style={{ ...cardStyle, borderRadius: 16, overflow: "hidden" }}>
-        <div style={{ padding: "19px 22px", borderBottom: "1px solid var(--border)" }}>
-          <div style={{ fontSize: 13, fontWeight: 700, color: "var(--t3)", textTransform: "uppercase", letterSpacing: "0.07em" }}>Total Cash Operational (A)</div>
-          <div style={{ fontWeight: 800, fontSize: 28, color: "var(--brand)" }}>Rp {fmtRp(kantong.totalBudget)}</div>
+      {/* ── Hero: fund health ring + headline numbers ── */}
+      <div className="heroGlow statPop" style={{ borderRadius: "var(--r3)", boxShadow: "var(--shadow-lg)", padding: "24px 26px", marginBottom: 18 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 18 }}>
+          <span style={{ width: 7, height: 7, borderRadius: "50%", background: healthColor, display: "inline-block" }} />
+          <span style={{ fontSize: 12.5, fontWeight: 800, letterSpacing: 1, color: "var(--t3)", textTransform: "uppercase" }}>
+            💰 {lang === "en" ? "Operational Fund Health" : "Kesehatan Dana Operasional"}
+          </span>
         </div>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", borderBottom: "1px solid var(--border)" }}>
-          {row("Op Driver (A1)", "Alokasi", kantong.allocOpDriver, "var(--orange)")}
-          {row("Emergency (A2)", "Alokasi", kantong.allocEmergency, "var(--red)")}
-        </div>
-        <div style={{ padding: "13px 22px", background: "var(--bg2)", borderBottom: "1px solid var(--border)", display: "flex", justifyContent: "space-between" }}>
-          <div style={{ fontSize: 12.5, fontWeight: 700, color: "var(--t3)" }}>TOTAL ALOKASI (A3)</div>
-          <div style={{ fontWeight: 700, fontSize: 15, color: "var(--t2)" }}>Rp {fmtRp(totalAlokasi)}</div>
-        </div>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", borderBottom: "1px solid var(--border)" }}>
-          {row("Cash Available (A4)", "Editable", kantong.cashAvailable, "var(--green)")}
-          {row("Claim Diajukan (A5)", "Ke Finance", kantong.claimSubmitted, "var(--brand)")}
-          {row("Claim Dibayar (A6)", "Oleh Finance", kantong.claimPaid, "var(--t3)")}
-        </div>
-        <div style={{ padding: "16px 22px", background: "var(--gold-soft)", borderBottom: "1px solid var(--border)", display: "flex", justifyContent: "space-between" }}>
-          <div style={{ fontSize: 12.5, fontWeight: 700, color: "var(--gold2)" }}>OUTSTANDING (B) = A3+A4+A5+A6</div>
-          <div style={{ fontWeight: 800, fontSize: 18, color: "var(--gold2)" }}>Rp {fmtRp(outstanding)}</div>
-        </div>
-        <div style={{ padding: "18px 22px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <div>
-            <div style={{ fontSize: 13, fontWeight: 700, color: "var(--t3)" }}>GAP = B − A</div>
-            <div style={{ fontSize: 13, color: "var(--t3)", marginTop: 3 }}>{gapText}</div>
+        <div style={{ display: "grid", gridTemplateColumns: "auto 1fr", gap: 28, alignItems: "center" }}>
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
+            <svg viewBox="0 0 120 120" width={104} height={104}>
+              <defs>
+                <linearGradient id="fundGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stopColor="var(--brand)" />
+                  <stop offset="100%" stopColor="var(--gold)" />
+                </linearGradient>
+              </defs>
+              <circle cx={60} cy={60} r={RG} fill="none" stroke="var(--border)" strokeWidth={8} />
+              <circle className="gaugeAnimated" cx={60} cy={60} r={RG} fill="none" stroke="url(#fundGrad)" strokeWidth={8} strokeLinecap="round" strokeDasharray={CIRCG} strokeDashoffset={gaugeReady ? gaugeOffset : CIRCG} transform="rotate(-90 60 60)" />
+              <text x={60} y={57} textAnchor="middle" fontSize={22} fontWeight={800} fill="url(#fundGrad)" fontFamily="var(--mono)">{Math.round(fundHealthPct)}</text>
+              <text x={60} y={72} textAnchor="middle" fontSize={9.5} fill="var(--t3)">/ 100</text>
+            </svg>
+            <div style={{ marginTop: 6, fontSize: 11.5, fontWeight: 700, color: healthColor }}>{gapText}</div>
           </div>
-          <div style={{ fontWeight: 800, fontSize: 22, color: gapColor }}>{gap >= 0 ? "+" : ""}Rp {fmtRp(gap)}</div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(130px, 1fr))" }}>
+            <div style={{ padding: "0 16px", borderLeft: "none" }}>
+              <div className="numGrad" style={{ fontSize: 22, fontWeight: 800, fontFamily: "var(--mono)" }}>Rp {fmtRp(animatedTotalBudget)}</div>
+              <div style={{ fontSize: 12, color: "var(--t2)", fontWeight: 600, marginTop: 3 }}>Total Cash Operational (A)</div>
+            </div>
+            <div style={{ padding: "0 16px", borderLeft: "1px solid var(--border2)" }}>
+              <div style={{ fontSize: 22, fontWeight: 800, fontFamily: "var(--mono)", color: "var(--gold2)" }}>Rp {fmtRp(animatedOutstanding)}</div>
+              <div style={{ fontSize: 12, color: "var(--t2)", fontWeight: 600, marginTop: 3 }}>Outstanding (B)</div>
+            </div>
+            <div style={{ padding: "0 16px", borderLeft: "1px solid var(--border2)" }}>
+              <div style={{ fontSize: 22, fontWeight: 800, fontFamily: "var(--mono)", color: gapColor }}>{gap >= 0 ? "+" : "−"}Rp {fmtRp(animatedGapAbs)}</div>
+              <div style={{ fontSize: 12, color: "var(--t2)", fontWeight: 600, marginTop: 3 }}>GAP = B − A</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div style={{ display: "grid", gridTemplateColumns: "1.1fr 1fr", gap: 16, marginBottom: 18 }}>
+        {/* ── Composition bars ── */}
+        <div className="statPop" style={{ ...cardStyle, padding: 20 }}>
+          <div style={{ fontSize: 13, fontWeight: 800, color: "var(--t1)", marginBottom: 4 }}>
+            {lang === "en" ? "Budget Composition" : "Komposisi Cash"}
+          </div>
+          <div style={{ fontSize: 12, color: "var(--t3)", marginBottom: 16 }}>
+            {lang === "en" ? "Each segment relative to Total Cash Operational" : "Tiap segmen relatif terhadap Total Cash Operational"}
+          </div>
+          {composition.map((c, i) => {
+            const pct = kantong.totalBudget > 0 ? (c.value / kantong.totalBudget) * 100 : 0;
+            return (
+              <div key={c.label} className="staggerItem" style={{ marginBottom: i === composition.length - 1 ? 0 : 12, animationDelay: `${i * 0.05}s` }}>
+                <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, marginBottom: 4 }}>
+                  <span style={{ color: "var(--t2)", fontWeight: 600 }}>{c.label}</span>
+                  <span style={{ color: "var(--t3)" }}>Rp {fmtRp(c.value)} · {pct.toFixed(0)}%</span>
+                </div>
+                <div style={{ height: 7, borderRadius: 4, background: "var(--border)", overflow: "hidden" }}>
+                  <div style={{ height: "100%", width: `${Math.min(100, pct)}%`, background: c.color, borderRadius: 4, transition: "width 0.8s cubic-bezier(0.16,1,0.3,1)" }} />
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* ── Trend chart ── */}
+        <div className="statPop" style={{ ...cardStyle, padding: 20 }}>
+          <div style={{ fontSize: 13, fontWeight: 800, color: "var(--t1)", marginBottom: 4 }}>
+            {lang === "en" ? "Gap Trend by Period" : "Tren Gap per Periode"}
+          </div>
+          <div style={{ fontSize: 12, color: "var(--t3)", marginBottom: 16 }}>
+            {lang === "en" ? "Positive = over budget, negative = under" : "Positif = melebihi budget, negatif = di bawah"}
+          </div>
+          {trendData.length < 2 ? (
+            <div style={{ fontSize: 12.5, color: "var(--t3)", padding: "20px 0", textAlign: "center" }}>
+              {lang === "en" ? "Not enough periods yet for a trend." : "Belum cukup periode untuk membuat tren."}
+            </div>
+          ) : (
+            <svg viewBox={`0 0 ${chartW} ${chartH}`} width="100%" height={chartH}>
+              <line x1={chartPad} x2={chartW - chartPad} y1={midY} y2={midY} stroke="var(--border2)" strokeWidth={1} strokeDasharray="4 4" />
+              <polyline points={trendPoints} fill="none" stroke={gap >= 0 ? "var(--orange)" : "var(--brand)"} strokeWidth={2.5} strokeLinejoin="round" strokeLinecap="round" />
+              {trendData.map((d, i) => {
+                const x = chartPad + (trendData.length > 1 ? (i / (trendData.length - 1)) * (chartW - chartPad * 2) : 0);
+                return (
+                  <text key={d.period} x={x} y={chartH - 6} textAnchor="middle" fontSize={9.5} fill="var(--t3)">
+                    {d.period.slice(2)}
+                  </text>
+                );
+              })}
+            </svg>
+          )}
         </div>
       </div>
 
