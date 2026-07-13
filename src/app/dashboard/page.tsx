@@ -80,6 +80,8 @@ import {
   type ReportPeriod,
   type FleetReportData,
 } from "@/lib/fleetReport";
+import { useLang, useTheme } from "@/lib/providers";
+import LockerTab from "./LockerTab";
 
 // Leaflet touches `window` directly, so it must never be server-rendered.
 const GasStationMap = dynamic(() => import("./GasStationMap"), {
@@ -123,7 +125,8 @@ export type DashboardTab =
   | "gasstations"
   | "reports"
   | "masterdata"
-  | "canteen";
+  | "canteen"
+  | "locker";
 
 const TAB_CONFIG: { id: DashboardTab; icon: string; labelId: string; labelEn: string }[] = [
   { id: "overview", icon: "📊", labelId: "Ringkasan", labelEn: "Overview" },
@@ -137,6 +140,7 @@ const TAB_CONFIG: { id: DashboardTab; icon: string; labelId: string; labelEn: st
   { id: "reports", icon: "📈", labelId: "Report", labelEn: "Reports" },
   { id: "masterdata", icon: "🗄️", labelId: "Master Data", labelEn: "Master Data" },
   { id: "canteen", icon: "🍱", labelId: "Kantin", labelEn: "Canteen" },
+  { id: "locker", icon: "🔐", labelId: "Locker", labelEn: "Locker" },
 ];
 
 /** Hook sederhana untuk deteksi viewport mobile vs desktop, dipakai untuk
@@ -681,6 +685,7 @@ const [masterDataInitialSub, setMasterDataInitialSub] = useState<"drivers" | "em
   />
 )}
           {activeTab === "canteen" && <CanteenTab />}
+          {activeTab === "locker" && <LockerTab />}
         </div>
       )}
         </div>
