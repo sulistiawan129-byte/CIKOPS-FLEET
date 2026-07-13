@@ -359,3 +359,17 @@ export function getConfirmBaseUrl(): string {
   if (typeof window === "undefined") return "";
   return `${window.location.origin}/locker/confirm`;
 }
+
+/** Verifikasi nomor+PIN TANPA melepas locker — dipakai layar
+ *  konfirmasi "Selesai Pakai Locker" (tampilkan nama/dept dulu sebelum
+ *  user menekan tombol konfirmasi final). Release yang sesungguhnya
+ *  tetap lewat releaseLockerByUser() di atas. */
+export async function verifyLockerRelease(
+  number: string,
+  pin: string
+): Promise<{ lockerNumber: string; nama: string; extra: string; periode: string }> {
+  const { data, error } = await supabase.rpc("verify_locker_release", { p_number: number, p_pin: pin });
+  if (error) throw error;
+  const row = data[0];
+  return { lockerNumber: row.locker_number, nama: row.nama ?? "", extra: row.extra ?? "", periode: row.periode ?? "" };
+}
