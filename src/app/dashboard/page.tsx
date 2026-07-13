@@ -1357,6 +1357,19 @@ function buildTaskWhatsAppMessage(params: {
 
   return lines.join("\n");
 }
+
+function SectionEyebrow({ label, color }: { label: string; color: string }) {
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 8, margin: "20px 0 10px" }}>
+      <span style={{ width: 3, height: 12, borderRadius: 2, background: color, flexShrink: 0 }} />
+      <span style={{ fontSize: 11, fontWeight: 700, color: "var(--t3)", textTransform: "uppercase", letterSpacing: "0.08em" }}>
+        {label}
+      </span>
+      <span style={{ flex: 1, height: 1, background: "var(--border)" }} />
+    </div>
+  );
+}
+
 function CreateTaskModal({
   drivers,
   vehicles,
@@ -1446,11 +1459,8 @@ function CreateTaskModal({
     }
   }
 
-  const selectedDriverObj = drivers.find((d) => d.id === driverId);
-  const selectedVehicleObj = vehicles.find((v) => v.id === vehicleId);
   const requiredFilled = [driverId, vehicleId, jenisPekerjaan, tujuan, requestor].filter(Boolean).length;
   const requiredTotal = 5;
-  const previewEmpty = !driverId && !vehicleId && !tujuan && !jenisPekerjaan && !requestor;
 
   return (
     <div className={`${styles.modalOverlay} modalOverlayAnim`} onClick={waMessage ? undefined : onClose}>
@@ -1512,48 +1522,36 @@ function CreateTaskModal({
         ) : (
           <>
             <div className={styles.modalHeader}>
-              <div className={styles.modalTitle}>🗂️ Tugaskan Driver</div>
+              <div className={styles.modalTitle}>Tugaskan Driver</div>
               <button className={styles.modalClose} onClick={onClose}>✕</button>
             </div>
 
-            {/* ── Progress kelengkapan ── */}
-            <div style={{ padding: "2px 24px 14px" }}>
-              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: "var(--t3)", marginBottom: 5, fontWeight: 600 }}>
-                <span>Kelengkapan form</span>
-                <span>{requiredFilled}/{requiredTotal}</span>
-              </div>
-              <div style={{ height: 5, borderRadius: 4, background: "var(--border)", overflow: "hidden" }}>
-                <div
-                  style={{
-                    height: "100%",
-                    width: `${(requiredFilled / requiredTotal) * 100}%`,
-                    background: requiredFilled === requiredTotal ? "var(--green)" : "linear-gradient(90deg, var(--brand), var(--gold))",
-                    borderRadius: 4,
-                    transition: "width 0.3s ease, background 0.3s ease",
-                  }}
-                />
-              </div>
+            {/* Garis progres tipis, tanpa teks — indikator premium yang tidak
+                mengganggu, bukan bar besar dengan label terpisah. */}
+            <div style={{ height: 3, background: "var(--border)", overflow: "hidden" }}>
+              <div
+                style={{
+                  height: "100%",
+                  width: `${(requiredFilled / requiredTotal) * 100}%`,
+                  background: requiredFilled === requiredTotal ? "var(--green)" : "linear-gradient(90deg, var(--brand), var(--gold))",
+                  transition: "width 0.3s ease, background 0.3s ease",
+                }}
+              />
             </div>
 
-            <form onSubmit={handleSubmit}>
+            <form onSubmit={handleSubmit} style={{ padding: "0 24px 24px" }}>
+              <SectionEyebrow label="Penugasan" color="var(--brand)" />
               <div className={styles.formGrid}>
-                <div className={`${styles.formField} ${styles.formFieldFull} staggerItem`} style={{ animationDelay: "0s" }}>
-                  <label className={styles.formLabel}>🏭 Plant *</label>
+                <div className={styles.formField}>
+                  <label className={styles.formLabel}>Plant *</label>
                   {lockedPlant ? (
-                    <div
-                      style={{
-                        padding: "13px 15px",
-                        borderRadius: 14,
-                        background: "var(--bg2)",
-                        fontSize: 14,
-                        fontWeight: 700,
-                        color: "var(--t1)",
-                      }}
-                    >
-                      {lockedPlant} <span style={{ fontSize: 11, fontWeight: 400, color: "var(--t3)" }}>(akun ini khusus plant ini)</span>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 14px", borderRadius: 10, background: "var(--bg2)", fontSize: 13, fontWeight: 700, color: "var(--t1)" }}>
+                      <span style={{ width: 7, height: 7, borderRadius: "50%", background: "var(--brand)", flexShrink: 0 }} />
+                      {lockedPlant}
+                      <span style={{ fontSize: 11, fontWeight: 400, color: "var(--t3)" }}>(khusus plant ini)</span>
                     </div>
                   ) : (
-                    <div style={{ display: "flex", gap: 8 }}>
+                    <div style={{ display: "flex", padding: 3, borderRadius: 10, background: "var(--bg2)", border: "1px solid var(--border2)" }}>
                       {(["CIK", "PRB"] as Plant[]).map((p) => (
                         <button
                           key={p}
@@ -1565,16 +1563,16 @@ function CreateTaskModal({
                           }}
                           style={{
                             flex: 1,
-                            padding: "12px",
-                            borderRadius: 14,
-                            fontWeight: 800,
-                            fontSize: 14,
+                            padding: "9px 0",
+                            borderRadius: 8,
+                            border: "none",
                             cursor: "pointer",
-                            border: plant === p ? "2px solid var(--brand)" : "1px solid var(--border2)",
-                            background: plant === p ? "var(--bg2)" : "transparent",
+                            fontWeight: 700,
+                            fontSize: 13,
+                            background: plant === p ? "var(--surface)" : "transparent",
                             color: plant === p ? "var(--brand)" : "var(--t3)",
-                            transition: "transform 0.15s ease, border-color 0.15s ease",
-                            transform: plant === p ? "scale(1.02)" : "scale(1)",
+                            boxShadow: plant === p ? "var(--shadow-sm)" : "none",
+                            transition: "all 0.15s ease",
                           }}
                         >
                           {p}
@@ -1584,23 +1582,26 @@ function CreateTaskModal({
                   )}
                 </div>
 
-                <div className={`${styles.formField} staggerItem`} style={{ animationDelay: "0.03s" }}>
-                  <label className={styles.formLabel}>📅 Tanggal *</label>
+                <div className={styles.formField}>
+                  <label className={styles.formLabel}>Tanggal *</label>
                   <input type="date" className={`${styles.formInput} premiumInput`} value={tanggal} onChange={(e) => setTanggal(e.target.value)} />
                 </div>
+              </div>
 
-                <div className={`${styles.formField} staggerItem`} style={{ animationDelay: "0.06s" }}>
-                  <label className={styles.formLabel}>🧑‍✈️ Driver *</label>
+              <SectionEyebrow label="Driver & Kendaraan" color="var(--gold2)" />
+              <div className={styles.formGrid}>
+                <div className={styles.formField}>
+                  <label className={styles.formLabel}>Driver *</label>
                   <select className={`${styles.formSelect} premiumInput`} value={driverId} onChange={(e) => setDriverId(e.target.value)}>
                     <option value="">Pilih driver</option>
                     {filteredDrivers.map((d) => (
-                      <option key={d.id} value={d.id}>{d.avatar_emoji || "🧑‍✈️"} {d.nama}</option>
+                      <option key={d.id} value={d.id}>{d.nama}</option>
                     ))}
                   </select>
                 </div>
 
-                <div className={`${styles.formField} staggerItem`} style={{ animationDelay: "0.09s" }}>
-                  <label className={styles.formLabel}>🚗 Kendaraan *</label>
+                <div className={styles.formField}>
+                  <label className={styles.formLabel}>Kendaraan *</label>
                   <select className={`${styles.formSelect} premiumInput`} value={vehicleId} onChange={(e) => setVehicleId(e.target.value)}>
                     <option value="">Pilih kendaraan</option>
                     {filteredVehicles.map((v) => (
@@ -1608,9 +1609,12 @@ function CreateTaskModal({
                     ))}
                   </select>
                 </div>
+              </div>
 
-                <div className={`${styles.formField} staggerItem`} style={{ animationDelay: "0.12s" }}>
-                  <label className={styles.formLabel}>🧰 Jenis Pekerjaan *</label>
+              <SectionEyebrow label="Detail Tugas" color="var(--purple)" />
+              <div className={styles.formGrid}>
+                <div className={styles.formField}>
+                  <label className={styles.formLabel}>Jenis Pekerjaan *</label>
                   <select className={`${styles.formSelect} premiumInput`} value={jenisPekerjaan} onChange={(e) => setJenisPekerjaan(e.target.value)}>
                     <option value="">Pilih jenis</option>
                     {jobTypes.map((j) => (
@@ -1619,8 +1623,18 @@ function CreateTaskModal({
                   </select>
                 </div>
 
-                <div className={`${styles.formField} ${styles.formFieldFull} staggerItem`} style={{ animationDelay: "0.15s" }}>
-                  <label className={styles.formLabel}>📍 Tujuan *</label>
+                <div className={styles.formField}>
+                  <label className={styles.formLabel}>Requestor *</label>
+                  <select className={`${styles.formSelect} premiumInput`} value={requestor} onChange={(e) => handleRequestorPick(e.target.value)}>
+                    <option value="">Pilih pegawai</option>
+                    {employees.map((emp) => (
+                      <option key={emp.id} value={emp.nama}>{emp.nama}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className={`${styles.formField} ${styles.formFieldFull}`}>
+                  <label className={styles.formLabel}>Tujuan *</label>
                   <input
                     type="text"
                     className={`${styles.formInput} premiumInput`}
@@ -1630,18 +1644,8 @@ function CreateTaskModal({
                   />
                 </div>
 
-                <div className={`${styles.formField} staggerItem`} style={{ animationDelay: "0.18s" }}>
-                  <label className={styles.formLabel}>👤 Requestor *</label>
-                  <select className={`${styles.formSelect} premiumInput`} value={requestor} onChange={(e) => handleRequestorPick(e.target.value)}>
-                    <option value="">Pilih pegawai</option>
-                    {employees.map((emp) => (
-                      <option key={emp.id} value={emp.nama}>{emp.nama}</option>
-                    ))}
-                  </select>
-                </div>
-
-                <div className={`${styles.formField} staggerItem`} style={{ animationDelay: "0.21s" }}>
-                  <label className={styles.formLabel}>🏢 Departemen</label>
+                <div className={styles.formField}>
+                  <label className={styles.formLabel}>Departemen</label>
                   <input
                     type="text"
                     className={`${styles.formInput} premiumInput`}
@@ -1651,8 +1655,8 @@ function CreateTaskModal({
                   />
                 </div>
 
-                <div className={`${styles.formField} ${styles.formFieldFull} staggerItem`} style={{ animationDelay: "0.24s" }}>
-                  <label className={styles.formLabel}>📝 Perihal (opsional)</label>
+                <div className={`${styles.formField} ${styles.formFieldFull}`}>
+                  <label className={styles.formLabel}>Perihal (opsional)</label>
                   <textarea
                     className={`${styles.formTextarea} premiumInput`}
                     placeholder="Catatan tambahan untuk driver..."
@@ -1662,41 +1666,12 @@ function CreateTaskModal({
                 </div>
               </div>
 
-              {/* ── Live preview ── */}
-              <div style={{ margin: "4px 24px 0", padding: 16, borderRadius: 14, background: "var(--bg2)", border: "1px solid var(--border2)" }}>
-                <div style={{ fontSize: 11, fontWeight: 700, color: "var(--t3)", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 10 }}>
-                  👁️ Pratinjau Tugas
-                </div>
-                {previewEmpty ? (
-                  <div style={{ fontSize: 12.5, color: "var(--t3)", fontStyle: "italic" }}>
-                    Lengkapi form di atas untuk melihat ringkasan penugasan.
-                  </div>
-                ) : (
-                  <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
-                    {selectedDriverObj && (
-                      <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13 }}>
-                        <span>{selectedDriverObj.avatar_emoji || "🧑‍✈️"}</span>
-                        <strong style={{ color: "var(--t1)" }}>{selectedDriverObj.nama}</strong>
-                        <span style={{ fontSize: 10, fontWeight: 800, padding: "1px 7px", borderRadius: 6, background: "var(--surface)", color: "var(--brand)" }}>{plant}</span>
-                      </div>
-                    )}
-                    {selectedVehicleObj && (
-                      <div style={{ fontSize: 12.5, color: "var(--t2)" }}>🚗 {selectedVehicleObj.nopol}{selectedVehicleObj.jenis ? ` (${selectedVehicleObj.jenis})` : ""}</div>
-                    )}
-                    {jenisPekerjaan && <div style={{ fontSize: 12.5, color: "var(--t2)" }}>🧰 {jenisPekerjaan}</div>}
-                    {tujuan && <div style={{ fontSize: 12.5, color: "var(--t2)" }}>📍 {tujuan}</div>}
-                    {requestor && <div style={{ fontSize: 12.5, color: "var(--t2)" }}>👤 {requestor}{departement ? ` · ${departement}` : ""}</div>}
-                    {perihal.trim() && <div style={{ fontSize: 12.5, color: "var(--t3)", fontStyle: "italic" }}>📝 {perihal.trim()}</div>}
-                  </div>
-                )}
-              </div>
-
               {formError && <div className={styles.formError}>{formError}</div>}
 
               <div className={styles.modalActions}>
                 <button type="button" className={styles.btnCancel} onClick={onClose}>Batal</button>
                 <button type="submit" className={styles.btnSubmit} disabled={busy}>
-                  {busy ? "Menyimpan..." : requiredFilled === requiredTotal ? "✓ Tugaskan Driver" : "Tugaskan Driver"}
+                  {busy ? "Menyimpan..." : "Tugaskan Driver"}
                 </button>
               </div>
             </form>
