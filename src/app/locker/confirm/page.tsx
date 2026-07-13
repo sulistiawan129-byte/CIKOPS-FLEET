@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { getLockerByConfirmToken, confirmLockerAnswer } from "@/lib/lockerApi";
 
@@ -19,6 +19,20 @@ type ViewState =
   | { kind: "done"; title: string; message: string };
 
 export default function LockerConfirmPage() {
+  return (
+    <Suspense
+      fallback={
+        <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "linear-gradient(160deg, var(--navy), var(--brand))" }}>
+          <div style={{ width: 36, height: 36, borderRadius: "50%", border: "4px solid rgba(255,255,255,0.3)", borderTopColor: "#fff", animation: "spin 0.8s linear infinite" }} />
+        </div>
+      }
+    >
+      <LockerConfirmInner />
+    </Suspense>
+  );
+}
+
+function LockerConfirmInner() {
   const params = useSearchParams();
   const token = params.get("token") ?? "";
   const answerParam = params.get("answer");
