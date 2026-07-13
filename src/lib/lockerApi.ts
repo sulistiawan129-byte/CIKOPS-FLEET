@@ -224,6 +224,7 @@ export interface ReleaseLockerResult {
   extra: string;
   periode: string;
   source: string;
+  pin: string; // nilai aktual, tidak pernah berubah — hanya untuk referensi admin
 }
 
 function mapReleaseRow(row: {
@@ -233,6 +234,7 @@ function mapReleaseRow(row: {
   extra: string | null;
   periode: string | null;
   source: string;
+  pin: string | null;
 }): ReleaseLockerResult {
   return {
     lockerNumber: row.locker_number,
@@ -241,6 +243,7 @@ function mapReleaseRow(row: {
     extra: row.extra ?? "",
     periode: row.periode ?? "",
     source: row.source,
+    pin: row.pin ?? "",
   };
 }
 
