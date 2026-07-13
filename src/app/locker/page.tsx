@@ -805,7 +805,10 @@ function EndResultScreen({ lang }: { lang: string }) {
         <div style={{ fontSize: 18, fontWeight: 800, marginTop: 10 }}>
           {lang === "en" ? "Locker has been deactivated" : "Locker telah dinonaktifkan"}
         </div>
-        <div style={{ fontSize: 12.5, opacity: 0.9, marginTop: 12, lineHeight: 1.6 }}>
+        <div style={{ marginTop: 14, padding: "10px 14px", borderRadius: 10, background: "rgba(255,255,255,0.15)", fontSize: 12.5, fontWeight: 700 }}>
+          {lang === "en" ? "⚠️ Your PIN for this locker is no longer valid." : "⚠️ PIN Anda untuk locker ini sudah tidak berlaku lagi."}
+        </div>
+        <div style={{ fontSize: 12.5, opacity: 0.9, marginTop: 14, lineHeight: 1.6 }}>
           {lang === "en"
             ? "A confirmation email has been sent to you and the Facility Management team."
             : "Email konfirmasi telah dikirim ke Anda dan tim Facility Management."}
