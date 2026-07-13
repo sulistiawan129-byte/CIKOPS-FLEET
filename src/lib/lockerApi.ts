@@ -72,7 +72,7 @@ export async function getLockerStatusGrid(): Promise<LockerStatusEntry[]> {
     .from("lockers")
     .select("number, pin, status")
     .order("row_no", { ascending: true });
-  if (error) throw error;
+  if (error) throw new Error(error.message);
   return (data ?? []) as LockerStatusEntry[];
 }
 
@@ -82,7 +82,7 @@ export async function getAllLockers(): Promise<LockerRow[]> {
     .from("lockers")
     .select("id, number, pin, prev_pin, status, nama, no_hp, email, periode, extra, end_date, last_confirmed")
     .order("row_no", { ascending: true });
-  if (error) throw error;
+  if (error) throw new Error(error.message);
   return ((data as LockerDbRow[]) ?? []).map(mapLockerRow);
 }
 
@@ -105,7 +105,7 @@ export async function addLocker(input: LockerInput): Promise<void> {
   let pin = input.pin?.trim();
   if (!pin) {
     const { data, error: pinErr } = await supabase.rpc("generate_unique_locker_pin");
-    if (pinErr) throw pinErr;
+    if (pinErr) throw new Error(pinErr.message);
     pin = data as string;
   }
 
@@ -125,7 +125,7 @@ export async function addLocker(input: LockerInput): Promise<void> {
     if (error.code === "23505") {
       throw new Error(`Nomor locker ${input.number} sudah ada.`);
     }
-    throw error;
+    throw new Error(error.message);
   }
 }
 
@@ -148,13 +148,13 @@ export async function updateLocker(id: string, input: LockerInput): Promise<void
     if (error.code === "23505") {
       throw new Error(`Nomor locker ${input.number} sudah dipakai locker lain.`);
     }
-    throw error;
+    throw new Error(error.message);
   }
 }
 
 export async function deleteLocker(id: string): Promise<void> {
   const { error } = await supabase.from("lockers").delete().eq("id", id);
-  if (error) throw error;
+  if (error) throw new Error(error.message);
 }
 
 /* ── Search & report (admin) ── */
@@ -165,7 +165,7 @@ export async function searchLockerUser(keyword: string): Promise<LockerRow[]> {
     .from("lockers")
     .select("id, number, pin, prev_pin, status, nama, no_hp, email, periode, extra, end_date, last_confirmed")
     .or(`number.eq.${kw},nama.ilike.%${kw}%`);
-  if (error) throw error;
+  if (error) throw new Error(error.message);
   return ((data as LockerDbRow[]) ?? []).map(mapLockerRow);
 }
 
@@ -175,14 +175,14 @@ export async function getLockerReport(): Promise<LockerRow[]> {
     .select("id, number, pin, prev_pin, status, nama, no_hp, email, periode, extra, end_date, last_confirmed")
     .eq("status", "Terisi")
     .order("row_no", { ascending: true });
-  if (error) throw error;
+  if (error) throw new Error(error.message);
   return ((data as LockerDbRow[]) ?? []).map(mapLockerRow);
 }
 
 /* ── Employee NIK lookup (public registration flow) ── */
 export async function getEmployeeByNik(nik: string): Promise<{ nama: string; dept: string } | null> {
   const { data, error } = await supabase.rpc("get_employee_by_nik", { p_nik: nik });
-  if (error) throw error;
+  if (error) throw new Error(error.message);
   if (!data || data.length === 0) return null;
   return { nama: data[0].nama, dept: data[0].dept };
 }
@@ -210,7 +210,7 @@ export async function registerLocker(input: {
     p_extra: input.extra,
     p_tanggal_selesai: input.tanggalSelesai || null,
   });
-  if (error) throw error;
+  if (error) throw new Error(error.message);
   const row = data?.[0];
   if (!row) throw new Error("Semua locker sudah terisi!");
   return { lockerNumber: row.locker_number, pin: row.pin, periode: row.periode };
@@ -246,13 +246,13 @@ function mapReleaseRow(row: {
 
 export async function releaseLockerByUser(number: string, pin: string): Promise<ReleaseLockerResult> {
   const { data, error } = await supabase.rpc("release_locker_by_user", { p_number: number, p_pin: pin });
-  if (error) throw error;
+  if (error) throw new Error(error.message);
   return mapReleaseRow(data[0]);
 }
 
 export async function adminReleaseLocker(number: string): Promise<ReleaseLockerResult> {
   const { data, error } = await supabase.rpc("admin_release_locker", { p_number: number });
-  if (error) throw error;
+  if (error) throw new Error(error.message);
   return mapReleaseRow(data[0]);
 }
 
@@ -268,14 +268,14 @@ export async function getLockerDetailAdmin(number: string): Promise<LockerRow | 
     .select("id, number, pin, prev_pin, status, nama, no_hp, email, periode, extra, end_date, last_confirmed")
     .eq("number", number)
     .maybeSingle();
-  if (error) throw error;
+  if (error) throw new Error(error.message);
   return data ? mapLockerRow(data as LockerDbRow) : null;
 }
 
 /* ── Bulk email confirmation (admin) ── */
 export async function getConfirmationRecipientCount(): Promise<number> {
   const { data, error } = await supabase.rpc("get_confirmation_recipient_count");
-  if (error) throw error;
+  if (error) throw new Error(error.message);
   return (data as number) ?? 0;
 }
 
@@ -290,7 +290,7 @@ export interface BulkConfirmationRecipient {
 
 export async function startBulkConfirmation(): Promise<BulkConfirmationRecipient[]> {
   const { data, error } = await supabase.rpc("start_bulk_confirmation");
-  if (error) throw error;
+  if (error) throw new Error(error.message);
   return ((data ?? []) as Array<{
     locker_number: string; email: string; nama: string; extra: string; periode: string; token: string;
   }>).map((r) => ({
@@ -306,7 +306,7 @@ export async function startBulkConfirmation(): Promise<BulkConfirmationRecipient
 /* ── Email confirmation link handler (public /locker/confirm page) ── */
 export async function getLockerByConfirmToken(token: string): Promise<{ lockerNumber: string; nama: string } | null> {
   const { data, error } = await supabase.rpc("get_locker_by_confirm_token", { p_token: token });
-  if (error) throw error;
+  if (error) throw new Error(error.message);
   if (!data || data.length === 0) return null;
   return { lockerNumber: data[0].locker_number, nama: data[0].nama };
 }
@@ -317,7 +317,7 @@ export interface ConfirmLockerAnswerResult extends ReleaseLockerResult {
 
 export async function confirmLockerAnswer(token: string, answer: "yes" | "no"): Promise<ConfirmLockerAnswerResult> {
   const { data, error } = await supabase.rpc("confirm_locker_answer", { p_token: token, p_answer: answer });
-  if (error) throw error;
+  if (error) throw new Error(error.message);
   const row = data[0];
   return { ...mapReleaseRow(row), kept: row.kept };
 }
@@ -369,7 +369,7 @@ export async function verifyLockerRelease(
   pin: string
 ): Promise<{ lockerNumber: string; nama: string; extra: string; periode: string }> {
   const { data, error } = await supabase.rpc("verify_locker_release", { p_number: number, p_pin: pin });
-  if (error) throw error;
+  if (error) throw new Error(error.message);
   const row = data[0];
   return { lockerNumber: row.locker_number, nama: row.nama ?? "", extra: row.extra ?? "", periode: row.periode ?? "" };
 }
