@@ -80,8 +80,7 @@ import {
   type ReportPeriod,
   type FleetReportData,
 } from "@/lib/fleetReport";
-import { useLang, useTheme } from "@/lib/providers";
-import LockerTab from "./LockerTab";
+
 
 // Leaflet touches `window` directly, so it must never be server-rendered.
 const GasStationMap = dynamic(() => import("./GasStationMap"), {
@@ -104,6 +103,7 @@ import type {
 } from "@/lib/types";
 import { computeStats } from "@/lib/types";
 import { useLang, useTheme } from "@/lib/providers";
+import LockerTab from "./LockerTab";
 import { useAuth } from "@/lib/auth";
 import { supabase } from "@/lib/supabaseClient";
 import { toLocalISODate } from "@/lib/dateUtils";
