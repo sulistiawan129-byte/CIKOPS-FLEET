@@ -1,6 +1,8 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Inter, Poppins } from "next/font/google";
 import "./globals.css";
+import { AppProviders } from "@/lib/providers";
+import { AuthProvider } from "@/lib/auth";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -14,8 +16,6 @@ const poppins = Poppins({
   variable: "--font-poppins",
   display: "swap",
 });
-import { AppProviders } from "@/lib/providers";
-import { AuthProvider } from "@/lib/auth";
 
 export const metadata: Metadata = {
   title: "CIKOPS-FM System",
@@ -31,7 +31,6 @@ export const metadata: Metadata = {
     title: "CIKOPS",
   },
 };
-
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
@@ -40,7 +39,6 @@ export const viewport: Viewport = {
   viewportFit: "cover",
   themeColor: "#2E5BFF",
 };
-
 // Applies the saved theme to <html> BEFORE React hydrates, so there's no
 // flash of the wrong theme on load. Reads the same "cikops_theme" key
 // AppProviders uses, keeping a single source of truth.
@@ -50,7 +48,6 @@ const THEME_INIT_SCRIPT = `
     if (t === "dark") document.documentElement.setAttribute("data-theme", "dark");
   } catch (e) {}
 `;
-
 export default function RootLayout({
   children,
 }: {
@@ -61,8 +58,7 @@ export default function RootLayout({
       <head>
         <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
       </head>
-      <body>
-        <body className={`${inter.variable} ${poppins.variable}`}>
+      <body className={`${inter.variable} ${poppins.variable}`}>
         <AppProviders>
           <AuthProvider>{children}</AuthProvider>
         </AppProviders>
