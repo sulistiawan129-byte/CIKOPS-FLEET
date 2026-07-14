@@ -15,100 +15,100 @@
    DESIGN TOKENS — "Sky & Gold", light-first
    Direfresh mengikuti referensi web korporat (biru langit cerah,
    navy untuk teks/brand, gold untuk aksen CTA/pill button). Nama
-   variable TETAP SAMA seperti sebelumnya (--brand, --navy, --neon,
+   variable TETAP SAMA seperti sebelumnya (brand, navy, neon,
    dst) supaya seluruh CSS module (driver/dashboard) yang sudah ada
    otomatis ikut ganti tanpa perlu diubah satu per satu — hanya
-   NILAI-nya yang diperbarui, plus beberapa token baru (--gold*)
+   NILAI-nya yang diperbarui, plus beberapa token baru (gold*)
    untuk elemen yang butuh aksen gold eksplisit (pill button, ikon
    sosial, badge) sesuai referensi.
 ════════════════════════════════════════════════ */
 :root {
-  --bg: #f3f8fd;
-  --bg2: #e8f3fc;
-  --bg3: #dcedfa;
-  --surface: #ffffff;
-  --surface2: #f7fbfe;
-  --border: #dce8f5;
-  --border2: #c8dced;
+  bg: #f3f8fd;
+  bg2: #e8f3fc;
+  bg3: #dcedfa;
+  surface: #ffffff;
+  surface2: #f7fbfe;
+  border: #dce8f5;
+  border2: #c8dced;
 
   /* "brand" = primary blue (dashboard accents, links, primary actions) */
-  --brand: #3d6ff2;
-  --brand2: #2a52d6;
-  --navy: #14315c;
-  --neon: #0090c9;
-  --green: #17a673;
-  --green-soft: #e5f7ef;
-  --orange: #f08c1a;
-  --orange-soft: #fdf1e2;
-  --red: #e0483f;
-  --red-soft: #fbe9e8;
-  --purple: #6f5ec7;
+  brand: #3d6ff2;
+  brand2: #2a52d6;
+  navy: #14315c;
+  neon: #0090c9;
+  green: #17a673;
+  green-soft: #e5f7ef;
+  orange: #f08c1a;
+  orange-soft: #fdf1e2;
+  red: #e0483f;
+  red-soft: #fbe9e8;
+  purple: #6f5ec7;
 
   /* Secondary accent — teal, matching the CIKOPS-FM reference palette.
-     Variable names kept as --gold* (legacy) so every existing component
+     Variable names kept as gold* (legacy) so every existing component
      that already references them updates automatically — only the
      VALUES changed here, from warm gold to teal. */
-  --gold: #17c3b2;
-  --gold2: #0f9c8f;
-  --gold-soft: #e3f8f6;
-  --gold-on: #ffffff;
+  gold: #17c3b2;
+  gold2: #0f9c8f;
+  gold-soft: #e3f8f6;
+  gold-on: #ffffff;
 
-  --t1: #14315c;
-  --t2: #47617f;
-  --t3: #74889f;
+  t1: #14315c;
+  t2: #47617f;
+  t3: #74889f;
 
-  --font: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
-  --mono: "JetBrains Mono", monospace;
-  --r1: 16px;
-  --r2: 22px;
-  --r3: 30px;
-  --pill: 999px;
+  font: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+  mono: "JetBrains Mono", monospace;
+  r1: 16px;
+  r2: 22px;
+  r3: 30px;
+  pill: 999px;
 
-  --shadow-sm: 0 2px 10px rgba(20, 49, 92, 0.06);
-  --shadow-md: 0 8px 28px rgba(20, 49, 92, 0.1);
-  --shadow-lg: 0 16px 44px rgba(20, 49, 92, 0.14);
-  --shadow-brand: 0 10px 26px rgba(61, 111, 242, 0.28);
-  --shadow-gold: 0 8px 22px rgba(15, 156, 143, 0.3);
+  shadow-sm: 0 2px 10px rgba(20, 49, 92, 0.06);
+  shadow-md: 0 8px 28px rgba(20, 49, 92, 0.1);
+  shadow-lg: 0 16px 44px rgba(20, 49, 92, 0.14);
+  shadow-brand: 0 10px 26px rgba(61, 111, 242, 0.28);
+  shadow-gold: 0 8px 22px rgba(15, 156, 143, 0.3);
 
-  --safe-bottom: env(safe-area-inset-bottom, 0px);
-  --safe-top: env(safe-area-inset-top, 0px);
+  safe-bottom: env(safe-area-inset-bottom, 0px);
+  safe-top: env(safe-area-inset-top, 0px);
 }
 
 [data-theme="dark"] {
-  --bg: #081524;
-  --bg2: #0c1c30;
-  --bg3: #10233a;
-  --surface: #0f2138;
-  --surface2: #142a45;
-  --border: rgba(255, 255, 255, 0.08);
-  --border2: rgba(255, 255, 255, 0.14);
+  bg: #081524;
+  bg2: #0c1c30;
+  bg3: #10233a;
+  surface: #0f2138;
+  surface2: #142a45;
+  border: rgba(255, 255, 255, 0.08);
+  border2: rgba(255, 255, 255, 0.14);
 
-  --brand: #5b8cff;
-  --brand2: #7ba3ff;
-  --navy: #d9e6fb;
-  --neon: #22c1ff;
-  --green: #2fd894;
-  --green-soft: rgba(47, 216, 148, 0.12);
-  --orange: #ffab5c;
-  --orange-soft: rgba(255, 171, 92, 0.12);
-  --red: #ff6b63;
-  --red-soft: rgba(255, 107, 99, 0.12);
-  --purple: #a793ff;
+  brand: #5b8cff;
+  brand2: #7ba3ff;
+  navy: #d9e6fb;
+  neon: #22c1ff;
+  green: #2fd894;
+  green-soft: rgba(47, 216, 148, 0.12);
+  orange: #ffab5c;
+  orange-soft: rgba(255, 171, 92, 0.12);
+  red: #ff6b63;
+  red-soft: rgba(255, 107, 99, 0.12);
+  purple: #a793ff;
 
-  --gold: #2dd4c4;
-  --gold2: #5eead4;
-  --gold-soft: rgba(45, 212, 196, 0.14);
-  --gold-on: #06231f;
+  gold: #2dd4c4;
+  gold2: #5eead4;
+  gold-soft: rgba(45, 212, 196, 0.14);
+  gold-on: #06231f;
 
-  --t1: #f0f5fc;
-  --t2: rgba(224, 234, 251, 0.86);
-  --t3: rgba(198, 214, 240, 0.66);
+  t1: #f0f5fc;
+  t2: rgba(224, 234, 251, 0.86);
+  t3: rgba(198, 214, 240, 0.66);
 
-  --shadow-sm: 0 2px 10px rgba(0, 0, 0, 0.3);
-  --shadow-md: 0 8px 28px rgba(0, 0, 0, 0.36);
-  --shadow-lg: 0 16px 44px rgba(0, 0, 0, 0.45);
-  --shadow-brand: 0 10px 26px rgba(91, 140, 255, 0.32);
-  --shadow-gold: 0 8px 22px rgba(45, 212, 196, 0.28);
+  shadow-sm: 0 2px 10px rgba(0, 0, 0, 0.3);
+  shadow-md: 0 8px 28px rgba(0, 0, 0, 0.36);
+  shadow-lg: 0 16px 44px rgba(0, 0, 0, 0.45);
+  shadow-brand: 0 10px 26px rgba(91, 140, 255, 0.32);
+  shadow-gold: 0 8px 22px rgba(45, 212, 196, 0.28);
 }
 
 html {
@@ -117,11 +117,11 @@ html {
 }
 
 body {
-  font-family: var(--font);
+  font-family: var(font);
   font-size: 16px;
   line-height: 1.5;
-  background: var(--bg);
-  color: var(--t1);
+  background: var(bg);
+  color: var(t1);
   -webkit-font-smoothing: antialiased;
   transition: background 0.3s, color 0.3s;
   min-height: 100%;
@@ -151,14 +151,14 @@ select {
   align-items: center;
   gap: 8px;
   padding: 10px 22px;
-  border-radius: var(--pill);
-  background: linear-gradient(135deg, var(--gold), var(--gold2));
-  color: var(--gold-on);
+  border-radius: var(pill);
+  background: linear-gradient(135deg, var(gold), var(gold2));
+  color: var(gold-on);
   font-weight: 700;
   font-size: 13px;
   border: none;
   cursor: pointer;
-  box-shadow: var(--shadow-gold);
+  box-shadow: var(shadow-gold);
   transition: background 0.15s, transform 0.15s, box-shadow 0.15s;
 }
 .pillBtn:hover {
@@ -177,7 +177,7 @@ select {
 }
 .statPop:hover {
   transform: translateY(-3px);
-  box-shadow: var(--shadow-lg) !important;
+  box-shadow: var(shadow-lg) !important;
 }
 
 /* ── Premium hero panel — radial sky/gold glow behind a gradient
@@ -188,9 +188,9 @@ select {
   overflow: hidden;
   background:
     radial-gradient(circle at 12% 15%, rgba(61, 111, 242, 0.16), transparent 45%),
-    radial-gradient(circle at 88% 85%, var(--gold-soft), transparent 50%),
-    linear-gradient(160deg, var(--surface2), var(--surface));
-  border: 1px solid var(--border2);
+    radial-gradient(circle at 88% 85%, var(gold-soft), transparent 50%),
+    linear-gradient(160deg, var(surface2), var(surface));
+  border: 1px solid var(border2);
 }
 .heroGlow::before {
   content: "";
@@ -212,7 +212,7 @@ select {
   transform: translateY(-1px);
 }
 .tabPillActive {
-  box-shadow: var(--shadow-gold);
+  box-shadow: var(shadow-gold);
 }
 
 /* ── Premium input focus — subtle brand glow instead of default browser
@@ -222,7 +222,7 @@ select {
 }
 .premiumInput:focus {
   outline: none;
-  border-color: var(--brand) !important;
+  border-color: var(brand) !important;
   box-shadow: 0 0 0 3px rgba(61, 111, 242, 0.15);
 }
 
@@ -232,7 +232,7 @@ body {
   background-image:
     radial-gradient(circle at 8% 8%, rgba(61, 111, 242, 0.09), transparent 35%),
     radial-gradient(circle at 92% 88%, rgba(216, 169, 78, 0.09), transparent 35%),
-    radial-gradient(circle, var(--border2) 1.3px, transparent 1.3px);
+    radial-gradient(circle, var(border2) 1.3px, transparent 1.3px);
   background-size: auto, auto, 24px 24px;
   background-attachment: fixed;
 }
@@ -248,7 +248,7 @@ body {
    big KPI figures get a brand→gold gradient fill instead of flat color.
    Apply via className="numGrad" on any large stat/number element. ── */
 .numGrad {
-  background: linear-gradient(120deg, var(--brand), var(--gold));
+  background: linear-gradient(120deg, var(brand), var(gold));
   -webkit-background-clip: text;
   background-clip: text;
   -webkit-text-fill-color: transparent;
@@ -263,7 +263,7 @@ body {
 .num {
   font-variant-numeric: tabular-nums;
   font-feature-settings: "tnum";
-  font-family: var(--mono);
+  font-family: var(mono);
 }
 
 /* ── Uppercase label utility — the reference dashboard's signature
@@ -348,7 +348,7 @@ body {
 /* ── Loading shimmer — replaces plain "Loading..." text with a soft
    sweeping gradient placeholder, feels alive instead of static. ── */
 .shimmerBlock {
-  background: linear-gradient(90deg, var(--bg2) 25%, var(--border2) 50%, var(--bg2) 75%);
+  background: linear-gradient(90deg, var(bg2) 25%, var(border2) 50%, var(bg2) 75%);
   background-size: 200% 100%;
   animation: shimmer 1.4s ease-in-out infinite;
   border-radius: 8px;
@@ -364,7 +364,7 @@ body {
   transition: background 0.15s ease;
 }
 .rowHover:hover {
-  background: var(--bg2);
+  background: var(bg2);
 }
 
 @keyframes overlayIn {
