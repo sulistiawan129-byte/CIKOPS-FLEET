@@ -2590,24 +2590,24 @@ function ClaimsTab() {
                 </select>
               </div>
 
-              <div style={{ marginBottom: 14, padding: 14, background: "var(--bg2)", borderRadius: 12 }}>
+             <div style={{ marginBottom: 14, padding: 14, background: "var(--bg2)", borderRadius: 12 }}>
                 <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 10 }}>
                   <label style={{ ...labelStyle, marginBottom: 0 }}>{lang === "en" ? "CLAIM LINES" : "RINCIAN KLAIM"}</label>
                   <button onClick={addLine} style={{ fontSize: 13, fontWeight: 700, color: "var(--brand)", background: "none", border: "none", cursor: "pointer" }}>
                     + {lang === "en" ? "Add Line" : "Tambah Baris"}
                   </button>
                 </div>
-                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                   {lines.map((line) => {
                     const val = evalExpr(line.expr);
                     return (
-                      <div key={line.id} style={{ display: "grid", gridTemplateColumns: "120px 1fr 28px", gap: 8 }}>
-                        <select className="premiumInput" style={{ ...inputStyle, fontSize: 12 }} value={line.type} onChange={(e) => updateLine(line.id, "type", e.target.value)}>
-                          {CLAIM_TYPES.map((ct) => (
-                            <option key={ct} value={ct}>{ct}</option>
-                          ))}
-                        </select>
-                        <div style={{ position: "relative" }}>
+                      <div key={line.id} style={{ background: "var(--surface)", borderRadius: 10, padding: 8, border: "1px solid var(--border2)" }}>
+                        <div style={{ display: "grid", gridTemplateColumns: "120px 1fr 28px", gap: 8 }}>
+                          <select className="premiumInput" style={{ ...inputStyle, fontSize: 12 }} value={line.type} onChange={(e) => updateLine(line.id, "type", e.target.value)}>
+                            {CLAIM_TYPES.map((ct) => (
+                              <option key={ct} value={ct}>{ct}</option>
+                            ))}
+                          </select>
                           <input
                             className="premiumInput"
                             style={{ ...inputStyle, fontFamily: "var(--mono)" }}
@@ -2615,19 +2615,30 @@ function ClaimsTab() {
                             value={line.expr}
                             onChange={(e) => updateLine(line.id, "expr", e.target.value)}
                           />
-                          {line.expr && (
-                            <span style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", fontSize: 13, fontWeight: 700, color: val !== null ? "var(--brand)" : "var(--red)" }}>
-                              {val !== null ? `Rp ${fmtRp(val)}` : "invalid"}
-                            </span>
-                          )}
+                          <button
+                            onClick={() => removeLine(line.id)}
+                            disabled={lines.length === 1}
+                            style={{ border: "none", background: "var(--red-soft)", color: "var(--red)", borderRadius: 8, cursor: "pointer", opacity: lines.length === 1 ? 0.3 : 1 }}
+                          >
+                            ✕
+                          </button>
                         </div>
-                        <button
-                          onClick={() => removeLine(line.id)}
-                          disabled={lines.length === 1}
-                          style={{ border: "none", background: "var(--red-soft)", color: "var(--red)", borderRadius: 8, cursor: "pointer", opacity: lines.length === 1 ? 0.3 : 1 }}
-                        >
-                          ✕
-                        </button>
+                        {line.expr && (
+                          <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 6 }}>
+                            <span
+                              style={{
+                                fontSize: 12.5,
+                                fontWeight: 700,
+                                color: val !== null ? "var(--brand)" : "var(--red)",
+                                background: val !== null ? "rgba(61,111,242,0.08)" : "var(--red-soft)",
+                                padding: "4px 10px",
+                                borderRadius: 8,
+                              }}
+                            >
+                              {val !== null ? `= Rp ${fmtRp(val)}` : (lang === "en" ? "Invalid format" : "Format tidak valid")}
+                            </span>
+                          </div>
+                        )}
                       </div>
                     );
                   })}
