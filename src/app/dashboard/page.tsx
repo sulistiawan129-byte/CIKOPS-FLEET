@@ -275,10 +275,10 @@ export default function DashboardPage() {
 
   useEffect(() => {
      if (user?.id) {
-       getMyProfile(user.id).then((p) => {
+      getMyProfile(user.id).then((p) => {
         setMyProfile(p);
-         if (p?.accessScope === "tasks_only") {
-           setActiveTab("tasks");
+        if (p?.allowedTabs && p.allowedTabs.length > 0 && !p.allowedTabs.includes("overview")) {
+          setActiveTab(p.allowedTabs[0] as DashboardTab);
         }
       });
     }
@@ -481,7 +481,7 @@ const [masterDataInitialSub, setMasterDataInitialSub] = useState<"drivers" | "em
           </button>
 
           {NAV_GROUPS.map((group) => {
-            const visibleTabs = group.tabs.filter((tabItem) =>
+            const visibleTabs = group.tabs.filter((tabItem) => canAccessTab(myProfile, tabItem.id));
               myProfile?.accessScope === "tasks_only"
                 ? ["tasks", "vehicles", "masterdata", "claims", "reports"].includes(tabItem.id)
                 : true
