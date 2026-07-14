@@ -5,6 +5,7 @@ import type { CSSProperties } from "react";
 import { useLang } from "@/lib/providers";
 import { getAllCanteenReports, deleteCanteenReport } from "@/lib/api";
 import type { CanteenReport } from "@/lib/types";
+import { exportCanteenToPdf, exportCanteenToPptx } from "@/lib/canteenReport";
 
 /* ════════════════════════════════════════════════════════════
    CANTEEN DASHBOARD — self-contained (own styles/helpers), covering:
@@ -113,6 +114,8 @@ export default function CanteenTab() {
   const [error, setError] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<CanteenReport | null>(null);
   const [chartMode, setChartMode] = useState<"bar" | "line">("line");
+   const [exportingPdf, setExportingPdf] = useState(false);
+  const [exportingPptx, setExportingPptx] = useState(false);
 
   const [mode, setMode] = useState<PeriodMode>("month");
   const [dayValue, setDayValue] = useState(toISO(now));
@@ -225,7 +228,27 @@ export default function CanteenTab() {
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
   }
+  async function handleExportPdf() {
+    setExportingPdf(true);
+    try {
+      await exportCanteenToPdf(dayAggs, totals, periodLabel, autoAnalysis, rangeFrom, rangeTo);
+    } catch (e) {
+      alert(e instanceof Error ? e.message : "Gagal membuat PDF");
+    } finally {
+      setExportingPdf(false);
+    }
+  }
 
+  async function handleExportPptx() {
+    setExportingPptx(true);
+    try {
+      await exportCanteenToPptx(dayAggs, totals, periodLabel, autoAnalysis, rangeFrom, rangeTo);
+    } catch (e) {
+      alert(e instanceof Error ? e.message : "Gagal membuat PowerPoint");
+    } finally {
+      setExportingPptx(false);
+    }
+  }
   const inputStyle: CSSProperties = { padding: "8px 12px", borderRadius: 10, border: "1px solid var(--border2)", background: "var(--bg2)", color: "var(--t1)", fontSize: 13, fontFamily: "var(--font)" };
 
   if (loading) return <div style={{ padding: 60, textAlign: "center", color: "var(--t3)" }}>{t.actionLoading}</div>;
@@ -252,6 +275,12 @@ export default function CanteenTab() {
           <div style={{ flex: 1 }} />
           <button onClick={handleExportCsv} style={{ padding: "8px 16px", borderRadius: "var(--pill)", border: "1px solid var(--green)", background: "var(--green-soft)", color: "var(--green)", fontWeight: 700, fontSize: 12.5, cursor: "pointer" }}>
             ⬇ CSV
+          </button>
+          <button onClick={handleExportPdf} disabled={exportingPdf} style={{ padding: "8px 16px", borderRadius: "var(--pill)", border: "1px solid var(--brand)", background: "rgba(61,111,242,0.1)", color: "var(--brand)", fontWeight: 700, fontSize: 12.5, cursor: "pointer" }}>
+            ⬇ {exportingPdf ? "..." : "PDF"}
+          </button>
+          <button onClick={handleExportPptx} disabled={exportingPptx} style={{ padding: "8px 16px", borderRadius: "var(--pill)", border: "1px solid var(--orange)", background: "var(--orange-soft)", color: "var(--orange)", fontWeight: 700, fontSize: 12.5, cursor: "pointer" }}>
+            ⬇ {exportingPptx ? "..." : "PPT"}
           </button>
         </div>
 
