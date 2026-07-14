@@ -675,10 +675,11 @@ export async function resetKantong(
 /** Ambil histori Dana Operasional beberapa periode terakhir (untuk grafik
  *  tren gap) — beda dari getCurrentKantong() yang cuma ambil 1 baris
  *  terbaru lewat view current_kantong. */
-export async function getKantongHistory(limit = 12): Promise<Kantong[]> {
+export async function getKantongHistory(plant: Plant, limit = 12): Promise<Kantong[]> {
   const { data, error } = await supabase
     .from("kantong")
     .select("*")
+    .eq("plant", plant)
     .order("period", { ascending: true })
     .limit(limit);
   if (error) throw error;
