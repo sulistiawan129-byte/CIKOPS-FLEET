@@ -2816,10 +2816,12 @@ const PLANT_COLOR: Record<Plant, string> = { CIK: "var(--brand)", PRB: "var(--gr
 const MONTHS_ID = ["Januari","Februari","Maret","April","Mei","Juni","Juli","Agustus","September","Oktober","November","Desember"];
 const MONTHS_EN = ["January","February","March","April","May","June","July","August","September","October","November","December"];
 
-function OvertimeTab() {
+function OvertimeTab({ myProfile }: { myProfile: MyProfile | null }) {
   const { lang, t } = useLang();
   const months = lang === "en" ? MONTHS_EN : MONTHS_ID;
   const now = new Date();
+
+  const lockedPlant = myProfile?.plantScope ?? null;
 
   const [overtimes, setOvertimes] = useState<Overtime[]>([]);
   const [drivers, setDrivers] = useState<Driver[]>([]);
@@ -2828,19 +2830,26 @@ function OvertimeTab() {
 
   const [filterMonth, setFilterMonth] = useState(now.getMonth());
   const [filterYear, setFilterYear] = useState(now.getFullYear());
-  const [filterPlant, setFilterPlant] = useState<"all" | Plant>("all");
+  const [filterPlant, setFilterPlant] = useState<"all" | Plant>(lockedPlant ?? "all");
 
   const [showForm, setShowForm] = useState(false);
   const [formDriverId, setFormDriverId] = useState("");
   const [formMonth, setFormMonth] = useState(now.getMonth());
   const [formYear, setFormYear] = useState(now.getFullYear());
-  const [formPlant, setFormPlant] = useState<Plant>("CIK");
+  const [formPlant, setFormPlant] = useState<Plant>(lockedPlant ?? "CIK");
   const [formHours, setFormHours] = useState("");
   const [formAmount, setFormAmount] = useState("");
   const [formReason, setFormReason] = useState("");
   const [saving, setSaving] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState<Overtime | null>(null);
 
+  useEffect(() => {
+    if (lockedPlant) {
+      setFilterPlant(lockedPlant);
+      setFormPlant(lockedPlant);
+    }
+  }, [lockedPlant]);
+  
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
