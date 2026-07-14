@@ -113,6 +113,18 @@
   --safe-bottom: env(safe-area-inset-bottom, 0px);
   --safe-top: env(safe-area-inset-top, 0px);
 
+  /* Lebar maksimum konten — dipakai bersama oleh .pageContainer di sini
+     DAN oleh .body / .reportBody di page.module.css, supaya kalau mau
+     ganti lebar layout, cukup ubah satu angka ini saja. */
+  --content-max: 1280px;
+
+  /* Varian warna teks "di atas *-soft background" — sebelumnya di
+     page.module.css nilai #b25700 (teks oranye) dan #06915a (teks
+     hijau) ditulis berulang di beberapa tempat sebagai hex hardcode.
+     Sekarang jadi token supaya satu sumber kebenaran. */
+  --orange-text: #b25700;
+  --green-text: #06915a;
+
   /* Skala ukuran font — dipakai SEMUA komponen, bukan angka bebas lagi. */
   --fs-xs: 11px;    /* label kapital kecil, caption */
   --fs-sm: 12.5px;  /* teks sekunder, sub-label */
@@ -168,6 +180,14 @@
   --shadow-lg: 0 16px 44px rgba(0, 0, 0, 0.45);
   --shadow-brand: 0 10px 26px rgba(91, 140, 255, 0.32);
   --shadow-gold: 0 8px 22px rgba(45, 212, 196, 0.28);
+
+  /* Di dark mode, teks-di-atas-*-soft-background di page.module.css
+     dulu di-override manual per selector ([data-theme="dark"] .pillAssigned,
+     .mobileActionWarn, .rowActionWarn, .pillDone, .liveBadge — 5 tempat).
+     Sekarang cukup token ini yang berubah, otomatis semua tempat yang
+     pakai var(--orange-text)/var(--green-text) ikut berubah. */
+  --orange-text: var(--orange);
+  --green-text: var(--green);
 }
 
 /* ── Base html/body — SATU tempat saja untuk font-size dasar.
@@ -683,7 +703,7 @@ h1, h2, h3, .numGrad, .heroGlow .numGrad {
 /* Pembungkus konten tab — mencegah kartu melebar sampai ujung layar
    di monitor lebar. Pakai ini sebagai div terluar tiap tab. */
 .pageContainer {
-  max-width: 1280px;
+  max-width: var(--content-max);
   margin: 0 auto;
   padding: 20px;
 }
