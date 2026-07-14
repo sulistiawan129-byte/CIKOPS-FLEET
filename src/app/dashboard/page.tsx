@@ -12,7 +12,6 @@ import {
   createTask,
   deleteTask,
   getDrivers,
-  getMyProfile,
   type MyProfile,
   getAllDriversFull,
   addDriver,
