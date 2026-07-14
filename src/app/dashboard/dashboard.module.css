@@ -1,3 +1,27 @@
+/* ════════════════════════════════════════════════════════════
+   CATATAN SINKRONISASI dengan globals.css
+
+   1. `.body` dan `.reportBody` sama-sama "container tengah, max-width
+      1280px" — sebelumnya angka 1280px ditulis hardcode di 3 tempat
+      berbeda (di sini 2x, + `.pageContainer` di globals.css). Sekarang
+      ketiganya pakai `var(--content-max)` dari globals.css, jadi kalau
+      mau ubah lebar layout cukup 1 tempat.
+
+   2. Warna teks "di atas *-soft background" (`#b25700` untuk oranye,
+      `#06915a` untuk hijau) sebelumnya di-hardcode di 5 selector:
+      `.pillAssigned`, `.mobileActionWarn`, `.rowActionWarn`, `.pillDone`,
+      `.liveBadge` — plus masing-masing punya versi
+      `[data-theme="dark"] .xxx { color: var(--orange) }` terpisah untuk
+      override dark mode (jadi 10 baris untuk hal yang sama). Sekarang
+      semua pakai `var(--orange-text)` / `var(--green-text)`, dan
+      pergantian dark/light-nya sudah otomatis lewat token di globals.css
+      — 5 blok `[data-theme="dark"]` yang lama sudah tidak diperlukan
+      lagi dan dihapus dari file ini.
+
+   Efek: kalau nanti warna oranye/hijau brand berubah, tidak perlu lagi
+   grep manual di banyak file — cukup ubah token di globals.css.
+════════════════════════════════════════════════════════════ */
+
 .page {
   min-height: 100vh;
   background:
@@ -147,10 +171,14 @@
   transform: scale(0.96);
 }
 
+/* Container tengah halaman — max-width disamakan dengan .pageContainer
+   di globals.css lewat var(--content-max), hanya padding-nya yang
+   sengaja beda (28px, lebih lega dari .pageContainer yang 20px) karena
+   halaman ini padding standarnya memang lebih besar. */
 .body {
   flex: 1;
   padding: 28px;
-  max-width: 1280px;
+  max-width: var(--content-max);
   width: 100%;
   margin: 0 auto;
 }
@@ -418,13 +446,12 @@
   transform: scale(0.96);
 }
 
+/* Dulu: background var(--orange-soft) + color hardcode #b25700, plus
+   selector [data-theme="dark"] terpisah untuk color: var(--orange).
+   Sekarang cukup var(--orange-text) — otomatis benar di light & dark. */
 .mobileActionWarn {
   background: var(--orange-soft);
-  color: #b25700;
-}
-
-[data-theme="dark"] .mobileActionWarn {
-  color: var(--orange);
+  color: var(--orange-text);
 }
 
 .mobileActionDanger {
@@ -493,13 +520,10 @@
   white-space: nowrap;
 }
 
+/* Sinkron dengan token --orange-text (lihat catatan di atas file). */
 .pillAssigned {
   background: var(--orange-soft);
-  color: #b25700;
-}
-
-[data-theme="dark"] .pillAssigned {
-  color: var(--orange);
+  color: var(--orange-text);
 }
 
 .pillOngoing {
@@ -512,13 +536,10 @@
   color: var(--brand);
 }
 
+/* Sinkron dengan token --green-text (lihat catatan di atas file). */
 .pillDone {
   background: var(--green-soft);
-  color: #06915a;
-}
-
-[data-theme="dark"] .pillDone {
-  color: var(--green);
+  color: var(--green-text);
 }
 
 .pillCancelled {
@@ -554,13 +575,10 @@
   background: var(--red-soft);
 }
 
+/* Sinkron dengan token --orange-text. */
 .rowActionWarn {
-  color: #b25700;
+  color: var(--orange-text);
   background: var(--orange-soft);
-}
-
-[data-theme="dark"] .rowActionWarn {
-  color: var(--orange);
 }
 
 .tableEmpty {
@@ -615,6 +633,7 @@
   margin-bottom: 20px;
 }
 
+/* Sinkron dengan token --green-text. */
 .liveBadge {
   display: flex;
   align-items: center;
@@ -625,12 +644,8 @@
   background: var(--green-soft);
   font-family: var(--mono);
   font-size: 11px;
-  color: #06915a;
+  color: var(--green-text);
   font-weight: 700;
-}
-
-[data-theme="dark"] .liveBadge {
-  color: var(--green);
 }
 
 .liveDot {
@@ -920,11 +935,13 @@
   flex-direction: column;
 }
 
+/* Sama seperti .body: max-width disamakan lewat var(--content-max),
+   padding tetap beda (butuh ruang scroll ekstra di bawah: 48px). */
 .reportBody {
   flex: 1;
   overflow-y: auto;
   padding: 24px 28px 48px;
-  max-width: 1280px;
+  max-width: var(--content-max);
   width: 100%;
   margin: 0 auto;
 }
