@@ -481,3 +481,152 @@ h1, h2, h3, .numGrad, .heroGlow .numGrad {
   text-transform: uppercase;
   color: var(--brand);
 }
+/* ════════════════════════════════════════════════════════════
+   DESIGN SYSTEM v3 — "Executive Dark Navy + Electric Blue"
+   Tema terpadu: satu warna aksen (brand biru) untuk semua elemen
+   interaktif/aktif, warna lain cuma untuk status data. Ditambahkan
+   di akhir file, tidak menimpa apa pun.
+════════════════════════════════════════════════════════════ */
+
+/* ── Sidebar nav item — dipakai gantikan style inline pada tiap
+   tombol nav. Aksen garis kiri + glow halus saat aktif, bukan cuma
+   ganti background flat. ── */
+.navItem {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  width: 100%;
+  padding: 10px 14px 10px 17px;
+  border-radius: 10px;
+  border: none;
+  cursor: pointer;
+  margin-bottom: 2px;
+  font-size: 13.5px;
+  font-weight: 600;
+  font-family: var(--font);
+  text-align: left;
+  background: transparent;
+  color: var(--t2);
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.navItem:hover {
+  background: var(--bg2);
+}
+
+.navItemActive {
+  background: linear-gradient(90deg, rgba(61, 111, 242, 0.12), rgba(61, 111, 242, 0.02));
+  color: var(--brand2);
+  font-weight: 700;
+}
+
+.navItemActive::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 8px;
+  bottom: 8px;
+  width: 3px;
+  border-radius: 0 3px 3px 0;
+  background: var(--brand);
+  box-shadow: 0 0 10px rgba(61, 111, 242, 0.6);
+}
+
+.navSectionLabel {
+  padding: 0 17px;
+  margin: 18px 0 6px;
+  font-size: 10.5px;
+  font-weight: 700;
+  color: var(--t3);
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  border-top: 1px solid var(--border);
+  padding-top: 14px;
+}
+.navSectionLabel:first-child {
+  border-top: none;
+  padding-top: 0;
+  margin-top: 4px;
+}
+
+/* ── Topbar utility button — bentuk bulat seragam untuk SEMUA tombol
+   kontrol (bahasa, tema, notifikasi), bukan campur pill/kotak/lingkaran. ── */
+.topbarIconBtn {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 1px solid var(--border2);
+  background: var(--surface);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 15px;
+  cursor: pointer;
+  color: var(--t2);
+  transition: background 0.15s ease, border-color 0.15s ease;
+  flex-shrink: 0;
+}
+.topbarIconBtn:hover {
+  background: var(--bg2);
+  border-color: var(--brand);
+}
+
+/* ── Kartu netral — pengganti kartu ber-border warna-warni. Warna
+   cuma muncul di badge ikon & angka, bukan bingkai kartu. ── */
+.cardNeutral {
+  background: var(--surface);
+  border: 1px solid var(--border2);
+  border-radius: var(--r2);
+  box-shadow: var(--shadow-sm);
+  transition: box-shadow 0.2s ease, transform 0.2s ease;
+}
+.cardNeutral:hover {
+  box-shadow: var(--shadow-md);
+}
+
+/* ── Badge ikon berwarna — identitas kategori tinggal di sini,
+   bukan di border kartu. Varian warna via modifier class. ── */
+.iconBadge.badge-blue    { background: linear-gradient(135deg, var(--brand), var(--brand2)); box-shadow: 0 8px 18px rgba(61,111,242,0.35); }
+.iconBadge.badge-green   { background: linear-gradient(135deg, var(--green), #0d8a5c); box-shadow: 0 8px 18px rgba(23,166,115,0.35); }
+.iconBadge.badge-red     { background: linear-gradient(135deg, var(--red), #b5322c); box-shadow: 0 8px 18px rgba(224,72,63,0.35); }
+.iconBadge.badge-orange  { background: linear-gradient(135deg, var(--orange), #c96f0f); box-shadow: 0 8px 18px rgba(240,140,26,0.35); }
+.iconBadge.badge-purple  { background: linear-gradient(135deg, var(--purple), #4f3fa3); box-shadow: 0 8px 18px rgba(111,94,199,0.35); }
+.iconBadge.badge-teal    { background: linear-gradient(135deg, var(--gold), var(--gold2)); box-shadow: 0 8px 18px rgba(23,195,178,0.35); }
+
+/* ── Hirarki angka statistik — dua lapis ketat: label kapital kecil
+   di atas/bawah, angka besar tebal jadi fokus utama. ── */
+.statLabel {
+  font-size: 10.5px;
+  font-weight: 700;
+  color: var(--t3);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.statValue {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 26px;
+  line-height: 1.15;
+  color: var(--t1);
+  letter-spacing: -0.01em;
+}
+.statSub {
+  font-size: 12px;
+  color: var(--t3);
+  font-weight: 600;
+  margin-top: 2px;
+}
+
+/* ── Efek glow halus untuk elemen "live"/futuristik (dipakai di
+   badge status Live, indikator online, dsb) — dipakai secukupnya,
+   bukan di mana-mana. ── */
+.glowDot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--green);
+  box-shadow: 0 0 8px rgba(23, 166, 115, 0.7);
+  animation: pulse 1.8s infinite;
+  flex-shrink: 0;
+}
