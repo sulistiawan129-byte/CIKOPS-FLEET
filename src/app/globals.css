@@ -240,8 +240,25 @@ select {
   display: none;
 }
 
-h1, h2, h3, .numGrad, .heroGlow .numGrad {
+/* Heading pakai font display (Poppins). Angka/statistik JANGAN ikut
+   sini — sebelumnya `.numGrad` nyasar ke aturan ini (jadi Poppins),
+   padahal semua angka di app ini seharusnya pakai SATU font mono
+   yang sama (lihat blok "SEMUA ANGKA PAKAI FONT YANG SAMA" di bawah). */
+h1, h2, h3 {
   font-family: var(--font-display);
+}
+
+/* ════════════════════════════════════════════════════════════
+   SEMUA ANGKA PAKAI FONT YANG SAMA — JetBrains Mono, tabular-nums
+   Ini yang bikin angka di foto referensi terlihat rapi: satu font
+   mono dipakai konsisten untuk SEMUA angka (statistik, saldo, tabel),
+   bukan campur Inter di satu tempat & Poppins di tempat lain.
+   `.numGrad`, `.num`, `.statValue`, `.statHero` semua disatukan ke
+   `var(--mono)` di sini.
+════════════════════════════════════════════════════════════ */
+.numGrad,
+.heroGlow .numGrad {
+  font-family: var(--mono);
 }
 
 /* Utility class ukuran font — supaya bisa langsung dipakai via
@@ -528,11 +545,11 @@ h1, h2, h3, .numGrad, .heroGlow .numGrad {
 .iconBadge.badge-teal   { background: linear-gradient(135deg, var(--gold), var(--gold2)); box-shadow: 0 8px 18px rgba(23,195,178,0.35); }
 
 .statHero {
-  font-family: var(--font-display);
+  font-family: var(--mono);
   font-weight: 800;
   font-size: var(--fs-3xl);
   line-height: 1;
-  letter-spacing: -0.02em;
+  letter-spacing: 0;
   color: var(--brand);
 }
 
@@ -668,12 +685,12 @@ h1, h2, h3, .numGrad, .heroGlow .numGrad {
   letter-spacing: 0.06em;
 }
 .statValue {
-  font-family: var(--font-display);
+  font-family: var(--mono);
   font-weight: 800;
   font-size: var(--fs-xl);
   line-height: 1.15;
   color: var(--t1);
-  letter-spacing: -0.01em;
+  letter-spacing: 0;
 }
 .statSub {
   font-size: var(--fs-sm);
@@ -814,3 +831,88 @@ h1, h2, h3, .numGrad, .heroGlow .numGrad {
   padding: 8px 10px;
   border-top: 1px solid var(--border);
 }
+
+/* ════════════════════════════════════════════════════════════
+   MONEY BAR — ringkasan angka finansial (mis. saldo/pemasukan/
+   pengeluaran) persis seperti referensi foto: mono bold, tabular,
+   biru/teal/merah di atas navy gelap.
+
+   SENGAJA selalu gelap apa pun tema aplikasi (light/dark) — dipakai
+   untuk highlight ringkasan finansial yang ingin selalu menonjol.
+   Warna biru/teal/merahnya diambil PERSIS dari nilai dark theme
+   yang sudah ada di :root[data-theme="dark"] (--brand/--gold/--red)
+   supaya tetap satu identitas warna dengan sisa aplikasi, bukan
+   warna baru yang lepas sendiri.
+
+   Markup contoh:
+   <div class="moneyBar">
+     <div class="moneyItem">
+       <span class="moneyValue isBlue">Rp 48.000.000</span>
+     </div>
+     <div class="moneyItem">
+       <span class="moneyValue isTeal">Rp 20.500.000</span>
+     </div>
+     <div class="moneyItem">
+       <span class="moneyValue isRed">-Rp 27.500.000</span>
+     </div>
+   </div>
+════════════════════════════════════════════════════════════ */
+.moneyBar {
+  display: flex;
+  align-items: stretch;
+  background: linear-gradient(135deg, #0a1c30, #10233c);
+  border-radius: var(--r2);
+  overflow: hidden;
+  box-shadow: var(--shadow-md);
+}
+
+.moneyItem {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  padding: var(--sp-6);
+  position: relative;
+  min-width: 0;
+}
+.moneyItem + .moneyItem::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 22%;
+  bottom: 22%;
+  width: 1px;
+  background: rgba(255, 255, 255, 0.12);
+}
+
+/* Label kecil opsional di atas angka (tidak kelihatan di foto yang
+   di-crop, tapi disediakan untuk pemakaian nyata — mis. "Total
+   Pemasukan", "Saldo", "Total Pengeluaran"). */
+.moneyLabel {
+  display: block;
+  font-family: var(--font);
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: rgba(224, 234, 251, 0.55);
+  margin-bottom: 4px;
+}
+
+.moneyValue {
+  display: block;
+  font-family: var(--mono);
+  font-weight: 700;
+  font-size: var(--fs-lg);
+  letter-spacing: 0.01em;
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
+  white-space: nowrap;
+}
+
+/* Tiga varian warna — dipakai berdasarkan MAKNA (biru = total/netral,
+   teal = positif/pemasukan, merah = negatif/pengeluaran), bukan
+   dipilih bebas per selera, supaya warnanya tetap fungsional seperti
+   di foto (bukan dekorasi kosong). */
+.moneyValue.isBlue { color: #5b8cff; }
+.moneyValue.isTeal { color: #2dd4c4; }
+.moneyValue.isRed  { color: #ff6b63; }
