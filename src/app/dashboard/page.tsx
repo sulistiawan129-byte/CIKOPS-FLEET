@@ -5131,7 +5131,7 @@ function MasterDataTab({
      { id: "jobtypes", label: lang === "en" ? "Job Types" : "Jenis Pekerjaan", icon: "🧰" },
      { id: "settings", label: lang === "en" ? "Settings" : "Pengaturan", icon: "⚙️" },
    ] as const)
-     .filter((s) => !restrictedToDriversOnly || s.id === "drivers")
+     .filter((s) => !restrictedToDriversOnly || s.id === "drivers" || s.id === "employees")
      .map((s) => (
           <button
             key={s.id}
