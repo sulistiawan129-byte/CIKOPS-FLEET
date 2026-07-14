@@ -716,9 +716,9 @@ const [masterDataInitialSub, setMasterDataInitialSub] = useState<"drivers" | "em
           {activeTab === "claims" && <ClaimsTab />}
          {activeTab === "overtime" && <OvertimeTab myProfile={myProfile} />}
           {activeTab === "driverbudget" && <DriverBudgetTab />}
-          {activeTab === "opfund" && <OpFundTab />}
+          {activeTab === "opfund" && <OpFundTab myProfile={myProfile} />}
           {activeTab === "gasstations" && <GasStationsTab />}
-          {activeTab === "reports" && <ReportsTab />}
+          {activeTab === "reports" && <ReportsTab myProfile={myProfile} />}
         {activeTab === "masterdata" && (
   <MasterDataTab
     initialSub={masterDataInitialSub}
@@ -1795,7 +1795,26 @@ function ComingSoonTab({ title }: { title: string }) {
     </div>
   );
 }
-
+async function getOverviewKantong(profile: MyProfile | null): Promise<Kantong | null> {
+  if (profile?.plantScope) {
+    return getCurrentKantong(profile.plantScope);
+  }
+  // Admin global — gabungkan CIK + PRB jadi satu angka ringkasan.
+  const [cik, prb] = await Promise.all([getCurrentKantong("CIK"), getCurrentKantong("PRB")]);
+  if (!cik && !prb) return null;
+  return {
+    id: "combined",
+    period: cik?.period ?? prb?.period ?? "",
+    plant: "CIK",
+    totalBudget: (cik?.totalBudget ?? 0) + (prb?.totalBudget ?? 0),
+    allocOpDriver: (cik?.allocOpDriver ?? 0) + (prb?.allocOpDriver ?? 0),
+    allocEmergency: (cik?.allocEmergency ?? 0) + (prb?.allocEmergency ?? 0),
+    cashAvailable: (cik?.cashAvailable ?? 0) + (prb?.cashAvailable ?? 0),
+    claimSubmitted: (cik?.claimSubmitted ?? 0) + (prb?.claimSubmitted ?? 0),
+    claimPaid: (cik?.claimPaid ?? 0) + (prb?.claimPaid ?? 0),
+    lastReset: cik?.lastReset ?? prb?.lastReset ?? "",
+  };
+}
 
 function OverviewTab({ setActiveTab, myProfile }: { setActiveTab: (t: DashboardTab) => void; myProfile: MyProfile | null }) {
   const { lang } = useLang();
@@ -1833,7 +1852,7 @@ function OverviewTab({ setActiveTab, myProfile }: { setActiveTab: (t: DashboardT
           getClaims(),
           getOvertimes(),
           getDrivers(),
-          getCurrentKantong(),
+          getOverviewKantong(myProfile),
           getDriverTiers(),
           getGasStations(),
           getTasksByDate(todayStr()),
@@ -3489,8 +3508,15 @@ function DriverBudgetTab() {
     </div>
   );
 }
-function OpFundTab() {
+function OpFundTab({ myProfile }: { myProfile: MyProfile | null }) {
   const { lang, t } = useLang();
+  const lockedPlant = myProfile?.plantScope ?? null;
+  const [viewPlant, setViewPlant] = useState<Plant>(lockedPlant ?? "CIK");
+
+  useEffect(() => {
+    if (lockedPlant) setViewPlant(lockedPlant);
+  }, [lockedPlant]);
+
   const [kantong, setKantong] = useState<Kantong | null>(null);
   const [history, setHistory] = useState<Kantong[]>([]);
   const [loading, setLoading] = useState(true);
@@ -3507,18 +3533,19 @@ function OpFundTab() {
   const [ePaid, setEPaid] = useState("");
   const [saving, setSaving] = useState(false);
 
-  // First-time setup — shown only when no kantong row exists yet at all.
+  // First-time setup — shown only when no kantong row exists yet at all
+  // for this plant.
   const [initBudget, setInitBudget] = useState("");
   const [initOpDriver, setInitOpDriver] = useState("");
   const [initEmergency, setInitEmergency] = useState("");
   const [initCash, setInitCash] = useState("");
   const [creating, setCreating] = useState(false);
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (plant: Plant) => {
     setLoading(true);
     setError(null);
     try {
-      const k = await getCurrentKantong();
+      const k = await getCurrentKantong(plant);
       setKantong(k);
       if (k) {
         setEBudget(String(k.totalBudget));
@@ -3533,22 +3560,17 @@ function OpFundTab() {
     } finally {
       setLoading(false);
     }
-    // Trend history is best-effort — a failure here shouldn't block the
-    // main Dana Operasional view from rendering.
     try {
-      setHistory(await getKantongHistory());
+      setHistory(await getKantongHistory(plant));
     } catch {
       setHistory([]);
     }
   }, []);
 
   useEffect(() => {
-    load();
-  }, [load]);
+    load(viewPlant);
+  }, [load, viewPlant]);
 
-  // ── Hooks below must run unconditionally on every render (rules of
-  // hooks) — same pattern OverviewTab uses — so they're computed with
-  // safe fallbacks BEFORE the loading/error/no-data early returns. ──
   const totalBudgetPre = kantong?.totalBudget ?? 0;
   const outstandingPre = kantong
     ? kantong.allocOpDriver + kantong.allocEmergency + kantong.cashAvailable + kantong.claimSubmitted + kantong.claimPaid
@@ -3566,11 +3588,34 @@ function OpFundTab() {
     setGaugeReady(false);
   }, [loading, kantong]);
 
-  if (loading) return <div style={{ padding: 60, textAlign: "center", color: "var(--t3)" }}>{t.actionLoading}</div>;
-  if (error) return <div style={{ padding: 30, margin: 20, borderRadius: 10, background: "var(--red-soft)", color: "var(--red)" }}>{error}</div>;
-
   const inputStyleInit: CSSProperties = { width: "100%", padding: "9px 12px", borderRadius: 10, border: "1px solid var(--border2)", background: "var(--bg2)", color: "var(--t1)", fontSize: 13, fontFamily: "var(--font)" };
   const labelStyleInit: CSSProperties = { fontSize: 13, fontWeight: 700, color: "var(--t2)", marginBottom: 5, display: "block" };
+
+  const PlantSwitcher = !lockedPlant ? (
+    <div style={{ display: "flex", padding: 3, borderRadius: 10, background: "var(--bg2)", border: "1px solid var(--border2)", width: "fit-content", marginBottom: 18 }}>
+      {(["CIK", "PRB"] as Plant[]).map((p) => (
+        <button
+          key={p}
+          onClick={() => setViewPlant(p)}
+          style={{
+            padding: "8px 22px", borderRadius: 8, border: "none", cursor: "pointer", fontWeight: 700, fontSize: 13,
+            background: viewPlant === p ? "var(--surface)" : "transparent",
+            color: viewPlant === p ? "var(--brand)" : "var(--t3)",
+            boxShadow: viewPlant === p ? "var(--shadow-sm)" : "none",
+            transition: "all 0.15s ease",
+          }}
+        >
+          {p}
+        </button>
+      ))}
+    </div>
+  ) : (
+    <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "9px 16px", borderRadius: 10, background: "var(--bg2)", width: "fit-content", marginBottom: 18, fontSize: 13, fontWeight: 700, color: "var(--brand)" }}>
+      <span style={{ width: 7, height: 7, borderRadius: "50%", background: "var(--brand)" }} />
+      {lockedPlant}
+      <span style={{ fontSize: 11, fontWeight: 400, color: "var(--t3)" }}>({lang === "en" ? "your plant" : "plant akun ini"})</span>
+    </div>
+  );
 
   async function handleCreateInitial() {
     const budget = evalExpr(initBudget);
@@ -3580,12 +3625,14 @@ function OpFundTab() {
       const now = new Date();
       await createKantong({
         period: `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`,
+        plant: viewPlant,
         totalBudget: budget,
         allocOpDriver: evalExpr(initOpDriver) || 0,
         allocEmergency: evalExpr(initEmergency) || 0,
         cashAvailable: evalExpr(initCash) || 0,
       });
-      await load();
+      setInitBudget(""); setInitOpDriver(""); setInitEmergency(""); setInitCash("");
+      await load(viewPlant);
     } catch (e) {
       alert(e instanceof Error ? e.message : "Gagal membuat data Dana Operasional");
     } finally {
@@ -3593,17 +3640,35 @@ function OpFundTab() {
     }
   }
 
+  if (loading) {
+    return (
+      <div style={{ padding: 20 }}>
+        {PlantSwitcher}
+        <div style={{ padding: 60, textAlign: "center", color: "var(--t3)" }}>{t.actionLoading}</div>
+      </div>
+    );
+  }
+  if (error) {
+    return (
+      <div style={{ padding: 20 }}>
+        {PlantSwitcher}
+        <div style={{ padding: 30, borderRadius: 10, background: "var(--red-soft)", color: "var(--red)" }}>{error}</div>
+      </div>
+    );
+  }
+
   if (!kantong) {
     return (
-      <div style={{ padding: 20, display: "flex", justifyContent: "center" }}>
+      <div style={{ padding: 20, display: "flex", flexDirection: "column", alignItems: "center" }}>
+        <div style={{ width: "100%", maxWidth: 440 }}>{PlantSwitcher}</div>
         <div className="heroGlow" style={{ borderRadius: "var(--r2)", boxShadow: "var(--shadow-md)", padding: 28, width: "100%", maxWidth: 440 }}>
           <div style={{ fontSize: 16, fontWeight: 800, color: "var(--t1)", marginBottom: 4 }}>
-            {lang === "en" ? "Set Up Operational Fund" : "Buat Data Dana Operasional"}
+            {lang === "en" ? `Set Up Operational Fund — ${viewPlant}` : `Buat Data Dana Operasional — ${viewPlant}`}
           </div>
           <div style={{ fontSize: 12, color: "var(--t3)", marginBottom: 20 }}>
             {lang === "en"
-              ? "No data yet for this period — enter the starting numbers below."
-              : "Belum ada data untuk periode ini — isi angka awalnya di bawah."}
+              ? `No data yet for ${viewPlant} this period — enter the starting numbers below.`
+              : `Belum ada data untuk plant ${viewPlant} periode ini — isi angka awalnya di bawah.`}
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 12, position: "relative", zIndex: 1 }}>
             <div>
@@ -3648,6 +3713,7 @@ function OpFundTab() {
     try {
       const updated = {
         period: kantong.period,
+        plant: viewPlant,
         totalBudget: evalExpr(eBudget) ?? kantong.totalBudget,
         allocOpDriver: evalExpr(eOpDriver) ?? kantong.allocOpDriver,
         allocEmergency: evalExpr(eEmergency) ?? kantong.allocEmergency,
@@ -3658,7 +3724,7 @@ function OpFundTab() {
       };
       await updateKantongBudget(updated);
       setShowEdit(false);
-      await load();
+      await load(viewPlant);
     } catch (e) {
       alert(e instanceof Error ? e.message : "Gagal menyimpan");
     } finally {
@@ -3671,9 +3737,9 @@ function OpFundTab() {
     const now = new Date();
     const newPeriod = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
     try {
-      await resetKantong(newPeriod, toLocalISODate(now));
+      await resetKantong(viewPlant, newPeriod, toLocalISODate(now));
       setShowResetConfirm(false);
-      await load();
+      await load(viewPlant);
     } catch (e) {
       alert(e instanceof Error ? e.message : "Gagal reset periode");
     }
@@ -3683,9 +3749,6 @@ function OpFundTab() {
   const inputStyle: CSSProperties = { width: "100%", padding: "9px 12px", borderRadius: 10, border: "1px solid var(--border2)", background: "var(--bg2)", color: "var(--t1)", fontSize: 13, fontFamily: "var(--font)" };
   const labelStyle: CSSProperties = { fontSize: 13, fontWeight: 700, color: "var(--t2)", marginBottom: 5, display: "block" };
 
-  // ── Composition bars — reuses the same "bar list" pattern already
-  // established in GasStationsTab's Fuel Type Distribution, applied
-  // here to how the total budget is composed across allocations. ──
   const composition = [
     { label: "Op Driver (A1)", value: kantong.allocOpDriver, color: "var(--orange)" },
     { label: "Emergency (A2)", value: kantong.allocEmergency, color: "var(--red)" },
@@ -3694,9 +3757,6 @@ function OpFundTab() {
     { label: lang === "en" ? "Claim Paid (A6)" : "Klaim Dibayar (A6)", value: kantong.claimPaid, color: "var(--purple)" },
   ];
 
-  // ── Fund health ring — same visual technique as OverviewTab's
-  // Operational Health gauge, applied to how far the fund has drifted
-  // from balanced (gap = 0). ──
   const fundHealthPct = kantong.totalBudget > 0
     ? Math.max(0, 100 - Math.min(100, (Math.abs(gap) / kantong.totalBudget) * 100))
     : 100;
@@ -3704,9 +3764,6 @@ function OpFundTab() {
   const RG = 52, CIRCG = 2 * Math.PI * RG;
   const gaugeOffset = CIRCG * (1 - fundHealthPct / 100);
 
-  // ── Trend chart — same SVG area+line technique as OverviewTab's
-  // "Claim Activity" chart, driven by kantong history per period
-  // instead of daily claims. ──
   const trendData = history.map((h) => ({
     period: h.period,
     gap: h.allocOpDriver + h.allocEmergency + h.cashAvailable + h.claimSubmitted + h.claimPaid - h.totalBudget,
@@ -3722,6 +3779,8 @@ function OpFundTab() {
 
   return (
     <div style={{ padding: 20 }}>
+      {PlantSwitcher}
+
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 18, flexWrap: "wrap", gap: 10 }}>
         <div style={{ fontSize: 12, color: "var(--t3)" }}>
           {lang === "en" ? "Period" : "Periode"}: <strong style={{ color: "var(--t1)" }}>{kantong.period}</strong> · Reset: {kantong.lastReset}
@@ -3736,12 +3795,11 @@ function OpFundTab() {
         </div>
       </div>
 
-      {/* ── Hero: fund health ring + headline numbers ── */}
       <div className="heroGlow statPop" style={{ borderRadius: "var(--r3)", boxShadow: "var(--shadow-lg)", padding: "24px 26px", marginBottom: 18 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 18 }}>
           <span style={{ width: 7, height: 7, borderRadius: "50%", background: healthColor, display: "inline-block" }} />
           <span style={{ fontSize: 12.5, fontWeight: 800, letterSpacing: 1, color: "var(--t3)", textTransform: "uppercase" }}>
-            💰 {lang === "en" ? "Operational Fund Health" : "Kesehatan Dana Operasional"}
+            💰 {lang === "en" ? `Operational Fund Health — ${viewPlant}` : `Kesehatan Dana Operasional — ${viewPlant}`}
           </span>
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "auto 1fr", gap: 28, alignItems: "center" }}>
@@ -3778,7 +3836,6 @@ function OpFundTab() {
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "1.1fr 1fr", gap: 16, marginBottom: 18 }}>
-        {/* ── Composition bars ── */}
         <div className="statPop" style={{ ...cardStyle, padding: 20 }}>
           <div style={{ fontSize: 13, fontWeight: 800, color: "var(--t1)", marginBottom: 4 }}>
             {lang === "en" ? "Budget Composition" : "Komposisi Cash"}
@@ -3802,7 +3859,6 @@ function OpFundTab() {
           })}
         </div>
 
-        {/* ── Trend chart ── */}
         <div className="statPop" style={{ ...cardStyle, padding: 20 }}>
           <div style={{ fontSize: 13, fontWeight: 800, color: "var(--t1)", marginBottom: 4 }}>
             {lang === "en" ? "Gap Trend by Period" : "Tren Gap per Periode"}
@@ -3834,7 +3890,7 @@ function OpFundTab() {
       {showEdit && (
         <ModalPortal onOverlayClick={() => setShowEdit(false)} maxWidth={420}>
           <div style={{ ...cardStyle, padding: 24 }}>
-            <div style={{ fontSize: 16, fontWeight: 800, marginBottom: 18, color: "var(--t1)" }}>Edit Dana Operasional</div>
+            <div style={{ fontSize: 16, fontWeight: 800, marginBottom: 18, color: "var(--t1)" }}>Edit Dana Operasional — {viewPlant}</div>
             <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
               <div><label style={labelStyle}>{t.fieldTotalCashOp}</label><input className="premiumInput" style={inputStyle} value={eBudget} onChange={(e) => setEBudget(e.target.value)} /></div>
               <div><label style={labelStyle}>OP DRIVER (A1)</label><input className="premiumInput" style={inputStyle} value={eOpDriver} onChange={(e) => setEOpDriver(e.target.value)} /></div>
@@ -3855,7 +3911,7 @@ function OpFundTab() {
         <ModalPortal onOverlayClick={() => setShowResetConfirm(false)} maxWidth={360}>
           <div style={{ ...cardStyle, padding: 24, textAlign: "center" }}>
             <div style={{ fontSize: 28, marginBottom: 8 }}>🔄</div>
-            <div style={{ fontSize: 15, fontWeight: 800, marginBottom: 8, color: "var(--t1)" }}>Reset Periode?</div>
+            <div style={{ fontSize: 15, fontWeight: 800, marginBottom: 8, color: "var(--t1)" }}>Reset Periode — {viewPlant}?</div>
             <div style={{ fontSize: 13, color: "var(--t3)", marginBottom: 18 }}>
               Claim Diajukan (A5) dan Claim Dibayar (A6) akan direset ke 0 untuk periode baru. Total cash dan alokasi tetap sama. Data periode lama tetap tersimpan.
             </div>
@@ -3875,7 +3931,7 @@ const FUEL_TYPES_LIST = ["Pertalite", "Pertamax", "Pertamax Turbo", "Pertamax Gr
    Claims, Overtime, Vehicles, Dana Operasional, and Driver Budget.
    Filterable by month / date range / year. Nothing is computed until the
    user explicitly clicks "Generate Laporan". ── */
-function ReportsTab() {
+function ReportsTab({ myProfile }: { myProfile: MyProfile | null }) {
   const { lang } = useLang();
   const months = lang === "en" ? MONTHS_EN : MONTHS_ID;
   const now = new Date();
@@ -3920,7 +3976,7 @@ function ReportsTab() {
           getClaims(),
           getOvertimes(),
           getAllVehiclesFull(),
-          getCurrentKantong(),
+          getOverviewKantong(myProfile),
           getDriverTiers(),
           getDrivers(),
         ]);

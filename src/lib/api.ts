@@ -560,6 +560,7 @@ export async function setDriverTier(
 interface KantongRow {
   id: string;
   period: string;
+  plant: Plant;
   total_budget: number;
   alloc_op_driver: number;
   alloc_emergency: number;
@@ -573,6 +574,7 @@ function mapKantongRow(row: KantongRow): Kantong {
   return {
     id: row.id,
     period: row.period,
+    plant: row.plant,
     totalBudget: Number(row.total_budget) || 0,
     allocOpDriver: Number(row.alloc_op_driver) || 0,
     allocEmergency: Number(row.alloc_emergency) || 0,
@@ -583,17 +585,16 @@ function mapKantongRow(row: KantongRow): Kantong {
   };
 }
 
-export async function getCurrentKantong(): Promise<Kantong | null> {
-  const { data, error } = await supabase
-    .from("current_kantong")
-    .select("*")
-    .maybeSingle();
+export async function getCurrentKantong(plant: Plant): Promise<Kantong | null> {
+  const { data, error } = await supabase.rpc("get_current_kantong", { p_plant: plant });
   if (error) throw error;
-  return data ? mapKantongRow(data as KantongRow) : null;
+  const row = data?.[0];
+  return row ? mapKantongRow(row as KantongRow) : null;
 }
 
 export interface KantongInput {
   period: string;
+  plant: Plant;
   totalBudget: number;
   allocOpDriver: number;
   allocEmergency: number;
@@ -615,7 +616,8 @@ export async function updateKantongBudget(input: KantongInput): Promise<void> {
       claim_paid: input.claimPaid,
       last_reset: input.lastReset,
     })
-    .eq("period", input.period);
+    .eq("period", input.period)
+    .eq("plant", input.plant);
   if (error) throw error;
 }
 
@@ -625,6 +627,7 @@ export async function updateKantongBudget(input: KantongInput): Promise<void> {
  *  way to get past "no data yet" in the UI. */
 export async function createKantong(input: {
   period: string;
+  plant: Plant;
   totalBudget: number;
   allocOpDriver: number;
   allocEmergency: number;
@@ -632,6 +635,7 @@ export async function createKantong(input: {
 }): Promise<void> {
   const { error } = await supabase.from("kantong").insert({
     period: input.period,
+    plant: input.plant,
     total_budget: input.totalBudget,
     alloc_op_driver: input.allocOpDriver,
     alloc_emergency: input.allocEmergency,
@@ -647,13 +651,15 @@ export async function createKantong(input: {
  *  zeroing claimSubmitted/claimPaid — preserves history unlike the old
  *  single mutable sheet row. */
 export async function resetKantong(
+  plant: Plant,
   newPeriod: string,
   lastReset: string
 ): Promise<void> {
-  const current = await getCurrentKantong();
+  const current = await getCurrentKantong(plant);
   const { error } = await supabase.from("kantong").upsert(
     {
       period: newPeriod,
+      plant,
       total_budget: current?.totalBudget ?? 0,
       alloc_op_driver: current?.allocOpDriver ?? 0,
       alloc_emergency: current?.allocEmergency ?? 0,
@@ -662,17 +668,18 @@ export async function resetKantong(
       claim_paid: 0,
       last_reset: lastReset,
     },
-    { onConflict: "period" }
+   { onConflict: "period,plant" }
   );
   if (error) throw error;
 }
 /** Ambil histori Dana Operasional beberapa periode terakhir (untuk grafik
  *  tren gap) — beda dari getCurrentKantong() yang cuma ambil 1 baris
  *  terbaru lewat view current_kantong. */
-export async function getKantongHistory(limit = 12): Promise<Kantong[]> {
+export async function getKantongHistory(plant: Plant, limit = 12): Promise<Kantong[]> {
   const { data, error } = await supabase
     .from("kantong")
     .select("*")
+    .eq("plant", plant)
     .order("period", { ascending: true })
     .limit(limit);
   if (error) throw error;
