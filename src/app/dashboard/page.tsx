@@ -718,7 +718,7 @@ const [masterDataInitialSub, setMasterDataInitialSub] = useState<"drivers" | "em
           {activeTab === "driverbudget" && <DriverBudgetTab />}
           {activeTab === "opfund" && <OpFundTab myProfile={myProfile} />}
           {activeTab === "gasstations" && <GasStationsTab />}
-          {activeTab === "reports" && <ReportsTab />}
+          {activeTab === "reports" && <ReportsTab myProfile={myProfile} />}
         {activeTab === "masterdata" && (
   <MasterDataTab
     initialSub={masterDataInitialSub}
@@ -3931,7 +3931,7 @@ const FUEL_TYPES_LIST = ["Pertalite", "Pertamax", "Pertamax Turbo", "Pertamax Gr
    Claims, Overtime, Vehicles, Dana Operasional, and Driver Budget.
    Filterable by month / date range / year. Nothing is computed until the
    user explicitly clicks "Generate Laporan". ── */
-function ReportsTab() {
+function ReportsTab({ myProfile }: { myProfile: MyProfile | null }) {
   const { lang } = useLang();
   const months = lang === "en" ? MONTHS_EN : MONTHS_ID;
   const now = new Date();
@@ -3976,7 +3976,7 @@ function ReportsTab() {
           getClaims(),
           getOvertimes(),
           getAllVehiclesFull(),
-          getCurrentKantong(),
+          getOverviewKantong(myProfile),
           getDriverTiers(),
           getDrivers(),
         ]);
