@@ -80,7 +80,7 @@
 
 .topbarEyebrow {
   font-family: var(--mono);
-  font-size: 11px;
+  font-size: var(--fs-xs);
   color: var(--brand);
   letter-spacing: 1.5px;
   text-transform: uppercase;
@@ -88,7 +88,7 @@
 }
 
 .topbarTitle {
-  font-size: 19px;
+  font-size: var(--fs-lg);
   font-weight: 800;
   color: var(--t1);
   letter-spacing: -0.3px;
@@ -99,7 +99,7 @@
 
 @media (max-width: 640px) {
   .topbarTitle {
-    font-size: 15.5px;
+    font-size: var(--fs-md);
   }
 }
 
@@ -125,7 +125,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 15px;
+  font-size: var(--fs-md);
   cursor: pointer;
   color: var(--t2);
   transition: background 0.15s ease, border-color 0.15s ease, transform 0.1s ease;
@@ -146,7 +146,7 @@
   border-radius: 15px;
   border: none;
   font-family: var(--font);
-  font-size: 14px;
+  font-size: var(--fs-base);
   font-weight: 800;
   background: var(--brand);
   color: #fff;
@@ -162,7 +162,7 @@
 @media (max-width: 640px) {
   .btnPrimary {
     padding: 10px 14px;
-    font-size: 12.5px;
+    font-size: var(--fs-sm);
     border-radius: 12px;
   }
 }
@@ -249,11 +249,11 @@
 }
 
 .statCardIcon {
-  font-size: 19px;
+  font-size: var(--fs-lg);
 }
 
 .statCardNum {
-  font-size: 32px;
+  font-size: var(--fs-2xl);
   font-weight: 900;
   color: var(--t1);
   line-height: 1;
@@ -261,7 +261,7 @@
 
 .statCardLabel {
   font-family: var(--mono);
-  font-size: 11.5px;
+  font-size: var(--fs-xs);
   color: var(--t3);
   text-transform: uppercase;
   letter-spacing: 0.8px;
@@ -291,7 +291,7 @@
   background: none;
   border: none;
   font-family: var(--font);
-  font-size: 14px;
+  font-size: var(--fs-base);
   font-weight: 700;
   color: var(--t1);
   outline: none;
@@ -312,7 +312,7 @@
   padding: 10px 16px;
   border-radius: 13px;
   font-family: var(--mono);
-  font-size: 12px;
+  font-size: var(--fs-sm);
   font-weight: 700;
   background: var(--surface);
   border: none;
@@ -348,7 +348,7 @@
   background: none;
   border: none;
   font-family: var(--font);
-  font-size: 14px;
+  font-size: var(--fs-base);
   color: var(--t1);
   outline: none;
   flex: 1;
@@ -386,7 +386,7 @@
 }
 
 .mobileCardDest {
-  font-size: 15.5px;
+  font-size: var(--fs-md);
   font-weight: 800;
   color: var(--t1);
   line-height: 1.3;
@@ -397,7 +397,7 @@
   display: flex;
   align-items: center;
   gap: 7px;
-  font-size: 13px;
+  font-size: var(--fs-sm);
   color: var(--t2);
   font-weight: 600;
   margin-bottom: 4px;
@@ -408,7 +408,7 @@
 }
 
 .mobileCardSub {
-  font-size: 12.5px;
+  font-size: var(--fs-sm);
   color: var(--t3);
   margin-bottom: 8px;
   line-height: 1.4;
@@ -416,7 +416,7 @@
 
 .mobileCardTime {
   font-family: var(--mono);
-  font-size: 10.5px;
+  font-size: var(--fs-xs);
   color: var(--t3);
   margin-bottom: 12px;
 }
@@ -435,7 +435,7 @@
   border: none;
   background: var(--bg2);
   font-family: var(--font);
-  font-size: 12.5px;
+  font-size: var(--fs-sm);
   font-weight: 700;
   color: var(--t2);
   cursor: pointer;
@@ -472,7 +472,7 @@
 .table thead th {
   text-align: left;
   font-family: var(--mono);
-  font-size: 10.5px;
+  font-size: var(--fs-xs);
   font-weight: 700;
   color: var(--t3);
   text-transform: uppercase;
@@ -485,7 +485,7 @@
 .table tbody td {
   padding: 15px 18px;
   border-bottom: 1px solid var(--border);
-  font-size: 13.5px;
+  font-size: var(--fs-base);
   color: var(--t1);
   vertical-align: middle;
 }
@@ -501,7 +501,7 @@
 .cellMuted {
   color: var(--t3);
   font-family: var(--mono);
-  font-size: 12px;
+  font-size: var(--fs-sm);
 }
 
 .cellBold {
@@ -515,7 +515,7 @@
   padding: 6px 12px;
   border-radius: 20px;
   font-family: var(--mono);
-  font-size: 10.5px;
+  font-size: var(--fs-xs);
   font-weight: 700;
   white-space: nowrap;
 }
@@ -558,7 +558,7 @@
   border: none;
   background: var(--bg2);
   font-family: var(--mono);
-  font-size: 10.5px;
+  font-size: var(--fs-xs);
   font-weight: 700;
   color: var(--t2);
   cursor: pointer;
@@ -594,7 +594,7 @@
 }
 
 .tableEmptyTitle {
-  font-size: 15px;
+  font-size: var(--fs-md);
   font-weight: 700;
   color: var(--t2);
 }
@@ -619,7 +619,7 @@
 
 .loadingTxt {
   font-family: var(--mono);
-  font-size: 12px;
+  font-size: var(--fs-sm);
   color: var(--t3);
 }
 
@@ -628,7 +628,7 @@
   border-radius: 16px;
   background: var(--red-soft);
   color: var(--red);
-  font-size: 13.5px;
+  font-size: var(--fs-base);
   font-weight: 600;
   margin-bottom: 20px;
 }
@@ -643,7 +643,7 @@
   border: 1px solid var(--green);
   background: var(--green-soft);
   font-family: var(--mono);
-  font-size: 11px;
+  font-size: var(--fs-xs);
   color: var(--green-text);
   font-weight: 700;
 }
@@ -689,7 +689,7 @@
 }
 
 .modalTitle {
-  font-size: 20px;
+  font-size: var(--fs-lg);
   font-weight: 800;
   color: var(--t1);
 }
@@ -703,7 +703,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 15px;
+  font-size: var(--fs-md);
   cursor: pointer;
   color: var(--t2);
 }
@@ -726,7 +726,7 @@
 
 .formLabel {
   font-family: var(--mono);
-  font-size: 11px;
+  font-size: var(--fs-xs);
   font-weight: 700;
   color: var(--t3);
   text-transform: uppercase;
@@ -742,7 +742,7 @@
   border: none;
   background: var(--bg2);
   font-family: var(--font);
-  font-size: 14px;
+  font-size: var(--fs-base);
   color: var(--t1);
   outline: none;
   transition: box-shadow 0.15s;
@@ -761,7 +761,7 @@
 
 .formError {
   font-family: var(--mono);
-  font-size: 12px;
+  font-size: var(--fs-sm);
   color: var(--red);
   font-weight: 600;
   margin-top: -4px;
@@ -780,7 +780,7 @@
   border: none;
   background: var(--bg2);
   font-family: var(--font);
-  font-size: 14.5px;
+  font-size: var(--fs-base);
   font-weight: 700;
   color: var(--t2);
   cursor: pointer;
@@ -792,7 +792,7 @@
   border-radius: 15px;
   border: none;
   font-family: var(--font);
-  font-size: 14.5px;
+  font-size: var(--fs-base);
   font-weight: 800;
   background: var(--brand);
   color: #fff;
@@ -821,7 +821,7 @@
 }
 
 .confirmSub {
-  font-size: 13.5px;
+  font-size: var(--fs-base);
   color: var(--t2);
   margin-top: 8px;
   margin-bottom: 4px;
@@ -834,7 +834,7 @@
   border-radius: 15px;
   border: none;
   font-family: var(--font);
-  font-size: 14.5px;
+  font-size: var(--fs-base);
   font-weight: 800;
   background: var(--red);
   color: #fff;
@@ -848,7 +848,7 @@
 }
 
 .reportNote {
-  font-size: 12.5px;
+  font-size: var(--fs-sm);
   color: var(--t3);
   line-height: 1.6;
   margin-top: 18px;
@@ -864,7 +864,7 @@
   border: none;
   background: var(--bg2);
   font-family: var(--font);
-  font-size: 14.5px;
+  font-size: var(--fs-base);
   font-weight: 700;
   color: var(--t1);
   cursor: pointer;
@@ -888,7 +888,7 @@
   background: var(--navy);
   color: #fff;
   font-family: var(--mono);
-  font-size: 13px;
+  font-size: var(--fs-sm);
   font-weight: 800;
   padding: 14px 26px;
   border-radius: 18px;
@@ -956,7 +956,7 @@
 
 .reportRangeDash {
   font-family: var(--mono);
-  font-size: 11.5px;
+  font-size: var(--fs-xs);
   color: var(--t3);
 }
 
@@ -991,20 +991,20 @@
   display: flex;
   align-items: center;
   gap: 9px;
-  font-size: 15px;
+  font-size: var(--fs-md);
   font-weight: 800;
   color: var(--t1);
   margin: 30px 0 16px;
 }
 
 .reportSectionIco {
-  font-size: 16px;
+  font-size: var(--fs-md);
 }
 
 .reportSectionCount {
   margin-left: auto;
   font-family: var(--mono);
-  font-size: 11px;
+  font-size: var(--fs-xs);
   font-weight: 700;
   color: var(--t3);
   background: var(--bg2);
@@ -1035,7 +1035,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 12.5px;
+  font-size: var(--fs-sm);
   font-weight: 700;
   color: var(--t2);
   text-transform: uppercase;
@@ -1044,7 +1044,7 @@
 }
 
 .insightEmpty {
-  font-size: 13px;
+  font-size: var(--fs-sm);
   color: var(--t3);
   padding: 10px 0;
 }
@@ -1063,7 +1063,7 @@
 }
 
 .insightLabel {
-  font-size: 12.5px;
+  font-size: var(--fs-sm);
   font-weight: 600;
   color: var(--t1);
   white-space: nowrap;
@@ -1110,7 +1110,7 @@
 
 .insightValue {
   font-family: var(--mono);
-  font-size: 11.5px;
+  font-size: var(--fs-xs);
   font-weight: 700;
   color: var(--t1);
   text-align: right;
@@ -1141,7 +1141,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 14.5px;
+  font-size: var(--fs-base);
   font-weight: 800;
   color: var(--t1);
   margin-bottom: 4px;
@@ -1149,7 +1149,7 @@
 
 .driverSummaryPeriod {
   font-family: var(--mono);
-  font-size: 10.5px;
+  font-size: var(--fs-xs);
   color: var(--t3);
   margin-bottom: 14px;
 }
@@ -1160,7 +1160,7 @@
   justify-content: space-between;
   padding: 9px 0;
   border-top: 1px solid var(--border);
-  font-size: 12.5px;
+  font-size: var(--fs-sm);
   color: var(--t2);
 }
 
