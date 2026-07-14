@@ -467,15 +467,9 @@ const [masterDataInitialSub, setMasterDataInitialSub] = useState<"drivers" | "em
         </div>
        <nav style={{ flex: 1, overflowY: "auto", padding: "10px 10px" }}>
           <button
-            className="tabPill"
+            className={`navItem ${activeTab === "overview" ? "navItemActive" : ""}`}
             onClick={() => { setActiveTab("overview"); setSidebarOpen(false); }}
-            style={{
-              display: "flex", alignItems: "center", gap: 10, width: "100%", padding: "10px 14px",
-              borderRadius: 10, border: "none", cursor: "pointer", marginBottom: 14, fontSize: 13, fontWeight: 600,
-              fontFamily: "var(--font)", textAlign: "left",
-              background: activeTab === "overview" ? "linear-gradient(135deg, var(--gold), var(--gold2))" : "transparent",
-              color: activeTab === "overview" ? "var(--gold-on)" : "var(--t2)",
-            }}
+            style={{ marginBottom: 16 }}
           >
             <span>📊</span>
             {lang === "id" ? "Ringkasan" : "Overview"}
@@ -485,22 +479,15 @@ const [masterDataInitialSub, setMasterDataInitialSub] = useState<"drivers" | "em
             const visibleTabs = group.tabs.filter((tabItem) => canAccessTab(myProfile, tabItem.id));
             if (visibleTabs.length === 0) return null;
             return (
-              <div key={group.id} style={{ marginBottom: 14 }}>
-                <div style={{ padding: "0 14px", marginBottom: 6, fontSize: 10.5, fontWeight: 700, color: "var(--t3)", textTransform: "uppercase", letterSpacing: "0.08em" }}>
+              <div key={group.id}>
+                <div className="navSectionLabel">
                   {lang === "id" ? group.labelId : group.labelEn}
                 </div>
                 {visibleTabs.map((tabItem) => (
                   <button
                     key={tabItem.id}
-                    className="tabPill"
+                    className={`navItem ${activeTab === tabItem.id ? "navItemActive" : ""}`}
                     onClick={() => { setActiveTab(tabItem.id); setSidebarOpen(false); }}
-                    style={{
-                      display: "flex", alignItems: "center", gap: 10, width: "100%", padding: "10px 14px",
-                      borderRadius: 10, border: "none", cursor: "pointer", marginBottom: 3, fontSize: 13, fontWeight: 600,
-                      fontFamily: "var(--font)", textAlign: "left",
-                      background: activeTab === tabItem.id ? "linear-gradient(135deg, var(--gold), var(--gold2))" : "transparent",
-                      color: activeTab === tabItem.id ? "var(--gold-on)" : "var(--t2)",
-                    }}
                   >
                     <span>{tabItem.icon}</span>
                     {lang === "id" ? tabItem.labelId : tabItem.labelEn}
