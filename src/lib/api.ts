@@ -668,7 +668,7 @@ export async function resetKantong(
       claim_paid: 0,
       last_reset: lastReset,
     },
-    { onConflict: "period" }
+   { onConflict: "period,plant" }
   );
   if (error) throw error;
 }
