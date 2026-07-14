@@ -776,7 +776,7 @@ useEffect(() => {
             {t.masuk}
           </button>
 
-          <div className={styles.landingFooter}>CIKOPS FLEET OS v1.0</div>
+          <div className={styles.landingFooter}>CIKOPS-FM SYSTEM v1.0</div>
         </div>
       </div>
       </div>
@@ -1482,7 +1482,7 @@ function ProfileTab({
         </div>
       </div>
 
-      <div className={styles.profileFooter}>CIKOPS FLEET OS v1.0</div>
+      <div className={styles.profileFooter}>CIKOPS-FM SYSTEM v1.0</div>
     </div>
   );
 }
