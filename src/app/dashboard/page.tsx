@@ -1795,7 +1795,26 @@ function ComingSoonTab({ title }: { title: string }) {
     </div>
   );
 }
-
+async function getOverviewKantong(profile: MyProfile | null): Promise<Kantong | null> {
+  if (profile?.plantScope) {
+    return getCurrentKantong(profile.plantScope);
+  }
+  // Admin global — gabungkan CIK + PRB jadi satu angka ringkasan.
+  const [cik, prb] = await Promise.all([getCurrentKantong("CIK"), getCurrentKantong("PRB")]);
+  if (!cik && !prb) return null;
+  return {
+    id: "combined",
+    period: cik?.period ?? prb?.period ?? "",
+    plant: "CIK",
+    totalBudget: (cik?.totalBudget ?? 0) + (prb?.totalBudget ?? 0),
+    allocOpDriver: (cik?.allocOpDriver ?? 0) + (prb?.allocOpDriver ?? 0),
+    allocEmergency: (cik?.allocEmergency ?? 0) + (prb?.allocEmergency ?? 0),
+    cashAvailable: (cik?.cashAvailable ?? 0) + (prb?.cashAvailable ?? 0),
+    claimSubmitted: (cik?.claimSubmitted ?? 0) + (prb?.claimSubmitted ?? 0),
+    claimPaid: (cik?.claimPaid ?? 0) + (prb?.claimPaid ?? 0),
+    lastReset: cik?.lastReset ?? prb?.lastReset ?? "",
+  };
+}
 
 function OverviewTab({ setActiveTab, myProfile }: { setActiveTab: (t: DashboardTab) => void; myProfile: MyProfile | null }) {
   const { lang } = useLang();
@@ -1833,7 +1852,7 @@ function OverviewTab({ setActiveTab, myProfile }: { setActiveTab: (t: DashboardT
           getClaims(),
           getOvertimes(),
           getDrivers(),
-          getCurrentKantong(),
+          getOverviewKantong(myProfile),
           getDriverTiers(),
           getGasStations(),
           getTasksByDate(todayStr()),
