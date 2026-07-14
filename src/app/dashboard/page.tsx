@@ -1768,6 +1768,12 @@ function OverviewTab({ setActiveTab, myProfile }: { setActiveTab: (t: DashboardT
   const [gasStations, setGasStations] = useState<GasStation[]>([]);
   const [todayTasks, setTodayTasks] = useState<TaskDetail[]>([]);
   const [gaugeReady, setGaugeReady] = useState(false);
+  const [clockNow, setClockNow] = useState(new Date());
+
+  useEffect(() => {
+    const id = setInterval(() => setClockNow(new Date()), 30000);
+    return () => clearInterval(id);
+  }, []);
 
   useEffect(() => {
     if (!loading) {
@@ -1836,6 +1842,8 @@ function OverviewTab({ setActiveTab, myProfile }: { setActiveTab: (t: DashboardT
   const greeting =
     hour < 11 ? (lang === "en" ? "Good Morning" : "Selamat Pagi") : hour < 15 ? (lang === "en" ? "Good Afternoon" : "Selamat Siang") : hour < 18 ? (lang === "en" ? "Good Evening" : "Selamat Sore") : (lang === "en" ? "Good Evening" : "Selamat Malam");
   const displayName = myProfile?.fullName || "";
+  const heroTimeStr = clockNow.toLocaleTimeString(lang === "en" ? "en-GB" : "id-ID", { hour: "2-digit", minute: "2-digit" });
+  const heroDateStr = clockNow.toLocaleDateString(lang === "en" ? "en-GB" : "id-ID", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
 
   // ── Vehicles & documents ── (reusing the pre-computed buckets above)
   const activeV = vehicles.filter((v) => v.aktif).length;
@@ -1901,7 +1909,7 @@ function OverviewTab({ setActiveTab, myProfile }: { setActiveTab: (t: DashboardT
   const healthScore = Math.round(docHealthPct * 0.3 + budgetHealthPct * 0.25 + claimTrendHealthPct * 0.2 + taskHealthPct * 0.25);
   const healthColor = healthScore >= 85 ? "var(--green)" : healthScore >= 70 ? "var(--brand)" : healthScore >= 50 ? "var(--orange)" : "var(--red)";
   const healthLabel = healthScore >= 85 ? (lang === "en" ? "Excellent" : "Sangat Baik") : healthScore >= 70 ? (lang === "en" ? "Good" : "Baik") : healthScore >= 50 ? (lang === "en" ? "Fair" : "Cukup") : (lang === "en" ? "Needs Attention" : "Perlu Perhatian");
-  const RG = 58, CIRCG = 2 * Math.PI * RG;
+  const RG = 74, CIRCG = 2 * Math.PI * RG;
   const gaugeOffset = CIRCG * (1 - healthScore / 100);
 
   // ── Claims trend, last 30 days ──
@@ -1953,109 +1961,160 @@ function OverviewTab({ setActiveTab, myProfile }: { setActiveTab: (t: DashboardT
   ];
 
   // ── Module snapshot — covers every module in the system, addresses
-  // "mencakup semua aspek function". Each card is clickable. ──
+  // "mencakup semua aspek function". Rendered as a BENTO grid (varying
+  // card sizes) rather than a uniform grid, so the page has visual
+  // hierarchy instead of feeling like a repeated stat-card list. ──
   const moduleSnapshots = [
     {
-      tab: "overtime" as DashboardTab, icon: "⏱️", accent: "var(--gold2)",
-      title: lang === "en" ? "Overtime This Month" : "Overtime Bulan Ini",
-      big: `${fmtRp(otHours)} ${lang === "en" ? "hrs" : "jam"}`,
-      sub: `Rp ${fmtRp(otAmount)}${topPlant && otHours > 0 ? ` · ${lang === "en" ? "top" : "terbanyak"} ${topPlant.plant}` : ""}`,
+      tab: "tasks" as DashboardTab, icon: "🗂️", accent: "var(--brand)", featured: true,
+      title: lang === "en" ? "Tasks Today" : "Tugas Hari Ini",
+      big: String(todayTasks.length),
+      sub: todayTasks.length > 0 ? `${taskCompletionToday.toFixed(0)}% ${lang === "en" ? "completed" : "selesai"}` : (lang === "en" ? "No tasks yet" : "Belum ada tugas"),
     },
     {
-      tab: "opfund" as DashboardTab, icon: "💰", accent: gapColor,
+      tab: "opfund" as DashboardTab, icon: "💰", accent: gapColor, featured: false,
       title: lang === "en" ? "Operational Fund" : "Dana Operasional",
       big: kantong ? `Rp ${fmtRp(kantong.totalBudget)}` : (lang === "en" ? "Not set up" : "Belum diisi"),
       sub: kantong ? `GAP ${gap >= 0 ? "+" : ""}Rp ${fmtRp(gap)}` : (lang === "en" ? "Click to set up" : "Klik untuk mengisi"),
     },
     {
-      tab: "driverbudget" as DashboardTab, icon: "💳", accent: "var(--purple)",
+      tab: "overtime" as DashboardTab, icon: "⏱️", accent: "var(--gold2)", featured: false,
+      title: lang === "en" ? "Overtime This Month" : "Overtime Bulan Ini",
+      big: `${fmtRp(otHours)} ${lang === "en" ? "hrs" : "jam"}`,
+      sub: `Rp ${fmtRp(otAmount)}${topPlant && otHours > 0 ? ` · ${topPlant.plant}` : ""}`,
+    },
+    {
+      tab: "driverbudget" as DashboardTab, icon: "💳", accent: "var(--purple)", featured: false,
       title: lang === "en" ? "Driver Budget" : "Budget Driver",
       big: `Rp ${fmtRp(totalTierBudget)}`,
       sub: `${totalTierDrivers} ${lang === "en" ? "drivers" : "driver"} · ${tiers.length} tier`,
     },
     {
-      tab: "gasstations" as DashboardTab, icon: "⛽", accent: "var(--green)",
+      tab: "gasstations" as DashboardTab, icon: "⛽", accent: "var(--green)", featured: false,
       title: lang === "en" ? "Gas Stations" : "Pom Bensin",
       big: String(gasStations.length),
       sub: `${fuelTypesCovered}/${FUEL_TYPES_LIST.length} ${lang === "en" ? "fuel types" : "jenis BBM"}`,
-    },
-    {
-      tab: "tasks" as DashboardTab, icon: "🗂️", accent: "var(--brand)",
-      title: lang === "en" ? "Tasks Today" : "Tugas Hari Ini",
-      big: String(todayTasks.length),
-      sub: todayTasks.length > 0 ? `${taskCompletionToday.toFixed(0)}% ${lang === "en" ? "done" : "selesai"}` : (lang === "en" ? "No tasks yet" : "Belum ada tugas"),
     },
   ];
 
   return (
     <div style={{ padding: 20 }}>
-      {/* ── Greeting ── */}
-      <div style={{ marginBottom: 18 }}>
-        <div style={{ fontSize: 22, fontWeight: 800, color: "var(--t1)" }}>
-          {greeting}{displayName ? `, ${displayName}!` : "!"} 👋
-        </div>
-        <div style={{ fontSize: 14.5, color: "var(--t3)", marginTop: 3 }}>
-          {lang === "en" ? "Here is a summary of today's operations." : "Berikut adalah ringkasan operasional hari ini."}
+      {/* ══════════════════════════════════════════════════════
+          HERO — dramatic, full-bleed, animated mesh background.
+          This is the one section in the whole app that should NOT
+          look like every other tab's card grid.
+      ══════════════════════════════════════════════════════ */}
+      <div
+        className="statPop"
+        style={{
+          position: "relative",
+          overflow: "hidden",
+          borderRadius: 28,
+          padding: "34px 32px",
+          marginBottom: 22,
+          background: "linear-gradient(135deg, var(--navy) 0%, var(--brand2) 55%, var(--brand) 100%)",
+          boxShadow: "0 28px 60px rgba(20,49,92,0.35)",
+        }}
+      >
+        {/* decorative animated mesh blobs, unique to this hero */}
+        <div style={{ position: "absolute", top: "-30%", right: "-10%", width: 420, height: 420, borderRadius: "50%", background: "radial-gradient(circle, rgba(255,255,255,0.14), transparent 70%)", filter: "blur(6px)", animation: "heroFloat1 16s ease-in-out infinite" }} />
+        <div style={{ position: "absolute", bottom: "-40%", left: "-8%", width: 380, height: 380, borderRadius: "50%", background: "radial-gradient(circle, rgba(23,195,178,0.28), transparent 70%)", filter: "blur(6px)", animation: "heroFloat2 20s ease-in-out infinite" }} />
+        <div style={{ position: "absolute", inset: 0, backgroundImage: "radial-gradient(circle, rgba(255,255,255,0.08) 1px, transparent 1px)", backgroundSize: "22px 22px", opacity: 0.5 }} />
+
+        <div style={{ position: "relative", zIndex: 1 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 12, marginBottom: 26 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <span style={{ width: 7, height: 7, borderRadius: "50%", background: "var(--gold)", animation: "pulse 1.6s infinite", display: "inline-block" }} />
+              <span style={{ fontSize: 12, fontWeight: 800, letterSpacing: 1.5, color: "rgba(255,255,255,0.75)", textTransform: "uppercase" }}>
+                {lang === "en" ? "Operational Command Center" : "Command Center Operasional"}
+              </span>
+            </div>
+            <div style={{ textAlign: "right" }}>
+              <div style={{ fontSize: 20, fontWeight: 800, color: "#fff", fontFamily: "var(--mono)" }}>{heroTimeStr}</div>
+              <div style={{ fontSize: 11.5, color: "rgba(255,255,255,0.65)" }}>{heroDateStr}</div>
+            </div>
+          </div>
+
+          <div style={{ fontSize: 28, fontWeight: 800, color: "#fff", marginBottom: 4, letterSpacing: -0.5 }}>
+            {greeting}{displayName ? `, ${displayName}` : ""} 👋
+          </div>
+          <div style={{ fontSize: 14, color: "rgba(255,255,255,0.75)", marginBottom: 28 }}>
+            {lang === "en" ? "Here's your operational health at a glance." : "Berikut kesehatan operasional kamu sekilas pandang."}
+          </div>
+
+          <div style={{ display: "grid", gridTemplateColumns: "auto 1fr", gap: 36, alignItems: "center" }}>
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
+              <svg viewBox="0 0 170 170" width={158} height={158}>
+                <defs>
+                  <linearGradient id="healthGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stopColor="var(--gold)" />
+                    <stop offset="100%" stopColor="#fff" />
+                  </linearGradient>
+                </defs>
+                <circle cx={85} cy={85} r={RG} fill="none" stroke="rgba(255,255,255,0.18)" strokeWidth={11} />
+                <circle className="gaugeAnimated" cx={85} cy={85} r={RG} fill="none" stroke="url(#healthGrad)" strokeWidth={11} strokeLinecap="round" strokeDasharray={CIRCG} strokeDashoffset={gaugeReady ? gaugeOffset : CIRCG} transform="rotate(-90 85 85)" />
+                <text x={85} y={80} textAnchor="middle" fontSize={38} fontWeight={800} fill="#fff" fontFamily="var(--mono)">{healthScore}</text>
+                <text x={85} y={100} textAnchor="middle" fontSize={12} fill="rgba(255,255,255,0.7)">/ 100</text>
+              </svg>
+              <div style={{ marginTop: 6, fontSize: 14, fontWeight: 800, color: "#fff" }}>{healthLabel}</div>
+              <div style={{ fontSize: 11.5, color: "rgba(255,255,255,0.65)", marginTop: 1 }}>{lang === "en" ? "Operational Health" : "Kesehatan Operasional"}</div>
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(130px, 1fr))" }}>
+              {[
+                { label: lang === "en" ? "Total Vehicles" : "Total Kendaraan", value: String(animatedVehicleCount), sub: `${activeV} ${lang === "en" ? "active" : "aktif"}` },
+                { label: lang === "en" ? "Active Drivers" : "Driver Aktif", value: String(animatedActiveDrivers), sub: `${drivers.length} total` },
+                { label: lang === "en" ? "Claims This Month" : "Klaim Bulan Ini", value: `Rp ${fmtRp(thisMonthTotal)}`, sub: claimTrendPct === null ? "-" : `${claimTrendPct >= 0 ? "+" : ""}${claimTrendPct.toFixed(0)}%` },
+                { label: lang === "en" ? "Urgent Documents" : "Dokumen Urgent", value: String(animatedUrgentDocs), sub: "≤30 " + (lang === "en" ? "days" : "hari") },
+              ].map((k, i) => (
+                <div key={i} style={{ padding: "0 18px", borderLeft: i > 0 ? "1px solid rgba(255,255,255,0.18)" : "none" }}>
+                  <div style={{ fontSize: 27, fontWeight: 800, fontFamily: "var(--mono)", letterSpacing: -0.5, color: "#fff" }}>{k.value}</div>
+                  <div style={{ fontSize: 12.5, color: "rgba(255,255,255,0.8)", fontWeight: 600, marginTop: 4 }}>{k.label}</div>
+                  <div style={{ fontSize: 11.5, color: "rgba(255,255,255,0.6)", marginTop: 2 }}>{k.sub}</div>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
       </div>
 
-      {/* ── Hero: composite Operational Health Score + headline stats ── */}
-      <div className="heroGlow statPop" style={{ borderRadius: "var(--r3)", boxShadow: "var(--shadow-lg)", padding: "26px 28px", marginBottom: 20 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 20 }}>
-          <span style={{ width: 7, height: 7, borderRadius: "50%", background: "var(--green)", animation: "pulse 1.6s infinite", display: "inline-block" }} />
-          <span style={{ fontSize: 13, fontWeight: 800, letterSpacing: 1, color: "var(--t3)", textTransform: "uppercase" }}>
-            {lang === "en" ? "Operational Command Center · Live" : "Command Center Operasional · Live"}
-          </span>
-        </div>
-        <div style={{ display: "grid", gridTemplateColumns: "auto 1fr", gap: 32, alignItems: "center" }}>
-          <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
-            <svg viewBox="0 0 130 130" width={122} height={122}>
-              <defs>
-                <linearGradient id="healthGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-                  <stop offset="0%" stopColor="var(--brand)" />
-                  <stop offset="100%" stopColor="var(--gold)" />
-                </linearGradient>
-              </defs>
-              <circle cx={65} cy={65} r={RG} fill="none" stroke="var(--border)" strokeWidth={9} />
-              <circle className="gaugeAnimated" cx={65} cy={65} r={RG} fill="none" stroke="url(#healthGrad)" strokeWidth={9} strokeLinecap="round" strokeDasharray={CIRCG} strokeDashoffset={gaugeReady ? gaugeOffset : CIRCG} transform="rotate(-90 65 65)" />
-              <text x={65} y={62} textAnchor="middle" fontSize={30} fontWeight={800} fill="url(#healthGrad)" fontFamily="var(--mono)">{healthScore}</text>
-              <text x={65} y={78} textAnchor="middle" fontSize={10.5} fill="var(--t3)">/ 100</text>
-            </svg>
-            <div style={{ marginTop: 8, fontSize: 13.5, fontWeight: 800, color: healthColor }}>{healthLabel}</div>
-            <div style={{ fontSize: 12, color: "var(--t3)", marginTop: 2 }}>{lang === "en" ? "Operational Health" : "Kesehatan Operasional"}</div>
-          </div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(120px, 1fr))" }}>
-            {[
-              { label: lang === "en" ? "Total Vehicles" : "Total Kendaraan", value: String(animatedVehicleCount), sub: `${activeV} ${lang === "en" ? "active" : "aktif"}` },
-              { label: lang === "en" ? "Active Drivers" : "Driver Aktif", value: String(animatedActiveDrivers), sub: `${drivers.length} total` },
-              { label: lang === "en" ? "Claims This Month" : "Klaim Bulan Ini", value: `Rp ${fmtRp(thisMonthTotal)}`, sub: claimTrendPct === null ? "-" : `${claimTrendPct >= 0 ? "+" : ""}${claimTrendPct.toFixed(0)}%` },
-              { label: lang === "en" ? "Urgent Documents" : "Dokumen Urgent", value: String(animatedUrgentDocs), sub: "≤30 " + (lang === "en" ? "days" : "hari") },
-            ].map((k, i) => (
-              <div key={i} style={{ padding: "0 18px", borderLeft: i > 0 ? "1px solid var(--border2)" : "none" }}>
-                <div className="numGrad" style={{ fontSize: 26, fontWeight: 800, fontFamily: "var(--mono)", letterSpacing: -0.5 }}>{k.value}</div>
-                <div style={{ fontSize: 13, color: "var(--t2)", fontWeight: 600, marginTop: 4 }}>{k.label}</div>
-                <div style={{ fontSize: 12, color: "var(--t3)", marginTop: 2 }}>{k.sub}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* ── Module snapshot — every function in the system, at a glance ── */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 12, marginBottom: 20 }}>
+      {/* ══════════════════════════════════════════════════════
+          BENTO GRID — module snapshots, asymmetric sizing so the
+          most time-sensitive module (Tasks Today) reads as the
+          featured tile instead of everything looking identical.
+      ══════════════════════════════════════════════════════ */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gridAutoRows: "minmax(108px, auto)", gap: 12, marginBottom: 20 }}>
         {moduleSnapshots.map((m, i) => (
           <button
             key={i}
             onClick={() => setActiveTab(m.tab)}
             className="statPop"
-            style={{ ...cardStyle, padding: 15, textAlign: "left", cursor: "pointer", animationDelay: `${i * 0.05}s`, borderTop: `3px solid ${m.accent}` }}
+            style={{
+              ...cardStyle,
+              gridColumn: m.featured ? "span 2" : "span 1",
+              gridRow: m.featured ? "span 2" : "span 1",
+              padding: m.featured ? 22 : 16,
+              textAlign: "left",
+              cursor: "pointer",
+              animationDelay: `${i * 0.05}s`,
+              borderTop: `3px solid ${m.accent}`,
+              display: "flex",
+              flexDirection: "column",
+              justifyContent: m.featured ? "space-between" : "flex-start",
+              position: "relative",
+              overflow: "hidden",
+            }}
           >
-            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
-              <span style={{ fontSize: 15 }}>{m.icon}</span>
-              <span style={{ fontSize: 12.5, fontWeight: 700, color: "var(--t3)" }}>{m.title}</span>
+            {m.featured && (
+              <div style={{ position: "absolute", top: -20, right: -20, width: 100, height: 100, borderRadius: "50%", background: `${m.accent}14` }} />
+            )}
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: m.featured ? 16 : 10, position: "relative" }}>
+              <span style={{ fontSize: m.featured ? 22 : 15 }}>{m.icon}</span>
+              <span style={{ fontSize: m.featured ? 13.5 : 12.5, fontWeight: 700, color: "var(--t3)" }}>{m.title}</span>
             </div>
-            <div style={{ fontSize: 17, fontWeight: 800, color: "var(--t1)", fontFamily: "var(--mono)", marginBottom: 4 }}>{m.big}</div>
-            <div style={{ fontSize: 12, color: m.accent, fontWeight: 600 }}>{m.sub}</div>
+            <div style={{ position: "relative" }}>
+              <div style={{ fontSize: m.featured ? 34 : 17, fontWeight: 800, color: "var(--t1)", fontFamily: "var(--mono)", marginBottom: 4 }}>{m.big}</div>
+              <div style={{ fontSize: m.featured ? 13 : 12, color: m.accent, fontWeight: 600 }}>{m.sub}</div>
+            </div>
           </button>
         ))}
       </div>
@@ -2131,7 +2190,7 @@ function OverviewTab({ setActiveTab, myProfile }: { setActiveTab: (t: DashboardT
             </div>
           ) : (
             activity.map((a, i) => (
-              <div key={i} className="staggerItem" style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 18px", borderBottom: "1px solid var(--border)", animationDelay: `${i * 0.05}s` }}>
+              <div key={i} className="staggerItem" style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 18px", borderBottom: "1px solid var(--border)", borderLeft: `3px solid ${a.kind === "claim" ? "var(--brand)" : "var(--gold2)"}`, animationDelay: `${i * 0.05}s` }}>
                 <div style={{ width: 32, height: 32, borderRadius: 9, background: a.kind === "claim" ? "rgba(61,111,242,0.1)" : "var(--gold-soft)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 15.5, flexShrink: 0 }}>
                   {a.kind === "claim" ? "🧾" : "⏱️"}
                 </div>
@@ -2154,7 +2213,9 @@ function OverviewTab({ setActiveTab, myProfile }: { setActiveTab: (t: DashboardT
               <button
                 key={i}
                 onClick={() => setActiveTab(q.tab)}
-                style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6, padding: "14px 8px", borderRadius: 12, border: "1px solid var(--border2)", background: "var(--bg2)", cursor: "pointer" }}
+                style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6, padding: "14px 8px", borderRadius: 12, border: "1px solid var(--border2)", background: "var(--bg2)", cursor: "pointer", transition: "transform 0.15s ease, box-shadow 0.15s ease" }}
+                onMouseEnter={(e) => { e.currentTarget.style.transform = "translateY(-2px)"; e.currentTarget.style.boxShadow = "var(--shadow-sm)"; }}
+                onMouseLeave={(e) => { e.currentTarget.style.transform = "translateY(0)"; e.currentTarget.style.boxShadow = "none"; }}
               >
                 <span style={{ fontSize: 20 }}>{q.icon}</span>
                 <span style={{ fontSize: 12.5, fontWeight: 600, color: "var(--t2)", textAlign: "center" }}>{q.label}</span>
@@ -2163,6 +2224,17 @@ function OverviewTab({ setActiveTab, myProfile }: { setActiveTab: (t: DashboardT
           </div>
         </div>
       </div>
+
+      <style>{`
+        @keyframes heroFloat1 {
+          0%, 100% { transform: translate(0, 0) scale(1); }
+          50% { transform: translate(-25px, 30px) scale(1.08); }
+        }
+        @keyframes heroFloat2 {
+          0%, 100% { transform: translate(0, 0) scale(1); }
+          50% { transform: translate(20px, -25px) scale(1.1); }
+        }
+      `}</style>
     </div>
   );
 }
