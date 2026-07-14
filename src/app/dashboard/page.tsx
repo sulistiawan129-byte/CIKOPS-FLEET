@@ -2495,8 +2495,6 @@ function ClaimsTab() {
     borderLeft: `2px solid ${color}`,
     background: "var(--bg2)",
   });
-
-  return (
    return (
     <div className="pageContainer">
       <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap", marginBottom: 16 }}>
