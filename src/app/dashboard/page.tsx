@@ -717,7 +717,7 @@ const [masterDataInitialSub, setMasterDataInitialSub] = useState<"drivers" | "em
           {activeTab === "overview" && <OverviewTab setActiveTab={setActiveTab} myProfile={myProfile} />}
           {activeTab === "vehicles" && <VehiclesTab myProfile={myProfile} />}
           {activeTab === "claims" && <ClaimsTab />}
-          {activeTab === "overtime" && <OvertimeTab />}
+         {activeTab === "overtime" && <OvertimeTab myProfile={myProfile} />}
           {activeTab === "driverbudget" && <DriverBudgetTab />}
           {activeTab === "opfund" && <OpFundTab />}
           {activeTab === "gasstations" && <GasStationsTab />}
@@ -2900,7 +2900,7 @@ function OvertimeTab({ myProfile }: { myProfile: MyProfile | null }) {
     setFormDriverId("");
     setFormMonth(filterMonth);
     setFormYear(filterYear);
-    setFormPlant("CIK");
+    setFormPlant(lockedPlant ?? "CIK");
     setFormHours("");
     setFormAmount("");
     setFormReason("");
