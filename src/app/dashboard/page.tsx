@@ -6,6 +6,8 @@ import type { CSSProperties } from "react";
 import dynamic from "next/dynamic";
 import styles from "./dashboard.module.css";
 import {
+  getMyProfile,
+  canAccessTab,
   cancelTaskByAdmin,
   createTask,
   deleteTask,
