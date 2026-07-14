@@ -2497,8 +2497,9 @@ function ClaimsTab() {
   });
 
   return (
-    <div style={{ padding: 20 }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14, gap: 10, flexWrap: "wrap" }}>
+   return (
+    <div className="pageContainer">
+      <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap", marginBottom: 16 }}>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
           <select
             value={driverFilter}
@@ -2969,22 +2970,22 @@ function OvertimeTab({ myProfile }: { myProfile: MyProfile | null }) {
 
       {error && <div style={{ padding: 12, borderRadius: 10, background: "var(--red-soft)", color: "var(--red)", marginBottom: 14, fontSize: 13 }}>{error}</div>}
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(120px, 1fr))", gap: 13, marginBottom: 18 }}>
-        <div className="statPop" style={{ ...cardStyle, padding: 16 }}>
-          <div style={{ fontSize: 20, fontWeight: 800, color: "var(--t1)" }}>{filtered.length}</div>
-          <div style={{ fontSize: 13, color: "var(--t3)" }}>{lang === "en" ? "Entries" : "Entri"}</div>
+     <div className="statCardRow">
+        <div className="statCardCompact">
+          <div className="iconBadge badge-blue icon">📝</div>
+          <div><div className="value">{filtered.length}</div><div className="label">{lang === "en" ? "Entries" : "Entri"}</div></div>
         </div>
-        <div className="statPop" style={{ ...cardStyle, padding: 16 }}>
-          <div style={{ fontSize: 20, fontWeight: 800, color: "var(--t1)" }}>{fmtRp(totalHours)} jam</div>
-          <div style={{ fontSize: 13, color: "var(--t3)" }}>Total Jam OT</div>
+        <div className="statCardCompact">
+          <div className="iconBadge badge-teal icon">⏱️</div>
+          <div><div className="value">{fmtRp(totalHours)} jam</div><div className="label">Total Jam OT</div></div>
         </div>
-        <div className="statPop" style={{ ...cardStyle, padding: 16 }}>
-          <div style={{ fontSize: 20, fontWeight: 800, color: "var(--gold2)" }}>Rp {fmtRp(totalAmount)}</div>
-          <div style={{ fontSize: 13, color: "var(--t3)" }}>Total Nominal</div>
+        <div className="statCardCompact">
+          <div className="iconBadge badge-orange icon">💰</div>
+          <div><div className="value">Rp {fmtRp(totalAmount)}</div><div className="label">Total Nominal</div></div>
         </div>
-        <div className="statPop" style={{ ...cardStyle, padding: 16 }}>
-          <div style={{ fontSize: 20, fontWeight: 800, color: topPlant ? PLANT_COLOR[topPlant.plant] : "var(--t1)" }}>{topPlant?.plant || "-"}</div>
-          <div style={{ fontSize: 13, color: "var(--t3)" }}>Plant Terbanyak OT</div>
+        <div className="statCardCompact">
+          <div className="iconBadge badge-purple icon">🏭</div>
+          <div><div className="value" style={{ color: topPlant ? PLANT_COLOR[topPlant.plant] : "var(--t1)" }}>{topPlant?.plant || "-"}</div><div className="label">Plant Terbanyak OT</div></div>
         </div>
       </div>
 
@@ -3382,19 +3383,19 @@ function DriverBudgetTab() {
   const labelStyle: CSSProperties = { fontSize: 13, fontWeight: 700, color: "var(--t2)", marginBottom: 5, display: "block" };
 
   return (
-    <div style={{ padding: 20 }}>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 13, marginBottom: 18 }}>
-        <div className="statPop" style={{ ...cardStyle, padding: 16, textAlign: "center" }}>
-          <div style={{ fontSize: 20, fontWeight: 800, color: "var(--t1)" }}>{totalDrivers}</div>
-          <div style={{ fontSize: 13, color: "var(--t3)" }}>{lang === "en" ? "Total Drivers" : "Total Driver"}</div>
+    <div className="pageContainer">
+      <div className="statCardRow">
+        <div className="statCardCompact">
+          <div className="iconBadge badge-blue icon">🧑‍✈️</div>
+          <div><div className="value">{totalDrivers}</div><div className="label">{lang === "en" ? "Total Drivers" : "Total Driver"}</div></div>
         </div>
-        <div className="statPop" style={{ ...cardStyle, padding: 16, textAlign: "center" }}>
-          <div style={{ fontSize: 20, fontWeight: 800, color: "var(--gold2)" }}>Rp {fmtRp(totalBudget)}</div>
-          <div style={{ fontSize: 13, color: "var(--t3)" }}>{lang === "en" ? "Budget/Month" : "Budget/Bulan"}</div>
+        <div className="statCardCompact">
+          <div className="iconBadge badge-teal icon">💳</div>
+          <div><div className="value">Rp {fmtRp(totalBudget)}</div><div className="label">{lang === "en" ? "Budget/Month" : "Budget/Bulan"}</div></div>
         </div>
-        <div className="statPop" style={{ ...cardStyle, padding: 16, textAlign: "center" }}>
-          <div style={{ fontSize: 20, fontWeight: 800, color: "var(--t1)" }}>Rp {fmtRp(totalBudget * 12)}</div>
-          <div style={{ fontSize: 13, color: "var(--t3)" }}>{lang === "en" ? "Per Year" : "Per Tahun"}</div>
+        <div className="statCardCompact">
+          <div className="iconBadge badge-purple icon">📅</div>
+          <div><div className="value">Rp {fmtRp(totalBudget * 12)}</div><div className="label">{lang === "en" ? "Per Year" : "Per Tahun"}</div></div>
         </div>
       </div>
 
@@ -4478,7 +4479,7 @@ function GasStationsTab() {
   const maxGrowth = Math.max(...growthByMonth.map((g) => g.cumulative), 1);
 
   return (
-    <div style={{ padding: 20 }}>
+    <div className="pageContainer">
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 18, gap: 10, flexWrap: "wrap" }}>
         <div>
           <div style={{ fontSize: 18, fontWeight: 800, color: "var(--t1)" }}>{lang === "en" ? "Gas Stations" : "Pom Bensin"}</div>
@@ -4510,17 +4511,20 @@ function GasStationsTab() {
       {error && <div style={{ padding: 12, borderRadius: 10, background: "var(--red-soft)", color: "var(--red)", marginBottom: 14, fontSize: 13 }}>{error}</div>}
 
       {/* ── Stat cards ── */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 13, marginBottom: 18 }}>
+      <div className="statCardRow">
         {[
-          { label: lang === "en" ? "Total Stations" : "Total SPBU", sub: lang === "en" ? "points saved" : "titik tersimpan", value: String(totalStations), color: "var(--brand)" },
-          { label: lang === "en" ? "Fuel Types Tracked" : "Jenis BBM Terlacak", sub: lang === "en" ? "types at ≥1 station" : "jenis di ≥1 SPBU", value: `${fuelTypesTracked}/${FUEL_TYPES_LIST.length}`, color: "var(--gold2)" },
-          { label: lang === "en" ? "Avg Fuel Types/Station" : "Rata BBM/SPBU", sub: lang === "en" ? "types per point" : "jenis per titik", value: avgFuelTypesPerStation.toFixed(1), color: "var(--purple)" },
-          { label: lang === "en" ? "No Fuel Data Yet" : "Belum Ada Data BBM", sub: lang === "en" ? "needs completing" : "perlu dilengkapi", value: String(noFuelDataYet), color: noFuelDataYet > 0 ? "var(--red)" : "var(--green)" },
+          { label: lang === "en" ? "Total Stations" : "Total SPBU", sub: lang === "en" ? "points saved" : "titik tersimpan", value: String(totalStations), badge: "badge-blue", icon: "⛽" },
+          { label: lang === "en" ? "Fuel Types Tracked" : "Jenis BBM Terlacak", sub: lang === "en" ? "types at ≥1 station" : "jenis di ≥1 SPBU", value: `${fuelTypesTracked}/${FUEL_TYPES_LIST.length}`, badge: "badge-teal", icon: "🧪" },
+          { label: lang === "en" ? "Avg Fuel Types/Station" : "Rata BBM/SPBU", sub: lang === "en" ? "types per point" : "jenis per titik", value: avgFuelTypesPerStation.toFixed(1), badge: "badge-purple", icon: "📊" },
+          { label: lang === "en" ? "No Fuel Data Yet" : "Belum Ada Data BBM", sub: lang === "en" ? "needs completing" : "perlu dilengkapi", value: String(noFuelDataYet), badge: noFuelDataYet > 0 ? "badge-red" : "badge-green", icon: "⚠️" },
         ].map((s, i) => (
-          <div key={i} className="statPop" style={{ ...cardStyle, padding: 16, animationDelay: `${i * 0.05}s` }}>
-            <div className="numGrad" style={{ fontSize: 24, fontWeight: 800, fontFamily: "var(--mono)" }}>{s.value}</div>
-            <div style={{ fontSize: 12, fontWeight: 700, color: "var(--t2)", marginTop: 6 }}>{s.label}</div>
-            <div style={{ fontSize: 12.5, color: "var(--t3)", marginTop: 1 }}>{s.sub}</div>
+          <div key={i} className="statCardCompact statPop" style={{ animationDelay: `${i * 0.05}s` }}>
+            <div className={`iconBadge ${s.badge} icon`}>{s.icon}</div>
+            <div>
+              <div className="value">{s.value}</div>
+              <div className="label">{s.label}</div>
+              <div style={{ fontSize: 11, color: "var(--t3)", marginTop: 1 }}>{s.sub}</div>
+            </div>
           </div>
         ))}
       </div>
@@ -4862,8 +4866,8 @@ function VehiclesTab({ myProfile }: { myProfile: MyProfile | null }) {
     display: "block",
   };
 
-  return (
-    <div style={{ padding: 20 }}>
+ return (
+    <div className="pageContainer">
       <div
         style={{
           display: "flex",
@@ -5216,7 +5220,7 @@ function MasterDataTab({
   const cardStyle: CSSProperties = { background: "linear-gradient(180deg, var(--surface2), var(--surface))", border: "1px solid var(--border2)", borderRadius: "var(--r2)", boxShadow: "var(--shadow-md)" };
 
   return (
-    <div style={{ padding: 20 }}>
+    <div className="pageContainer">
       <div style={{ display: "flex", gap: 8, marginBottom: 18, flexWrap: "wrap" }}>
         {([
      { id: "drivers", label: lang === "en" ? "Drivers" : "Driver", icon: "🧑‍✈️" },
