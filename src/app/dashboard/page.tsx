@@ -129,19 +129,49 @@ export type DashboardTab =
   | "canteen"
   | "locker";
 
-const TAB_CONFIG: { id: DashboardTab; icon: string; labelId: string; labelEn: string }[] = [
-  { id: "overview", icon: "📊", labelId: "Ringkasan", labelEn: "Overview" },
-  { id: "tasks", icon: "🗂️", labelId: "Penugasan", labelEn: "Tasks" },
-  { id: "vehicles", icon: "🚗", labelId: "Armada", labelEn: "Vehicles" },
-  { id: "claims", icon: "🧾", labelId: "Klaim", labelEn: "Claims" },
-  { id: "overtime", icon: "⏱️", labelId: "Overtime", labelEn: "Overtime" },
-  { id: "driverbudget", icon: "💳", labelId: "Budget Driver", labelEn: "Driver Budget" },
-  { id: "opfund", icon: "💰", labelId: "Dana Operasional", labelEn: "Operational Fund" },
-  { id: "gasstations", icon: "⛽", labelId: "Pom Bensin", labelEn: "Gas Stations" },
-  { id: "reports", icon: "📈", labelId: "Report", labelEn: "Reports" },
-  { id: "masterdata", icon: "🗄️", labelId: "Master Data", labelEn: "Master Data" },
-  { id: "canteen", icon: "🍱", labelId: "Kantin", labelEn: "Canteen" },
-  { id: "locker", icon: "🔐", labelId: "Locker", labelEn: "Locker" },
+interface NavTab { id: DashboardTab; icon: string; labelId: string; labelEn: string }
+interface NavGroup { id: string; labelId: string; labelEn: string; tabs: NavTab[] }
+
+const NAV_GROUPS: NavGroup[] = [
+  {
+    id: "fleet",
+    labelId: "Fleet & Kendaraan",
+    labelEn: "Fleet & Vehicles",
+    tabs: [
+      { id: "tasks", icon: "🗂️", labelId: "Penugasan", labelEn: "Tasks" },
+      { id: "vehicles", icon: "🚗", labelId: "Armada", labelEn: "Vehicles" },
+      { id: "gasstations", icon: "⛽", labelId: "Pom Bensin", labelEn: "Gas Stations" },
+    ],
+  },
+  {
+    id: "finance",
+    labelId: "Finance",
+    labelEn: "Finance",
+    tabs: [
+      { id: "claims", icon: "🧾", labelId: "Klaim", labelEn: "Claims" },
+      { id: "overtime", icon: "⏱️", labelId: "Overtime", labelEn: "Overtime" },
+      { id: "driverbudget", icon: "💳", labelId: "Budget Driver", labelEn: "Driver Budget" },
+      { id: "opfund", icon: "💰", labelId: "Dana Operasional", labelEn: "Operational Fund" },
+    ],
+  },
+  {
+    id: "facility",
+    labelId: "Fasilitas",
+    labelEn: "Facility",
+    tabs: [
+      { id: "canteen", icon: "🍱", labelId: "Kantin", labelEn: "Canteen" },
+      { id: "locker", icon: "🔐", labelId: "Locker", labelEn: "Locker" },
+    ],
+  },
+  {
+    id: "system",
+    labelId: "Sistem",
+    labelEn: "System",
+    tabs: [
+      { id: "reports", icon: "📈", labelId: "Report", labelEn: "Reports" },
+      { id: "masterdata", icon: "🗄️", labelId: "Master Data", labelEn: "Master Data" },
+    ],
+  },
 ];
 
 /** Hook sederhana untuk deteksi viewport mobile vs desktop, dipakai untuk
@@ -430,44 +460,58 @@ const [masterDataInitialSub, setMasterDataInitialSub] = useState<"drivers" | "em
         <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "18px" }}>
           <img src="/logo.png" alt="CIKOPS" style={{ width: 38, height: 38, filter: "drop-shadow(0 4px 10px rgba(61,111,242,0.35))" }} />
           <div>
-            <div style={{ fontWeight: 800, fontSize: 14, color: "var(--t1)" }}>{t.appName}</div>
-            <div style={{ fontSize: 12, color: "var(--t3)" }}>Fleet Dashboard</div>
+            <div style={{ fontSize: 14, fontWeight: 800, color: "var(--t1)" }}>{t.appName}</div>
+            <div style={{ fontSize: 12, color: "var(--t3)" }}>CIKOPS-FM System</div>
           </div>
         </div>
-        <nav style={{ flex: 1, overflowY: "auto", padding: "10px 10px" }}>
-         {TAB_CONFIG
-       .filter((tabItem) =>
-         myProfile?.accessScope === "tasks_only"
-           ? ["tasks", "vehicles", "masterdata", "claims", "reports"].includes(tabItem.id)
-           : true
-       )
-       .map((tabItem) => (
-            <button
-              key={tabItem.id}
-              className="tabPill"
-              onClick={() => { setActiveTab(tabItem.id); setSidebarOpen(false); }}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 10,
-                width: "100%",
-                padding: "10px 14px",
-                borderRadius: 10,
-                border: "none",
-                cursor: "pointer",
-                marginBottom: 3,
-                fontSize: 13,
-                fontWeight: 600,
-                fontFamily: "var(--font)",
-                textAlign: "left",
-                background: activeTab === tabItem.id ? "linear-gradient(135deg, var(--gold), var(--gold2))" : "transparent",
-                color: activeTab === tabItem.id ? "var(--gold-on)" : "var(--t2)",
-              }}
-            >
-              <span>{tabItem.icon}</span>
-              {lang === "id" ? tabItem.labelId : tabItem.labelEn}
-            </button>
-          ))}
+       <nav style={{ flex: 1, overflowY: "auto", padding: "10px 10px" }}>
+          <button
+            className="tabPill"
+            onClick={() => { setActiveTab("overview"); setSidebarOpen(false); }}
+            style={{
+              display: "flex", alignItems: "center", gap: 10, width: "100%", padding: "10px 14px",
+              borderRadius: 10, border: "none", cursor: "pointer", marginBottom: 14, fontSize: 13, fontWeight: 600,
+              fontFamily: "var(--font)", textAlign: "left",
+              background: activeTab === "overview" ? "linear-gradient(135deg, var(--gold), var(--gold2))" : "transparent",
+              color: activeTab === "overview" ? "var(--gold-on)" : "var(--t2)",
+            }}
+          >
+            <span>📊</span>
+            {lang === "id" ? "Ringkasan" : "Overview"}
+          </button>
+
+          {NAV_GROUPS.map((group) => {
+            const visibleTabs = group.tabs.filter((tabItem) =>
+              myProfile?.accessScope === "tasks_only"
+                ? ["tasks", "vehicles", "masterdata", "claims", "reports"].includes(tabItem.id)
+                : true
+            );
+            if (visibleTabs.length === 0) return null;
+            return (
+              <div key={group.id} style={{ marginBottom: 14 }}>
+                <div style={{ padding: "0 14px", marginBottom: 6, fontSize: 10.5, fontWeight: 700, color: "var(--t3)", textTransform: "uppercase", letterSpacing: "0.08em" }}>
+                  {lang === "id" ? group.labelId : group.labelEn}
+                </div>
+                {visibleTabs.map((tabItem) => (
+                  <button
+                    key={tabItem.id}
+                    className="tabPill"
+                    onClick={() => { setActiveTab(tabItem.id); setSidebarOpen(false); }}
+                    style={{
+                      display: "flex", alignItems: "center", gap: 10, width: "100%", padding: "10px 14px",
+                      borderRadius: 10, border: "none", cursor: "pointer", marginBottom: 3, fontSize: 13, fontWeight: 600,
+                      fontFamily: "var(--font)", textAlign: "left",
+                      background: activeTab === tabItem.id ? "linear-gradient(135deg, var(--gold), var(--gold2))" : "transparent",
+                      color: activeTab === tabItem.id ? "var(--gold-on)" : "var(--t2)",
+                    }}
+                  >
+                    <span>{tabItem.icon}</span>
+                    {lang === "id" ? tabItem.labelId : tabItem.labelEn}
+                  </button>
+                ))}
+              </div>
+            );
+          })}
         </nav>
         <div style={{ padding: "10px", borderTop: "1px solid var(--border)" }}>
           <button
@@ -3156,8 +3200,8 @@ function LoginScreen() {
             </div>
             <div style={{ fontSize: 13, color: "rgba(255,255,255,0.72)", maxWidth: 340 }}>
               {lang === "en"
-                ? "Fleet, claims, overtime, and driver operations — managed in one integrated dashboard."
-                : "Armada, klaim, overtime, dan operasional driver — dikelola dalam satu dashboard terintegrasi."}
+                ? "Fleet, finance, and facility operations — managed in one integrated ecosystem."
+                : "Fleet, finance, dan fasilitas — dikelola dalam satu ekosistem terintegrasi."}
             </div>
           </div>
 
