@@ -104,6 +104,7 @@ import type {
 import { computeStats } from "@/lib/types";
 import { useLang, useTheme } from "@/lib/providers";
 import LockerTab from "./LockerTab";
+import CanteenTab from "./CanteenTab";
 import { useAuth } from "@/lib/auth";
 import { supabase } from "@/lib/supabaseClient";
 import { toLocalISODate } from "@/lib/dateUtils";
@@ -5704,39 +5705,6 @@ function fmtCanteenDate(d: string, lang: string): string {
   } catch {
     return d;
   }
-}
-
-function CanteenTab() {
-  const { lang } = useLang();
-  const [sub, setSub] = useState<"entry" | "dashboard">("dashboard");
-  const cardStyle: CSSProperties = { background: "linear-gradient(180deg, var(--surface2), var(--surface))", border: "1px solid var(--border2)", borderRadius: "var(--r2)", boxShadow: "var(--shadow-md)" };
-
-  return (
-    <div style={{ padding: 20 }}>
-      <div style={{ display: "flex", gap: 8, marginBottom: 18 }}>
-        {([
-          { id: "dashboard", label: lang === "en" ? "Dashboard" : "Dashboard", icon: "📊" },
-          { id: "entry", label: lang === "en" ? "Daily Entry" : "Input Harian", icon: "📝" },
-        ] as const).map((s) => (
-          <button
-            key={s.id}
-            className="tabPill"
-            onClick={() => setSub(s.id)}
-            style={{
-              padding: "9px 18px", borderRadius: "var(--pill)", border: "none", cursor: "pointer",
-              fontSize: 13, fontWeight: 700,
-              background: sub === s.id ? "linear-gradient(135deg, var(--green), #0d8a4f)" : "var(--surface2)",
-              color: sub === s.id ? "#fff" : "var(--t2)",
-            }}
-          >
-            {s.icon} {s.label}
-          </button>
-        ))}
-      </div>
-      {sub === "dashboard" && <CanteenDashboardPanel cardStyle={cardStyle} />}
-      {sub === "entry" && <CanteenEntryPanel cardStyle={cardStyle} onSaved={() => setSub("dashboard")} />}
-    </div>
-  );
 }
 
 /* ── Daily Entry sub-panel ── */
