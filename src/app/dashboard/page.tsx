@@ -484,10 +484,6 @@ const [masterDataInitialSub, setMasterDataInitialSub] = useState<"drivers" | "em
 
           {NAV_GROUPS.map((group) => {
             const visibleTabs = group.tabs.filter((tabItem) => canAccessTab(myProfile, tabItem.id));
-              myProfile?.accessScope === "tasks_only"
-                ? ["tasks", "vehicles", "masterdata", "claims", "reports"].includes(tabItem.id)
-                : true
-            );
             if (visibleTabs.length === 0) return null;
             return (
               <div key={group.id} style={{ marginBottom: 14 }}>
