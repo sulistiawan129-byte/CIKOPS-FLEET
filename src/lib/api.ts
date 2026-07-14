@@ -774,13 +774,14 @@ export interface MyProfile {
   role: string;
   plantScope: Plant | null; // null = lihat semua plant (admin/GA global)
   accessScope: "full" | "tasks_only";
+  allowedTabs: string[] | null; // null = akses semua tab; array = HANYA tab-tab itu
 }
 
 export async function getMyProfile(userId: string): Promise<MyProfile | null> {
   try {
     const { data, error } = await supabase
       .from("profiles")
-      .select("full_name, role, plant_scope, access_scope")
+      .select("full_name, role, plant_scope, access_scope, allowed_tabs")
       .eq("id", userId)
       .maybeSingle();
     if (error || !data) return null;
@@ -789,12 +790,19 @@ export async function getMyProfile(userId: string): Promise<MyProfile | null> {
       role: data.role,
       plantScope: (data.plant_scope as Plant | null) ?? null,
       accessScope: (data.access_scope as "full" | "tasks_only") ?? "full",
+      allowedTabs: (data.allowed_tabs as string[] | null) ?? null,
     };
   } catch {
     return null;
   }
 }
 
+/** Helper — dipakai di sidebar & tempat lain buat cek apakah profil ini
+ *  boleh lihat tab tertentu. `allowedTabs === null` artinya akses penuh. */
+export function canAccessTab(profile: MyProfile | null, tab: string): boolean {
+  if (!profile) return true; // masih loading — jangan sembunyikan dulu, biar tidak flash-hidden
+  return profile.allowedTabs === null || profile.allowedTabs.includes(tab);
+}
 /* ════════════════════════════════════════════════════════════
    MASTER DATA — Drivers, Employees, Job Types.
    Unlike getDrivers()/getEmployees()/getJobTypes() above (which filter
