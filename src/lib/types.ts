@@ -94,6 +94,7 @@ export interface DriverTier {
 export interface Kantong {
   id: string;
   period: string; // "YYYY-MM"
+  plant: Plant;
   totalBudget: number;
   allocOpDriver: number;
   allocEmergency: number;
