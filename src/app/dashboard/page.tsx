@@ -717,7 +717,7 @@ const [masterDataInitialSub, setMasterDataInitialSub] = useState<"drivers" | "em
           {activeTab === "overview" && <OverviewTab setActiveTab={setActiveTab} myProfile={myProfile} />}
           {activeTab === "vehicles" && <VehiclesTab myProfile={myProfile} />}
           {activeTab === "claims" && <ClaimsTab />}
-          {activeTab === "overtime" && <OvertimeTab />}
+         {activeTab === "overtime" && <OvertimeTab myProfile={myProfile} />}
           {activeTab === "driverbudget" && <DriverBudgetTab />}
           {activeTab === "opfund" && <OpFundTab />}
           {activeTab === "gasstations" && <GasStationsTab />}
@@ -2816,10 +2816,12 @@ const PLANT_COLOR: Record<Plant, string> = { CIK: "var(--brand)", PRB: "var(--gr
 const MONTHS_ID = ["Januari","Februari","Maret","April","Mei","Juni","Juli","Agustus","September","Oktober","November","Desember"];
 const MONTHS_EN = ["January","February","March","April","May","June","July","August","September","October","November","December"];
 
-function OvertimeTab() {
+function OvertimeTab({ myProfile }: { myProfile: MyProfile | null }) {
   const { lang, t } = useLang();
   const months = lang === "en" ? MONTHS_EN : MONTHS_ID;
   const now = new Date();
+
+  const lockedPlant = myProfile?.plantScope ?? null;
 
   const [overtimes, setOvertimes] = useState<Overtime[]>([]);
   const [drivers, setDrivers] = useState<Driver[]>([]);
@@ -2828,19 +2830,26 @@ function OvertimeTab() {
 
   const [filterMonth, setFilterMonth] = useState(now.getMonth());
   const [filterYear, setFilterYear] = useState(now.getFullYear());
-  const [filterPlant, setFilterPlant] = useState<"all" | Plant>("all");
+  const [filterPlant, setFilterPlant] = useState<"all" | Plant>(lockedPlant ?? "all");
 
   const [showForm, setShowForm] = useState(false);
   const [formDriverId, setFormDriverId] = useState("");
   const [formMonth, setFormMonth] = useState(now.getMonth());
   const [formYear, setFormYear] = useState(now.getFullYear());
-  const [formPlant, setFormPlant] = useState<Plant>("CIK");
+  const [formPlant, setFormPlant] = useState<Plant>(lockedPlant ?? "CIK");
   const [formHours, setFormHours] = useState("");
   const [formAmount, setFormAmount] = useState("");
   const [formReason, setFormReason] = useState("");
   const [saving, setSaving] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState<Overtime | null>(null);
 
+  useEffect(() => {
+    if (lockedPlant) {
+      setFilterPlant(lockedPlant);
+      setFormPlant(lockedPlant);
+    }
+  }, [lockedPlant]);
+  
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -2891,7 +2900,7 @@ function OvertimeTab() {
     setFormDriverId("");
     setFormMonth(filterMonth);
     setFormYear(filterYear);
-    setFormPlant("CIK");
+    setFormPlant(lockedPlant ?? "CIK");
     setFormHours("");
     setFormAmount("");
     setFormReason("");
@@ -5206,7 +5215,8 @@ function MasterDataTab({
    future app-wide config. ── */
 function SettingsPanel({ cardStyle }: { cardStyle: CSSProperties }) {
   const { lang, t } = useLang();
-  const [managerEmail, setManagerEmail] = useState("");
+  const [managerEmails, setManagerEmails] = useState<string[]>([]);
+  const [newManagerEmail, setNewManagerEmail] = useState("");
   const [driverUserIds, setDriverUserIds] = useState<string[]>([]);
   const [allDrivers, setAllDrivers] = useState<Driver[]>([]);
   const [loading, setLoading] = useState(true);
@@ -5223,7 +5233,7 @@ function SettingsPanel({ cardStyle }: { cardStyle: CSSProperties }) {
         getAppSetting("driver_user_ids"),
         getAllDriversFull(),
       ]);
-      setManagerEmail(me);
+      setManagerEmails(me ? me.split(",").map((e) => e.trim()).filter(Boolean) : []);
       setDriverUserIds(du ? du.split(",").filter(Boolean) : []);
       setAllDrivers(drv);
     } catch (e) {
@@ -5238,12 +5248,27 @@ function SettingsPanel({ cardStyle }: { cardStyle: CSSProperties }) {
     setDriverUserIds((p) => (p.includes(id) ? p.filter((x) => x !== id) : [...p, id]));
   }
 
+  function addManagerEmail() {
+    const email = newManagerEmail.trim();
+    if (!email) return;
+    if (managerEmails.some((e) => e.toLowerCase() === email.toLowerCase())) {
+      setNewManagerEmail("");
+      return;
+    }
+    setManagerEmails((p) => [...p, email]);
+    setNewManagerEmail("");
+  }
+
+  function removeManagerEmail(email: string) {
+    setManagerEmails((p) => p.filter((e) => e !== email));
+  }
+
   async function handleSave() {
     setSaving(true);
     setSaved(false);
     try {
       await Promise.all([
-        setAppSetting("manager_email", managerEmail.trim()),
+        setAppSetting("manager_email", managerEmails.join(",")),
         setAppSetting("driver_user_ids", driverUserIds.join(",")),
       ]);
       setSaved(true);
@@ -5268,21 +5293,62 @@ function SettingsPanel({ cardStyle }: { cardStyle: CSSProperties }) {
         </div>
         <div style={{ fontSize: 12, color: "var(--t3)", marginBottom: 18, lineHeight: 1.5 }}>
           {lang === "en"
-            ? "Every time a claim is submitted, the driver gets a confirmation email and this manager address gets a formal copy for record-keeping."
-            : "Setiap kali klaim diajukan, driver dapat email konfirmasi dan alamat manager ini dapat salinan formal untuk dokumentasi."}
+            ? "Every time a claim is submitted, the driver gets a confirmation email and every manager address below gets a formal copy for record-keeping."
+            : "Setiap kali klaim diajukan, driver dapat email konfirmasi dan setiap alamat manager di bawah ini dapat salinan formal untuk dokumentasi."}
         </div>
 
         {error && <div style={{ padding: 10, borderRadius: 8, background: "var(--red-soft)", color: "var(--red)", marginBottom: 14, fontSize: 12.5 }}>{error}</div>}
 
-        <label style={labelStyle}>{lang === "en" ? "MANAGER EMAIL" : "EMAIL MANAGER"}</label>
-        <input
-          className="premiumInput"
-          style={inputStyle}
-          type="email"
-          value={managerEmail}
-          onChange={(e) => setManagerEmail(e.target.value)}
-          placeholder="manager@company.com"
-        />
+        <label style={labelStyle}>{lang === "en" ? "MANAGER EMAILS" : "EMAIL MANAGER"}</label>
+
+        {managerEmails.length > 0 && (
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 10 }}>
+            {managerEmails.map((email) => (
+              <span
+                key={email}
+                style={{
+                  display: "inline-flex", alignItems: "center", gap: 6, padding: "6px 10px",
+                  borderRadius: "var(--pill)", background: "var(--bg2)", border: "1px solid var(--border2)",
+                  fontSize: 12.5, color: "var(--t1)",
+                }}
+              >
+                {email}
+                <button
+                  onClick={() => removeManagerEmail(email)}
+                  style={{ border: "none", background: "none", color: "var(--red)", cursor: "pointer", fontSize: 13, lineHeight: 1, padding: 0 }}
+                  title={lang === "en" ? "Remove" : "Hapus"}
+                >
+                  ✕
+                </button>
+              </span>
+            ))}
+          </div>
+        )}
+
+        <div style={{ display: "flex", gap: 8 }}>
+          <input
+            className="premiumInput"
+            style={inputStyle}
+            type="email"
+            value={newManagerEmail}
+            onChange={(e) => setNewManagerEmail(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addManagerEmail(); } }}
+            placeholder="manager@company.com"
+          />
+          <button
+            onClick={addManagerEmail}
+            style={{ padding: "0 16px", borderRadius: 10, border: "1px solid var(--border2)", background: "var(--surface2)", color: "var(--t2)", fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap" }}
+          >
+            + {lang === "en" ? "Add" : "Tambah"}
+          </button>
+        </div>
+        {managerEmails.length === 0 && (
+          <div style={{ fontSize: 11.5, color: "var(--t3)", marginTop: 6 }}>
+            {lang === "en"
+              ? "No manager email configured yet — claim copies won't be sent until you add at least one."
+              : "Belum ada email manager — salinan klaim tidak akan terkirim sampai kamu tambah minimal satu."}
+          </div>
+        )}
       </div>
 
       <div className="statPop" style={{ ...cardStyle, padding: 24 }}>
