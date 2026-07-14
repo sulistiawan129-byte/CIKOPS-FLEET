@@ -162,10 +162,10 @@ export interface Dict {
 
 export const DICT: Record<Lang, Dict> = {
   id: {
-    appName: "CIKOPS",
-    appTagline: "Fleet Operations",
+    appName: "CIKOPS-FM",
+    appTagline: "Facility Management",
 
-    splashTagline: "Fleet Operations",
+    splashTagline: "Facility Management",
 
     pilihDriver: "Pilih Driver",
     memuatDriver: "Memuat driver...",
@@ -258,7 +258,7 @@ export const DICT: Record<Lang, Dict> = {
 
     // Admin/GA Login (new)
     loginTitle: "Masuk Admin/GA",
-    loginSubtitle: "Dashboard Fleet Management",
+    loginSubtitle: "loginSubtitle:CIKOPS-FM System",
     loginEmail: "Email",
     loginPassword: "Kata Sandi",
     loginButton: "Masuk",
@@ -400,7 +400,7 @@ export const DICT: Record<Lang, Dict> = {
 
     // Admin/GA Login (new)
     loginTitle: "Admin/GA Sign In",
-    loginSubtitle: "Fleet Management Dashboard",
+    loginSubtitle: "CIKOPS-FM System",
     loginEmail: "Email",
     loginPassword: "Password",
     loginButton: "Sign In",

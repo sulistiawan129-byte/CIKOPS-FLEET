@@ -174,6 +174,7 @@ function LockerOverviewPanel() {
   const [detailLoading, setDetailLoading] = useState(false);
   const [releaseConfirm, setReleaseConfirm] = useState(false);
   const [releasing, setReleasing] = useState(false);
+  const [releaseResult, setReleaseResult] = useState<{ number: string; pin: string } | null>(null);
   const [toast, setToast] = useState<string | null>(null);
 
   function showToast(msg: string) {
@@ -252,10 +253,21 @@ function LockerOverviewPanel() {
     if (!detail) return;
     setReleasing(true);
     try {
-      await adminReleaseLocker(detail.number);
+      const res = await adminReleaseLocker(detail.number);
+      if (res.email) {
+        sendLockerEmail({
+          kind: "release",
+          toEmail: res.email,
+          lockerNumber: res.lockerNumber,
+          nama: res.nama,
+          extra: res.extra,
+          periode: res.periode,
+          source: "admin",
+        }).catch(() => {});
+      }
       setReleaseConfirm(false);
       setDetail(null);
-      showToast(`Locker ${detail.number} berhasil dinonaktifkan`);
+      setReleaseResult({ number: res.lockerNumber, pin: res.pin });
       await load();
     } catch (e) {
       showToast(e instanceof Error ? e.message : "Gagal memproses");
@@ -456,6 +468,35 @@ function LockerOverviewPanel() {
                 ))
               )}
             </div>
+          </div>
+        </ModalPortal>
+      )}
+
+      {releaseResult && (
+        <ModalPortal onOverlayClick={() => setReleaseResult(null)} maxWidth={380}>
+          <div className="heroGlow" style={{ borderRadius: "var(--r2)", boxShadow: "var(--shadow-lg)", padding: 26, textAlign: "center" }}>
+            <div style={{ fontSize: 30, marginBottom: 10 }}>✅</div>
+            <div style={{ fontSize: 16, fontWeight: 800, color: "var(--t1)", marginBottom: 4 }}>
+              Locker {releaseResult.number} berhasil dinonaktifkan
+            </div>
+            <div style={{ fontSize: 12.5, color: "var(--t3)", marginBottom: 18 }}>
+              Penghuni sebelumnya sudah diberi tahu (email) bahwa PIN mereka tidak berlaku lagi.
+            </div>
+            <div style={{ background: "var(--green-soft)", border: "1px solid var(--green)", borderRadius: 14, padding: "16px 14px", marginBottom: 18 }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: "var(--green)", textTransform: "uppercase", marginBottom: 6 }}>
+                ✓ Tidak Perlu Reset Kunci Fisik
+              </div>
+              <div style={{ fontSize: 12.5, color: "var(--t2)", lineHeight: 1.5 }}>
+                PIN locker ini tetap sama seperti sebelumnya — <strong style={{ fontFamily: "var(--mono)", color: "var(--t1)" }}>{releaseResult.pin}</strong> — siap langsung dipakai peserta berikutnya.
+              </div>
+            </div>
+            <button
+              onClick={() => setReleaseResult(null)}
+              className="pillBtn"
+              style={{ width: "100%", justifyContent: "center" }}
+            >
+              Selesai
+            </button>
           </div>
         </ModalPortal>
       )}

@@ -4,8 +4,8 @@ import { AppProviders } from "@/lib/providers";
 import { AuthProvider } from "@/lib/auth";
 
 export const metadata: Metadata = {
-  title: "CIKOPS Fleet Ops",
-  description: "Driver Task Management System — CIKOPS Fleet Operations",
+  title: "CIKOPS-FM System",
+  description: "Facility Management System — CIKOPS-FM",
   manifest: "/manifest.json",
   icons: {
     icon: "/favicon.png",
