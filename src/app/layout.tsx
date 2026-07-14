@@ -1,5 +1,19 @@
-import type { Metadata, Viewport } from "next";
+import type { Metadata } from "next";
+import { Inter, Poppins } from "next/font/google";
 import "./globals.css";
+
+const inter = Inter({
+  subsets: ["latin"],
+  variable: "--font-inter",
+  display: "swap",
+});
+
+const poppins = Poppins({
+  subsets: ["latin"],
+  weight: ["600", "700", "800"],
+  variable: "--font-poppins",
+  display: "swap",
+});
 import { AppProviders } from "@/lib/providers";
 import { AuthProvider } from "@/lib/auth";
 
@@ -48,6 +62,7 @@ export default function RootLayout({
         <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
       </head>
       <body>
+        <body className={`${inter.variable} ${poppins.variable}`}>
         <AppProviders>
           <AuthProvider>{children}</AuthProvider>
         </AppProviders>
