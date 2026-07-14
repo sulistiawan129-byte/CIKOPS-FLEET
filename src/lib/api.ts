@@ -937,13 +937,14 @@ export interface ClaimEmailInput {
 
 async function invokeClaimEmail(
   recipientType: "driver" | "manager",
-  toEmail: string,
+  toEmail: string | string[],
   input: ClaimEmailInput
 ): Promise<{ ok: boolean; error?: string }> {
-  if (!toEmail) return { ok: false, error: "No recipient email configured" };
+  const recipients = Array.isArray(toEmail) ? toEmail.filter(Boolean) : [toEmail].filter(Boolean);
+  if (recipients.length === 0) return { ok: false, error: "No recipient email configured" };
   try {
     const { error } = await supabase.functions.invoke("send-claim-email", {
-      body: { recipientType, toEmail, ...input },
+      body: { recipientType, toEmail: recipients, ...input },
     });
     if (error) return { ok: false, error: error.message };
     return { ok: true };
@@ -960,22 +961,19 @@ export async function sendClaimNotificationEmails(
   driverEmail: string | null | undefined,
   input: ClaimEmailInput
 ): Promise<{ driver: { ok: boolean; error?: string } | null; manager: { ok: boolean; error?: string } | null }> {
-  let managerEmail = "";
+  let managerEmails: string[] = [];
   try {
-    managerEmail = await getAppSetting("manager_email");
+    const raw = await getAppSetting("manager_email");
+    managerEmails = raw ? raw.split(",").map((e) => e.trim()).filter(Boolean) : [];
   } catch (e) {
-    // Previously this failure was silently swallowed (`.catch(() => "")`),
-    // so a misconfigured/blocked read of manager_email would look
-    // identical to "no manager email set" — no trace anywhere. Now it's
-    // at least visible in the console for debugging.
     console.warn("Failed to read manager_email setting:", e instanceof Error ? e.message : e);
   }
-  if (!managerEmail) {
+  if (managerEmails.length === 0) {
     console.warn("sendClaimNotificationEmails: manager_email is empty — no manager copy will be sent.");
   }
   const [driverResult, managerResult] = await Promise.all([
     driverEmail ? invokeClaimEmail("driver", driverEmail, input) : Promise.resolve(null),
-    managerEmail ? invokeClaimEmail("manager", managerEmail, input) : Promise.resolve(null),
+    managerEmails.length > 0 ? invokeClaimEmail("manager", managerEmails, input) : Promise.resolve(null),
   ]);
   return { driver: driverResult, manager: managerResult };
 }
