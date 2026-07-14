@@ -252,11 +252,17 @@
   font-size: var(--fs-lg);
 }
 
+/* Font disamakan dengan SEMUA angka lain di app (lihat globals.css:
+   "SEMUA ANGKA PAKAI FONT YANG SAMA") — mono + tabular-nums, bukan
+   ikut font default lagi. */
 .statCardNum {
+  font-family: var(--mono);
   font-size: var(--fs-2xl);
-  font-weight: 900;
+  font-weight: 700;
   color: var(--t1);
   line-height: 1;
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
 }
 
 .statCardLabel {
