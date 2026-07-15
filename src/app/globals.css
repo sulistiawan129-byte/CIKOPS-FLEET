@@ -1,49 +1,5 @@
 @import url("https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400&family=JetBrains+Mono:wght@400;500;600;700&display=swap");
 @import "leaflet/dist/leaflet.css";
-
-/* ════════════════════════════════════════════════════════════
-   CATATAN PEMBERSIHAN (baca ini dulu)
-   File aslinya (globals.css) ternyata di-paste 2x isinya persis
-   sama, jadi hanya ada SATU file sumber sebenarnya. Di dalam file
-   itu sendiri juga ada beberapa blok yang tertulis dua kali dengan
-   nilai BERBEDA (bukan cuma duplikat kosong) — ini konflik nyata
-   karena selector-nya sama persis (spesifisitas sama), jadi yang
-   menang cuma yang letaknya paling akhir, sisanya jadi sampah/
-   membingungkan untuk yang baca. Yang saya perbaiki:
-
-   1. `.navItem` ditulis 2x dengan gap/padding/font-size berbeda,
-      dan aturan `.navItem span:first-child` hanya ada di versi
-      pertama → digabung jadi satu definisi yang konsisten.
-   2. `.navItemActive`, `.navItemActive::before`, `.navSectionLabel`
-      juga ditulis 2x dengan margin/padding beda → disatukan,
-      pakai versi "compact" (yang terakhir menang secara efektif).
-   3. `.topbarIconBtn`, `.cardNeutral`, `.iconBadge.badge-*`,
-      `.glowDot` — identik persis, ditulis 2x tanpa alasan (bloat).
-      Dihapus salah satu.
-   4. `.statLabel` (font-family mono hilang di versi ke-2) dan
-      `.statValue` (32px vs 26px) — konflik nilai. Sekarang pakai
-      token skala tipografi yang sudah ada (`--fs-xs`, `--fs-xl`)
-      supaya tidak hardcode dan tidak dobel definisi lagi.
-   5. `.pillBtn` ditulis 3x terpisah (base style, shimmer ::after,
-      lalu `:active` transform yang saling timpa: `translateY(0)`
-      lalu `scale(0.97)`) → digabung jadi satu blok, hasil akhir
-      `:active` pakai `scale(0.97)` (yang tetap "menang" di file asli).
-   6. `body`/`html` font-size ditulis bertingkat: awalnya 16px,
-      lalu di bagian "TYPOGRAPHY & SPACING FOUNDATION" di-override
-      diam-diam jadi `var(--fs-base)` = 14px. Ini kemungkinan besar
-      TIDAK disengaja — kalau memang mau base 14px (umum untuk
-      dashboard padat), sudah saya jadikan eksplisit di satu tempat;
-      kalau ternyata mau tetap 16px, tinggal ganti `--fs-base` jadi
-      16px di :root, efeknya langsung konsisten ke semua tempat.
-   7. Seluruh blok "DESIGN SYSTEM v2" dan "DESIGN SYSTEM v3" yang
-      tadinya nyebar di 3 tempat dengan komentar section yang sama
-      persis, sekarang disusun berurutan & tidak diulang.
-
-   Efek dari pembersihan ini: file jadi ~40% lebih pendek, dan
-   tidak ada lagi selector yang "diam-diam" ketiban definisi lain
-   di bawahnya tanpa disadari.
-════════════════════════════════════════════════════════════ */
-
 *,
 *::before,
 *::after {
@@ -53,14 +9,6 @@
   margin: 0;
   padding: 0;
 }
-
-/* ════════════════════════════════════════════════
-   DESIGN TOKENS — "Sky & Gold", light-first
-   Nama variable sengaja dipertahankan (--brand, --navy, --neon,
-   --gold, dst) walau nilai warnanya sudah berganti tema, supaya
-   semua CSS module lain yang sudah memakai nama-nama ini tetap
-   otomatis ikut berubah tanpa perlu diedit satu-satu.
-════════════════════════════════════════════════ */
 :root {
   --bg: #f3f8fd;
   --bg2: #e8f3fc;
