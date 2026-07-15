@@ -676,14 +676,18 @@ export async function resetKantong(
  *  tren gap) — beda dari getCurrentKantong() yang cuma ambil 1 baris
  *  terbaru lewat view current_kantong. */
 export async function getKantongHistory(plant: Plant, limit = 12): Promise<Kantong[]> {
+  // Ambil dulu N periode TERBARU (descending + limit), baru dibalik ke urutan
+  // kronologis (ascending) supaya grafik tren tetap terbaca kiri->kanan.
+  // NB: order("period", { ascending: true }) + limit() SALAH di sini karena
+  // itu akan mengambil N periode TERTUA, bukan yang terbaru.
   const { data, error } = await supabase
     .from("kantong")
     .select("*")
     .eq("plant", plant)
-    .order("period", { ascending: true })
+    .order("period", { ascending: false })
     .limit(limit);
   if (error) throw error;
-  return ((data as KantongRow[]) ?? []).map(mapKantongRow);
+  return ((data as KantongRow[]) ?? []).map(mapKantongRow).reverse();
 }
 
 /* ════════════════════════════════════════════════════════════
