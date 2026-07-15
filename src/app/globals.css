@@ -858,10 +858,75 @@ h1, h2, h3 {
   white-space: nowrap;
 }
 
-/* Tiga varian warna — dipakai berdasarkan MAKNA (biru = total/netral,
-   teal = positif/pemasukan, merah = negatif/pengeluaran), bukan
-   dipilih bebas per selera, supaya warnanya tetap fungsional seperti
-   di foto (bukan dekorasi kosong). */
 .moneyValue.isBlue { color: #5b8cff; }
 .moneyValue.isTeal { color: #2dd4c4; }
 .moneyValue.isRed  { color: #ff6b63; }
+
+/* ════════════════════════════════════════════════════════════
+   GLASSMORPHISM + NEON ACCENT — kesan premium/modern untuk kartu
+   dan judul section, dipakai lewat className tambahan "cardGlass"
+   di samping style inline yang sudah ada.
+════════════════════════════════════════════════════════════ */
+
+/* Judul section — sekarang gradient warna, lebih besar & tebal. */
+.sectionHeading {
+  font-size: 14.5px !important;
+  font-weight: 800 !important;
+  color: transparent !important;
+  background: linear-gradient(120deg, var(--brand), var(--gold)) !important;
+  -webkit-background-clip: text !important;
+  background-clip: text !important;
+  -webkit-text-fill-color: transparent !important;
+  letter-spacing: 0.04em !important;
+}
+.sectionHeading::before {
+  background: linear-gradient(180deg, var(--brand), var(--gold)) !important;
+  box-shadow: 0 0 10px var(--brand);
+  width: 4px !important;
+}
+
+/* Kartu glassmorphism + neon glow saat hover — dipakai bareng
+   className "statPop" yang sudah ada (jangan diganti, cukup
+   ditambah). Efek beda dikit antara light/dark mode. */
+.cardGlass {
+  background: rgba(255, 255, 255, 0.6) !important;
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  border: 1px solid rgba(255, 255, 255, 0.5) !important;
+  box-shadow: 0 8px 32px rgba(20, 49, 92, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.7) !important;
+  transition: box-shadow 0.25s ease, transform 0.25s ease, border-color 0.25s ease;
+}
+.cardGlass:hover {
+  transform: translateY(-3px);
+  border-color: rgba(61, 111, 242, 0.35) !important;
+  box-shadow: 0 16px 40px rgba(61, 111, 242, 0.2), 0 0 0 1px rgba(61, 111, 242, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.7) !important;
+}
+
+[data-theme="dark"] .cardGlass {
+  background: rgba(15, 33, 56, 0.55) !important;
+  border: 1px solid rgba(255, 255, 255, 0.09) !important;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.06) !important;
+}
+[data-theme="dark"] .cardGlass:hover {
+  border-color: rgba(91, 140, 255, 0.4) !important;
+  box-shadow: 0 0 28px rgba(91, 140, 255, 0.35), 0 16px 40px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.06) !important;
+}
+
+/* Varian neon lebih kuat — dipakai buat kartu yang mau ditonjolkan
+   (opsional, tambahkan className "cardNeon" kalau mau efek lebih). */
+.cardNeon {
+  position: relative;
+}
+.cardNeon::after {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(135deg, var(--brand), var(--gold), var(--purple));
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  opacity: 0.5;
+  pointer-events: none;
+}
