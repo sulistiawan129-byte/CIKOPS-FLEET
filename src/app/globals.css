@@ -45,9 +45,9 @@
   --t2: #47617f;
   --t3: #74889f;
 
- --font: var(--font-space-mono), "Space Mono", "JetBrains Mono", monospace;
-  --font-display: var(--font-space-mono), "Space Mono", monospace;
-  --mono: var(--font-space-mono), "Space Mono", monospace;
+ --font: var(--font-space-mono, "Space Mono"), "Space Mono", "JetBrains Mono", monospace;
+--font-display: var(--font-space-mono, "Space Mono"), "Space Mono", monospace;
+--mono: var(--font-space-mono, "Space Mono"), "Space Mono", monospace;
   --r1: 16px;
   --r2: 22px;
   --r3: 30px;
