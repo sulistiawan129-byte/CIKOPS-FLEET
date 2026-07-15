@@ -2373,8 +2373,8 @@ function ClaimsTab() {
   const uniqueDriversFiltered = new Set(filtered.map((c) => c.driver_id)).size;
   const animatedClaimsCount = useCountUp(filtered.length);
   const animatedTotalFiltered = useCountUp(totalFiltered);
-  const animatedActiveDrivers = useCountUp(uniqueDriversFiltered);
-
+  const animatedActiveDriversClaims = useCountUp(uniqueDriversFiltered);
+  
   function openAdd() {
     setFormDriverId("");
     setSubmissionDate(todayStr());
