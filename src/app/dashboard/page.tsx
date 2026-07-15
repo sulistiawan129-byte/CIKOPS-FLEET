@@ -4476,8 +4476,8 @@ function GasStationsTab() {
   })();
   const maxGrowth = Math.max(...growthByMonth.map((g) => g.cumulative), 1);
 
-  return (
-    <div className="pageContainer">
+return (
+    <div style={{ padding: 20 }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 18, gap: 10, flexWrap: "wrap" }}>
         <div>
           <div style={{ fontSize: 18, fontWeight: 800, color: "var(--t1)" }}>{lang === "en" ? "Gas Stations" : "Pom Bensin"}</div>
