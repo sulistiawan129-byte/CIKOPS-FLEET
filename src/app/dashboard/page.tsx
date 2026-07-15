@@ -2061,10 +2061,11 @@ function OverviewTab({ setActiveTab, myProfile }: { setActiveTab: (t: DashboardT
         </div>
       </div>
 
+      <div className="sectionHeading">{lang === "en" ? "Today's Operations" : "Operasional Hari Ini"}</div>
       {/* ══════════════════════════════════════════════════════
           TASKS HARI INI (detail) + OPERATIONAL FUND (CIK/PRB)
       ══════════════════════════════════════════════════════ */}
-      <div style={{ display: "grid", gridTemplateColumns: "1.3fr 1fr", gap: 16, marginBottom: 16 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "1.3fr 1fr", gap: 16, marginBottom: 22 }}>
         <div className="statPop" style={{ ...cardStyle, overflow: "hidden" }}>
           <div style={{ padding: "14px 18px", borderBottom: "1px solid var(--border)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <div style={{ fontWeight: 800, fontSize: 14.5, color: "var(--t1)" }}>🗂️ {lang === "en" ? "Tasks Today" : "Tugas Hari Ini"}</div>
@@ -2125,72 +2126,98 @@ function OverviewTab({ setActiveTab, myProfile }: { setActiveTab: (t: DashboardT
         </div>
       </div>
 
-      {/* ══════════════════════════════════════════════════════
-          OVERTIME | CANTEEN | LOCKER | GAS STATION — 4 kartu
-      ══════════════════════════════════════════════════════ */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 14, marginBottom: 16 }}>
-        {/* Overtime */}
-        <div className="statPop" style={{ ...cardStyle, padding: 16 }}>
-          <div style={{ fontSize: 12.5, fontWeight: 800, color: "var(--t1)", marginBottom: 10 }}>⏱️ Overtime</div>
-          <div style={{ fontSize: 20, fontWeight: 800, fontFamily: "var(--mono)", color: "var(--t1)" }}>{fmtRp(animatedOtHours)} jam</div>
-          <div style={{ fontSize: 11.5, color: "var(--gold2)", fontWeight: 700, marginBottom: 10 }}>Rp {fmtRp(animatedOtAmount)}</div>
+      <div className="sectionHeading">Finance</div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 16, marginBottom: 22 }}>
+        {/* Overtime — dikasih lebih banyak ruang (bukan 1 dari 4 kolom sempit) */}
+        <div className="statPop" style={{ ...cardStyle, padding: 20 }}>
+          <div style={{ fontSize: 13, fontWeight: 800, color: "var(--t1)", marginBottom: 12 }}>⏱️ Overtime {lang === "en" ? "This Month" : "Bulan Ini"}</div>
+          <div style={{ display: "flex", alignItems: "baseline", gap: 10, marginBottom: 12 }}>
+            <div style={{ fontSize: 24, fontWeight: 800, fontFamily: "var(--mono)", color: "var(--t1)" }}>{fmtRp(animatedOtHours)} jam</div>
+            <div style={{ fontSize: 13, color: "var(--gold2)", fontWeight: 700 }}>Rp {fmtRp(animatedOtAmount)}</div>
+          </div>
           {otByPlant.map((p) => (
-            <div key={p.plant} style={{ marginBottom: 4 }}>
-              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10, color: "var(--t3)" }}>
-                <span>{p.plant}</span><span>{fmtRp(p.hours)}j</span>
+            <div key={p.plant} style={{ marginBottom: 8 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11.5, color: "var(--t3)", marginBottom: 3 }}>
+                <span style={{ fontWeight: 600, color: "var(--t2)" }}>{p.plant}</span><span>{fmtRp(p.hours)} jam</span>
               </div>
-              <div style={{ height: 4, borderRadius: 4, background: "var(--border)", overflow: "hidden" }}>
+              <div style={{ height: 6, borderRadius: 4, background: "var(--border)", overflow: "hidden" }}>
                 <div style={{ height: "100%", width: `${(p.hours / maxOtPlantHours) * 100}%`, background: PLANT_COLOR[p.plant] || "var(--brand)" }} />
               </div>
             </div>
           ))}
+          <button onClick={() => setActiveTab("overtime")} style={{ marginTop: 8, width: "100%", padding: "8px", borderRadius: 10, border: "1px solid var(--border2)", background: "var(--bg2)", color: "var(--t2)", fontWeight: 700, fontSize: 11.5, cursor: "pointer" }}>
+            {lang === "en" ? "View Overtime →" : "Lihat Overtime →"}
+          </button>
         </div>
 
+        {/* Driver Budget — dipindah ke sini biar section Finance lengkap (Fund + Overtime + Budget) */}
+        <div className="statPop" style={{ ...cardStyle, padding: 20 }}>
+          <div style={{ fontSize: 13, fontWeight: 800, color: "var(--t1)", marginBottom: 12 }}>💳 {lang === "en" ? "Driver Budget" : "Budget Driver"}</div>
+          <div style={{ fontSize: 24, fontWeight: 800, fontFamily: "var(--mono)", color: "var(--t1)" }}>Rp {fmtRp(totalTierBudget)}</div>
+          <div style={{ fontSize: 12, color: "var(--t3)", marginTop: 4, marginBottom: 12 }}>{totalTierDrivers} {lang === "en" ? "drivers" : "driver"} · {tiers.length} tier</div>
+          <button onClick={() => setActiveTab("driverbudget")} style={{ width: "100%", padding: "8px", borderRadius: 10, border: "1px solid var(--border2)", background: "var(--bg2)", color: "var(--t2)", fontWeight: 700, fontSize: 11.5, cursor: "pointer" }}>
+            {lang === "en" ? "View Budget →" : "Lihat Budget →"}
+          </button>
+        </div>
+      </div>
+
+      <div className="sectionHeading">{lang === "en" ? "Facility" : "Fasilitas"}</div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 16, marginBottom: 22 }}>
         {/* Canteen */}
-        <div className="statPop" style={{ ...cardStyle, padding: 16 }}>
-          <div style={{ fontSize: 12.5, fontWeight: 800, color: "var(--t1)", marginBottom: 10 }}>🍱 {lang === "en" ? "Canteen (Month)" : "Kantin (Bulan Ini)"}</div>
-          <div style={{ marginBottom: 8 }}>
-            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, marginBottom: 2 }}>
+        <div className="statPop" style={{ ...cardStyle, padding: 18 }}>
+          <div style={{ fontSize: 13, fontWeight: 800, color: "var(--t1)", marginBottom: 12 }}>🍱 {lang === "en" ? "Canteen (Month)" : "Kantin (Bulan Ini)"}</div>
+          <div style={{ marginBottom: 10 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11.5, marginBottom: 3 }}>
               <span style={{ color: "var(--t2)" }}>🥐 Snack</span><span style={{ fontWeight: 700, color: "var(--t1)" }}>{fmtRp(canteenSnackConsumed)}/{fmtRp(canteenSnackOrder)}</span>
             </div>
             <div style={{ height: 6, borderRadius: 4, background: "var(--border)", overflow: "hidden" }}>
               <div style={{ height: "100%", width: `${(canteenSnackOrder / maxCanteenVal) * 100}%`, background: "var(--green)" }} />
             </div>
           </div>
-          <div>
-            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, marginBottom: 2 }}>
+          <div style={{ marginBottom: 10 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11.5, marginBottom: 3 }}>
               <span style={{ color: "var(--t2)" }}>🍽️ Meal</span><span style={{ fontWeight: 700, color: "var(--t1)" }}>{fmtRp(canteenMealConsumed)}/{fmtRp(canteenMealOrder)}</span>
             </div>
             <div style={{ height: 6, borderRadius: 4, background: "var(--border)", overflow: "hidden" }}>
               <div style={{ height: "100%", width: `${(canteenMealOrder / maxCanteenVal) * 100}%`, background: "var(--brand)" }} />
             </div>
           </div>
+          <button onClick={() => setActiveTab("canteen")} style={{ width: "100%", padding: "8px", borderRadius: 10, border: "1px solid var(--border2)", background: "var(--bg2)", color: "var(--t2)", fontWeight: 700, fontSize: 11.5, cursor: "pointer" }}>
+            {lang === "en" ? "View Canteen →" : "Lihat Kantin →"}
+          </button>
         </div>
 
         {/* Locker */}
-        <div className="statPop" style={{ ...cardStyle, padding: 16, display: "flex", alignItems: "center", gap: 12 }}>
+        <div className="statPop" style={{ ...cardStyle, padding: 18, display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center", gap: 10 }}>
           <svg viewBox="0 0 90 90" width={64} height={64} style={{ flexShrink: 0 }}>
             <circle cx={45} cy={45} r={RL} fill="none" stroke="var(--border)" strokeWidth={10} />
             <circle cx={45} cy={45} r={RL} fill="none" stroke="var(--red)" strokeWidth={10} strokeDasharray={`${(lockerUsedPct / 100) * CIRCL} ${CIRCL}`} strokeLinecap="round" transform="rotate(-90 45 45)" />
             <text x={45} y={50} textAnchor="middle" fontSize={18} fontWeight={800} fill="var(--t1)" fontFamily="var(--mono)">{lockerTotal}</text>
           </svg>
-          <div>
-            <div style={{ fontSize: 12.5, fontWeight: 800, color: "var(--t1)", marginBottom: 6 }}>🔐 Locker</div>
-            <div style={{ fontSize: 11, color: "var(--green)", fontWeight: 700 }}>{lockerAvailable} {lang === "en" ? "available" : "tersedia"}</div>
-            <div style={{ fontSize: 11, color: "var(--red)", fontWeight: 700 }}>{lockerUsed} {lang === "en" ? "used" : "dipakai"}</div>
+          <div style={{ fontSize: 13, fontWeight: 800, color: "var(--t1)" }}>🔐 Locker</div>
+          <div style={{ display: "flex", gap: 16 }}>
+            <div><div style={{ fontSize: 12, color: "var(--green)", fontWeight: 700 }}>{lockerAvailable}</div><div style={{ fontSize: 10.5, color: "var(--t3)" }}>{lang === "en" ? "available" : "tersedia"}</div></div>
+            <div><div style={{ fontSize: 12, color: "var(--red)", fontWeight: 700 }}>{lockerUsed}</div><div style={{ fontSize: 10.5, color: "var(--t3)" }}>{lang === "en" ? "used" : "dipakai"}</div></div>
           </div>
+          <button onClick={() => setActiveTab("locker")} style={{ width: "100%", padding: "8px", borderRadius: 10, border: "1px solid var(--border2)", background: "var(--bg2)", color: "var(--t2)", fontWeight: 700, fontSize: 11.5, cursor: "pointer" }}>
+            {lang === "en" ? "View Locker →" : "Lihat Locker →"}
+          </button>
         </div>
 
         {/* Gas Station */}
-        <div className="statPop" style={{ ...cardStyle, padding: 16 }}>
-          <div style={{ fontSize: 12.5, fontWeight: 800, color: "var(--t1)", marginBottom: 10 }}>⛽ {lang === "en" ? "Gas Stations" : "Pom Bensin"}</div>
+        <div className="statPop" style={{ ...cardStyle, padding: 18 }}>
+          <div style={{ fontSize: 13, fontWeight: 800, color: "var(--t1)", marginBottom: 10 }}>⛽ {lang === "en" ? "Gas Stations" : "Pom Bensin"}</div>
           <div style={{ fontSize: 24, fontWeight: 800, fontFamily: "var(--mono)", color: "var(--t1)" }}>{gasStations.length}</div>
-          <div style={{ fontSize: 11.5, color: "var(--t3)", marginTop: 4 }}>{fuelTypesCovered}/{FUEL_TYPES_LIST.length} {lang === "en" ? "fuel types" : "jenis BBM"}</div>
+          <div style={{ fontSize: 12, color: "var(--t3)", marginTop: 4, marginBottom: 12 }}>{fuelTypesCovered}/{FUEL_TYPES_LIST.length} {lang === "en" ? "fuel types" : "jenis BBM"}</div>
+          <button onClick={() => setActiveTab("gasstations")} style={{ width: "100%", padding: "8px", borderRadius: 10, border: "1px solid var(--border2)", background: "var(--bg2)", color: "var(--t2)", fontWeight: 700, fontSize: 11.5, cursor: "pointer" }}>
+            {lang === "en" ? "View Stations →" : "Lihat Pom Bensin →"}
+          </button>
         </div>
       </div>
 
+      <div className="sectionHeading">{lang === "en" ? "Trends & Analytics" : "Tren & Analitik"}</div>
       {/* ── Charts row ── */}
-      <div style={{ display: "grid", gridTemplateColumns: "1.6fr 1fr", gap: 16, marginBottom: 16 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "1.6fr 1fr", gap: 16, marginBottom: 22 }}>
         <div className="statPop" style={{ ...cardStyle, padding: 20 }}>
           <div style={{ fontSize: 14.5, fontWeight: 800, color: "var(--t1)", marginBottom: 16 }}>
             {lang === "en" ? "Claim Activity — Last 30 Days" : "Aktivitas Klaim — 30 Hari Terakhir"}
@@ -2248,6 +2275,7 @@ function OverviewTab({ setActiveTab, myProfile }: { setActiveTab: (t: DashboardT
         </div>
       </div>
 
+      <div className="sectionHeading">{lang === "en" ? "Activity & Shortcuts" : "Aktivitas & Pintasan"}</div>
       {/* ── Activity + Quick Access row ── */}
       <div style={{ display: "grid", gridTemplateColumns: "1.6fr 1fr", gap: 16 }}>
         <div className="statPop" style={{ ...cardStyle, overflow: "hidden" }}>
@@ -2295,7 +2323,7 @@ function OverviewTab({ setActiveTab, myProfile }: { setActiveTab: (t: DashboardT
         </div>
       </div>
 
-      <style>{'
+      <style>{`
         @keyframes heroFloat1 {
           0%, 100% { transform: translate(0, 0) scale(1); }
           50% { transform: translate(-25px, 30px) scale(1.08); }
