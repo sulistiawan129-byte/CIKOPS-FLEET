@@ -1,19 +1,13 @@
 import type { Metadata, Viewport } from "next";
-import { Inter, Poppins } from "next/font/google";
+import { Space_Mono } from "next/font/google";
 import "./globals.css";
 import { AppProviders } from "@/lib/providers";
 import { AuthProvider } from "@/lib/auth";
 
-const inter = Inter({
+const spaceMono = Space_Mono({
   subsets: ["latin"],
-  variable: "--font-inter",
-  display: "swap",
-});
-
-const poppins = Poppins({
-  subsets: ["latin"],
-  weight: ["600", "700", "800"],
-  variable: "--font-poppins",
+  weight: ["400", "700"],
+  variable: "--font-space-mono",
   display: "swap",
 });
 
@@ -58,7 +52,7 @@ export default function RootLayout({
       <head>
         <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
       </head>
-      <body className={`${inter.variable} ${poppins.variable}`}>
+      <body className={spaceMono.variable}>
         <AppProviders>
           <AuthProvider>{children}</AuthProvider>
         </AppProviders>
