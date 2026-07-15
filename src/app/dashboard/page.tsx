@@ -105,6 +105,7 @@ import type {
 import { computeStats } from "@/lib/types";
 import { useLang, useTheme } from "@/lib/providers";
 import LockerTab from "./LockerTab";
+import { getLockerStatusGrid } from "@/lib/lockerApi";
 import CanteenTab from "./CanteenTab";
 import { useAuth } from "@/lib/auth";
 import { supabase } from "@/lib/supabaseClient";
@@ -1810,11 +1811,13 @@ function OverviewTab({ setActiveTab, myProfile }: { setActiveTab: (t: DashboardT
   const [claims, setClaims] = useState<Claim[]>([]);
   const [overtimes, setOvertimes] = useState<Overtime[]>([]);
   const [drivers, setDrivers] = useState<Driver[]>([]);
-  const [kantong, setKantong] = useState<Kantong | null>(null);
+  const [kantongCik, setKantongCik] = useState<Kantong | null>(null);
+  const [kantongPrb, setKantongPrb] = useState<Kantong | null>(null);
   const [tiers, setTiers] = useState<DriverTier[]>([]);
   const [gasStations, setGasStations] = useState<GasStation[]>([]);
   const [todayTasks, setTodayTasks] = useState<TaskDetail[]>([]);
-  const [gaugeReady, setGaugeReady] = useState(false);
+  const [canteenThisMonth, setCanteenThisMonth] = useState<CanteenReport[]>([]);
+  const [lockerEntries, setLockerEntries] = useState<{ number: string; pin: string; status: string }[]>([]);
   const [clockNow, setClockNow] = useState(new Date());
 
   useEffect(() => {
@@ -1823,35 +1826,35 @@ function OverviewTab({ setActiveTab, myProfile }: { setActiveTab: (t: DashboardT
   }, []);
 
   useEffect(() => {
-    if (!loading) {
-      const t = setTimeout(() => setGaugeReady(true), 80);
-      return () => clearTimeout(t);
-    }
-    setGaugeReady(false);
-  }, [loading]);
-
-  useEffect(() => {
     (async () => {
       setLoading(true);
+      const now = new Date();
+      const monthStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
       try {
-        const [v, c, ot, d, k, t, g, tt] = await Promise.all([
+        const [v, c, ot, d, kCik, kPrb, t, g, tt, canteen, lockers] = await Promise.all([
           getAllVehiclesFull(),
           getClaims(),
           getOvertimes(),
           getDrivers(),
-          getOverviewKantong(myProfile),
+          getCurrentKantong("CIK"),
+          getCurrentKantong("PRB"),
           getDriverTiers(),
           getGasStations(),
           getTasksByDate(todayStr()),
+          getCanteenReportsForMonth(monthStr).catch(() => []),
+          getLockerStatusGrid().catch(() => []),
         ]);
         setVehicles(v);
         setClaims(c);
         setOvertimes(ot);
         setDrivers(d);
-        setKantong(k);
+        setKantongCik(kCik);
+        setKantongPrb(kPrb);
         setTiers(t);
         setGasStations(g);
         setTodayTasks(tt);
+        setCanteenThisMonth(canteen);
+        setLockerEntries(lockers);
       } catch {
         // best-effort overview — individual tabs already surface their own errors
       } finally {
@@ -1876,10 +1879,10 @@ function OverviewTab({ setActiveTab, myProfile }: { setActiveTab: (t: DashboardT
     });
   });
   const urgentDocsPre = docBucketsPre.urgent + docBucketsPre.mid;
-  const activeDriversPre = new Set(claims.map((c) => c.driver_id)).size;
+  const availableDriversPre = drivers.filter((d) => d.aktif).length;
 
   const animatedVehicleCount = useCountUp(vehicles.length);
-  const animatedActiveDrivers = useCountUp(activeDriversPre);
+  const animatedAvailableDrivers = useCountUp(availableDriversPre);
   const animatedUrgentDocs = useCountUp(urgentDocsPre);
 
   if (loading) return <div style={{ padding: 60, textAlign: "center", color: "var(--t3)" }}>{lang === "en" ? "Loading overview..." : "Memuat ringkasan..."}</div>;
@@ -1892,39 +1895,38 @@ function OverviewTab({ setActiveTab, myProfile }: { setActiveTab: (t: DashboardT
   const heroTimeStr = clockNow.toLocaleTimeString(lang === "en" ? "en-GB" : "id-ID", { hour: "2-digit", minute: "2-digit" });
   const heroDateStr = clockNow.toLocaleDateString(lang === "en" ? "en-GB" : "id-ID", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
 
-  // ── Vehicles & documents ── (reusing the pre-computed buckets above)
+  // ── Vehicles & documents ──
   const activeV = vehicles.filter((v) => v.aktif).length;
   const maintenanceV = vehicles.length - activeV;
-  const docBuckets = docBucketsPre;
-  const totalDocs = docBuckets.urgent + docBuckets.mid + docBuckets.safe + docBuckets.noData;
-  const urgentDocs = docBuckets.urgent + docBuckets.mid;
+  const availableDrivers = availableDriversPre;
 
-  // ── Claims ──
+  // ── Claims (this month) ──
   const thisMonthClaims = claims.filter((c) => {
     const d = new Date(c.periodDate);
     return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
   });
   const thisMonthTotal = thisMonthClaims.reduce((s, c) => s + c.total, 0);
+  const animatedThisMonthTotal = useCountUp(thisMonthTotal);
   const lastMonthDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
   const lastMonthTotal = claims
     .filter((c) => { const d = new Date(c.periodDate); return d.getMonth() === lastMonthDate.getMonth() && d.getFullYear() === lastMonthDate.getFullYear(); })
     .reduce((s, c) => s + c.total, 0);
   const claimTrendPct = lastMonthTotal > 0 ? ((thisMonthTotal - lastMonthTotal) / lastMonthTotal) * 100 : null;
-  const activeDrivers = activeDriversPre;
 
-  // ── Overtime (this month) ──
+  // ── Overtime (this month) — plain numbers, no health bar ──
   const periodNow = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
   const otThisMonth = overtimes.filter((o) => o.period === periodNow);
   const otHours = otThisMonth.reduce((s, o) => s + o.hours, 0);
   const otAmount = otThisMonth.reduce((s, o) => s + o.amount, 0);
+  const animatedOtHours = useCountUp(otHours);
+  const animatedOtAmount = useCountUp(otAmount);
   const otByPlant = OT_PLANTS.map((p) => ({ plant: p, hours: otThisMonth.filter((o) => o.plant === p).reduce((s, o) => s + o.hours, 0) }));
-  const topPlant = [...otByPlant].sort((a, b) => b.hours - a.hours)[0];
+  const maxOtPlantHours = Math.max(...otByPlant.map((p) => p.hours), 1);
 
-  // ── Dana Operasional ──
-  const totalAlokasi = kantong ? kantong.allocOpDriver + kantong.allocEmergency : 0;
-  const outstanding = kantong ? totalAlokasi + kantong.cashAvailable + kantong.claimSubmitted + kantong.claimPaid : 0;
-  const gap = kantong ? outstanding - kantong.totalBudget : 0;
-  const gapColor = gap === 0 ? "var(--green)" : Math.abs(gap) > (kantong?.totalBudget || 1) * 0.1 ? "var(--red)" : "var(--orange)";
+  // ── Operational Fund — CIK & PRB shown separately (never summed),
+  // no health gauge, plain figures per plant. ──
+  const myKantong = myProfile?.plantScope === "PRB" ? kantongPrb : kantongCik;
+  const showBothPlants = !myProfile?.plantScope;
 
   // ── Driver Budget ──
   const totalTierBudget = tiers.reduce((s, t) => s + t.amountPerMonth * t.activeDriverCount, 0);
@@ -1933,31 +1935,21 @@ function OverviewTab({ setActiveTab, myProfile }: { setActiveTab: (t: DashboardT
   // ── Gas Stations ──
   const fuelTypesCovered = new Set(gasStations.flatMap((s) => s.fuels.filter((f) => f.available).map((f) => f.type))).size;
 
-  // ── Tasks today ──
-  const taskDoneToday = todayTasks.filter((t) => t.status === "DONE").length;
-  const taskCancelledToday = todayTasks.filter((t) => t.status === "CANCELLED").length;
-  const taskNonCancelled = todayTasks.length - taskCancelledToday;
-  const taskCompletionToday = taskNonCancelled > 0 ? (taskDoneToday / taskNonCancelled) * 100 : 100;
+  // ── Canteen (this month) ──
+  const canteenSnackOrder = canteenThisMonth.reduce((s, r) => s + r.snackOrder[0] + r.snackOrder[1] + r.snackOrder[2], 0);
+  const canteenSnackLeftover = canteenThisMonth.reduce((s, r) => s + r.snackLeftover[0] + r.snackLeftover[1] + r.snackLeftover[2], 0);
+  const canteenMealOrder = canteenThisMonth.reduce((s, r) => s + r.mealOrder[0] + r.mealOrder[1] + r.mealOrder[2], 0);
+  const canteenMealLeftover = canteenThisMonth.reduce((s, r) => s + r.mealLeftover[0] + r.mealLeftover[1] + r.mealLeftover[2], 0);
+  const canteenSnackConsumed = Math.max(0, canteenSnackOrder - canteenSnackLeftover);
+  const canteenMealConsumed = Math.max(0, canteenMealOrder - canteenMealLeftover);
+  const maxCanteenVal = Math.max(canteenSnackOrder, canteenMealOrder, 1);
 
-  // ── Composite Operational Health Score — the signature premium element,
-  // synthesizing every module into one number instead of raw stats alone. ──
-  const docHealthPct = totalDocs > 0
-    ? Math.max(
-        0,
-        100 -
-          ((docBuckets.urgent * 2 + docBuckets.mid + docBuckets.noData * 1.5) /
-            (totalDocs * 2)) *
-            100
-      )
-    : 100;
-  const budgetHealthPct = kantong?.totalBudget ? Math.max(0, 100 - Math.min(100, (Math.abs(gap) / kantong.totalBudget) * 100)) : 100;
-  const claimTrendHealthPct = claimTrendPct === null ? 100 : Math.max(0, Math.min(100, 100 - Math.max(0, claimTrendPct)));
-  const taskHealthPct = todayTasks.length > 0 ? taskCompletionToday : 100;
-  const healthScore = Math.round(docHealthPct * 0.3 + budgetHealthPct * 0.25 + claimTrendHealthPct * 0.2 + taskHealthPct * 0.25);
-  const healthColor = healthScore >= 85 ? "var(--green)" : healthScore >= 70 ? "var(--brand)" : healthScore >= 50 ? "var(--orange)" : "var(--red)";
-  const healthLabel = healthScore >= 85 ? (lang === "en" ? "Excellent" : "Sangat Baik") : healthScore >= 70 ? (lang === "en" ? "Good" : "Baik") : healthScore >= 50 ? (lang === "en" ? "Fair" : "Cukup") : (lang === "en" ? "Needs Attention" : "Perlu Perhatian");
-  const RG = 74, CIRCG = 2 * Math.PI * RG;
-  const gaugeOffset = CIRCG * (1 - healthScore / 100);
+  // ── Locker ──
+  const lockerTotal = lockerEntries.length;
+  const lockerUsed = lockerEntries.filter((e) => e.status === "Terisi").length;
+  const lockerAvailable = lockerTotal - lockerUsed;
+  const RL = 38, CIRCL = 2 * Math.PI * RL;
+  const lockerUsedPct = lockerTotal > 0 ? (lockerUsed / lockerTotal) * 100 : 0;
 
   // ── Claims trend, last 30 days ──
   const dayBuckets: { date: Date; total: number }[] = Array.from({ length: 30 }, (_, i) => {
@@ -1990,7 +1982,7 @@ function OverviewTab({ setActiveTab, myProfile }: { setActiveTab: (t: DashboardT
   const RD = 42, CIRCD = 2 * Math.PI * RD;
   let donutOffset = 0;
 
-  // ── Activity feed — Claims + Overtime + today's Tasks, merged ──
+  // ── Activity feed — Claims + Overtime, merged ──
   const activity = [
     ...claims.map((c) => ({ kind: "claim" as const, date: c.periodDate, driver: c.driverName, amount: c.total, meta: [...new Set(c.items.map((i) => i.type))].join(", ") })),
     ...overtimes.map((o) => ({ kind: "overtime" as const, date: `${o.period}-01`, driver: o.driverName, amount: o.amount, meta: `${o.plant} · ${fmtRp(o.hours)} jam` })),
@@ -2003,53 +1995,17 @@ function OverviewTab({ setActiveTab, myProfile }: { setActiveTab: (t: DashboardT
     { icon: "🧾", label: lang === "en" ? "Claims" : "Klaim", tab: "claims" },
     { icon: "⏱️", label: "Overtime", tab: "overtime" },
     { icon: "💳", label: lang === "en" ? "Driver Budget" : "Budget Driver", tab: "driverbudget" },
-    { icon: "💰", label: lang === "en" ? "Op. Fund" : "Dana Operasional", tab: "opfund" },
-    { icon: "📈", label: lang === "en" ? "Reports" : "Report", tab: "reports" },
+    { icon: "🍱", label: lang === "en" ? "Canteen" : "Kantin", tab: "canteen" },
+    { icon: "🔐", label: "Locker", tab: "locker" },
   ];
 
-  // ── Module snapshot — covers every module in the system, addresses
-  // "mencakup semua aspek function". Rendered as a BENTO grid (varying
-  // card sizes) rather than a uniform grid, so the page has visual
-  // hierarchy instead of feeling like a repeated stat-card list. ──
-  const moduleSnapshots = [
-    {
-      tab: "tasks" as DashboardTab, icon: "🗂️", accent: "var(--brand)", featured: true,
-      title: lang === "en" ? "Tasks Today" : "Tugas Hari Ini",
-      big: String(todayTasks.length),
-      sub: todayTasks.length > 0 ? `${taskCompletionToday.toFixed(0)}% ${lang === "en" ? "completed" : "selesai"}` : (lang === "en" ? "No tasks yet" : "Belum ada tugas"),
-    },
-    {
-      tab: "opfund" as DashboardTab, icon: "💰", accent: gapColor, featured: false,
-      title: lang === "en" ? "Operational Fund" : "Dana Operasional",
-      big: kantong ? `Rp ${fmtRp(kantong.totalBudget)}` : (lang === "en" ? "Not set up" : "Belum diisi"),
-      sub: kantong ? `GAP ${gap >= 0 ? "+" : ""}Rp ${fmtRp(gap)}` : (lang === "en" ? "Click to set up" : "Klik untuk mengisi"),
-    },
-    {
-      tab: "overtime" as DashboardTab, icon: "⏱️", accent: "var(--gold2)", featured: false,
-      title: lang === "en" ? "Overtime This Month" : "Overtime Bulan Ini",
-      big: `${fmtRp(otHours)} ${lang === "en" ? "hrs" : "jam"}`,
-      sub: `Rp ${fmtRp(otAmount)}${topPlant && otHours > 0 ? ` · ${topPlant.plant}` : ""}`,
-    },
-    {
-      tab: "driverbudget" as DashboardTab, icon: "💳", accent: "var(--purple)", featured: false,
-      title: lang === "en" ? "Driver Budget" : "Budget Driver",
-      big: `Rp ${fmtRp(totalTierBudget)}`,
-      sub: `${totalTierDrivers} ${lang === "en" ? "drivers" : "driver"} · ${tiers.length} tier`,
-    },
-    {
-      tab: "gasstations" as DashboardTab, icon: "⛽", accent: "var(--green)", featured: false,
-      title: lang === "en" ? "Gas Stations" : "Pom Bensin",
-      big: String(gasStations.length),
-      sub: `${fuelTypesCovered}/${FUEL_TYPES_LIST.length} ${lang === "en" ? "fuel types" : "jenis BBM"}`,
-    },
-  ];
+  const STATUS_COLOR: Record<string, string> = { ASSIGNED: "var(--brand)", "ON GOING": "var(--orange)", DONE: "var(--green)", CANCELLED: "var(--red)" };
+  const STATUS_LABEL_ID: Record<string, string> = { ASSIGNED: "Ditugaskan", "ON GOING": "Berjalan", DONE: "Selesai", CANCELLED: "Batal" };
 
   return (
     <div style={{ padding: 20 }}>
       {/* ══════════════════════════════════════════════════════
           HERO — dramatic, full-bleed, animated mesh background.
-          This is the one section in the whole app that should NOT
-          look like every other tab's card grid.
       ══════════════════════════════════════════════════════ */}
       <div
         className="statPop"
@@ -2063,7 +2019,6 @@ function OverviewTab({ setActiveTab, myProfile }: { setActiveTab: (t: DashboardT
           boxShadow: "0 28px 60px rgba(20,49,92,0.35)",
         }}
       >
-        {/* decorative animated mesh blobs, unique to this hero */}
         <div style={{ position: "absolute", top: "-30%", right: "-10%", width: 420, height: 420, borderRadius: "50%", background: "radial-gradient(circle, rgba(255,255,255,0.14), transparent 70%)", filter: "blur(6px)", animation: "heroFloat1 16s ease-in-out infinite" }} />
         <div style={{ position: "absolute", bottom: "-40%", left: "-8%", width: 380, height: 380, borderRadius: "50%", background: "radial-gradient(circle, rgba(23,195,178,0.28), transparent 70%)", filter: "blur(6px)", animation: "heroFloat2 20s ease-in-out infinite" }} />
         <div style={{ position: "absolute", inset: 0, backgroundImage: "radial-gradient(circle, rgba(255,255,255,0.08) 1px, transparent 1px)", backgroundSize: "22px 22px", opacity: 0.5 }} />
@@ -2086,88 +2041,156 @@ function OverviewTab({ setActiveTab, myProfile }: { setActiveTab: (t: DashboardT
             {greeting}{displayName ? `, ${displayName}` : ""} 👋
           </div>
           <div style={{ fontSize: 14, color: "rgba(255,255,255,0.75)", marginBottom: 28 }}>
-            {lang === "en" ? "Here's your operational health at a glance." : "Berikut kesehatan operasional kamu sekilas pandang."}
+            {lang === "en" ? "Here's everything at a glance." : "Berikut semua ringkasan sekilas pandang."}
           </div>
 
-          <div style={{ display: "grid", gridTemplateColumns: "auto 1fr", gap: 36, alignItems: "center" }}>
-            <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
-              <svg viewBox="0 0 170 170" width={158} height={158}>
-                <defs>
-                  <linearGradient id="healthGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-                    <stop offset="0%" stopColor="var(--gold)" />
-                    <stop offset="100%" stopColor="#fff" />
-                  </linearGradient>
-                </defs>
-                <circle cx={85} cy={85} r={RG} fill="none" stroke="rgba(255,255,255,0.18)" strokeWidth={11} />
-                <circle className="gaugeAnimated" cx={85} cy={85} r={RG} fill="none" stroke="url(#healthGrad)" strokeWidth={11} strokeLinecap="round" strokeDasharray={CIRCG} strokeDashoffset={gaugeReady ? gaugeOffset : CIRCG} transform="rotate(-90 85 85)" />
-                <text x={85} y={80} textAnchor="middle" fontSize={38} fontWeight={800} fill="#fff" fontFamily="var(--mono)">{healthScore}</text>
-                <text x={85} y={100} textAnchor="middle" fontSize={12} fill="rgba(255,255,255,0.7)">/ 100</text>
-              </svg>
-              <div style={{ marginTop: 6, fontSize: 14, fontWeight: 800, color: "#fff" }}>{healthLabel}</div>
-              <div style={{ fontSize: 11.5, color: "rgba(255,255,255,0.65)", marginTop: 1 }}>{lang === "en" ? "Operational Health" : "Kesehatan Operasional"}</div>
-            </div>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(130px, 1fr))" }}>
-              {[
-                { label: lang === "en" ? "Total Vehicles" : "Total Kendaraan", value: String(animatedVehicleCount), sub: `${activeV} ${lang === "en" ? "active" : "aktif"}` },
-                { label: lang === "en" ? "Active Drivers" : "Driver Aktif", value: String(animatedActiveDrivers), sub: `${drivers.length} total` },
-                { label: lang === "en" ? "Claims This Month" : "Klaim Bulan Ini", value: `Rp ${fmtRp(thisMonthTotal)}`, sub: claimTrendPct === null ? "-" : `${claimTrendPct >= 0 ? "+" : ""}${claimTrendPct.toFixed(0)}%` },
-                { label: lang === "en" ? "Urgent Documents" : "Dokumen Urgent", value: String(animatedUrgentDocs), sub: "≤30 " + (lang === "en" ? "days" : "hari") },
-              ].map((k, i) => (
-                <div key={i} style={{ padding: "0 18px", borderLeft: i > 0 ? "1px solid rgba(255,255,255,0.18)" : "none" }}>
-                  <div style={{ fontSize: 27, fontWeight: 800, fontFamily: "var(--mono)", letterSpacing: -0.5, color: "#fff" }}>{k.value}</div>
-                  <div style={{ fontSize: 12.5, color: "rgba(255,255,255,0.8)", fontWeight: 600, marginTop: 4 }}>{k.label}</div>
-                  <div style={{ fontSize: 11.5, color: "rgba(255,255,255,0.6)", marginTop: 2 }}>{k.sub}</div>
-                </div>
-              ))}
-            </div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))" }}>
+            {[
+              { label: lang === "en" ? "Available Drivers" : "Driver Tersedia", value: String(animatedAvailableDrivers), sub: `${drivers.length} total` },
+              { label: lang === "en" ? "Total Vehicles" : "Total Kendaraan", value: String(animatedVehicleCount), sub: `${activeV} ${lang === "en" ? "active" : "aktif"}` },
+              { label: lang === "en" ? "Claims This Month" : "Klaim Bulan Ini", value: `Rp ${fmtRp(animatedThisMonthTotal)}`, sub: claimTrendPct === null ? "-" : `${claimTrendPct >= 0 ? "+" : ""}${claimTrendPct.toFixed(0)}% vs bulan lalu` },
+              { label: lang === "en" ? "Urgent Documents" : "Dokumen Urgent", value: String(animatedUrgentDocs), sub: "≤30 " + (lang === "en" ? "days" : "hari") },
+            ].map((k, i) => (
+              <div key={i} style={{ padding: "0 18px", borderLeft: i > 0 ? "1px solid rgba(255,255,255,0.18)" : "none" }}>
+                <div style={{ fontSize: 27, fontWeight: 800, fontFamily: "var(--mono)", letterSpacing: -0.5, color: "#fff" }}>{k.value}</div>
+                <div style={{ fontSize: 12.5, color: "rgba(255,255,255,0.8)", fontWeight: 600, marginTop: 4 }}>{k.label}</div>
+                <div style={{ fontSize: 11.5, color: "rgba(255,255,255,0.6)", marginTop: 2 }}>{k.sub}</div>
+              </div>
+            ))}
           </div>
         </div>
       </div>
 
       {/* ══════════════════════════════════════════════════════
-          BENTO GRID — module snapshots, asymmetric sizing so the
-          most time-sensitive module (Tasks Today) reads as the
-          featured tile instead of everything looking identical.
+          TASKS HARI INI (detail) + OPERATIONAL FUND (CIK/PRB)
       ══════════════════════════════════════════════════════ */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gridAutoRows: "minmax(108px, auto)", gap: 12, marginBottom: 20 }}>
-        {moduleSnapshots.map((m, i) => (
-          <button
-            key={i}
-            onClick={() => setActiveTab(m.tab)}
-            className="statPop"
-            style={{
-              ...cardStyle,
-              gridColumn: m.featured ? "span 2" : "span 1",
-              gridRow: m.featured ? "span 2" : "span 1",
-              padding: m.featured ? 22 : 16,
-              textAlign: "left",
-              cursor: "pointer",
-              animationDelay: `${i * 0.05}s`,
-              borderTop: `3px solid ${m.accent}`,
-              display: "flex",
-              flexDirection: "column",
-              justifyContent: m.featured ? "space-between" : "flex-start",
-              position: "relative",
-              overflow: "hidden",
-            }}
-          >
-            {m.featured && (
-              <div style={{ position: "absolute", top: -20, right: -20, width: 100, height: 100, borderRadius: "50%", background: `${m.accent}14` }} />
-            )}
-            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: m.featured ? 16 : 10, position: "relative" }}>
-              <span style={{ fontSize: m.featured ? 22 : 15 }}>{m.icon}</span>
-              <span style={{ fontSize: m.featured ? 13.5 : 12.5, fontWeight: 700, color: "var(--t3)" }}>{m.title}</span>
+      <div style={{ display: "grid", gridTemplateColumns: "1.3fr 1fr", gap: 16, marginBottom: 16 }}>
+        <div className="statPop" style={{ ...cardStyle, overflow: "hidden" }}>
+          <div style={{ padding: "14px 18px", borderBottom: "1px solid var(--border)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <div style={{ fontWeight: 800, fontSize: 14.5, color: "var(--t1)" }}>🗂️ {lang === "en" ? "Tasks Today" : "Tugas Hari Ini"}</div>
+            <button onClick={() => setActiveTab("tasks")} style={{ fontSize: 12, fontWeight: 700, color: "var(--brand)", background: "none", border: "none", cursor: "pointer" }}>
+              {lang === "en" ? "View all →" : "Lihat semua →"}
+            </button>
+          </div>
+          {todayTasks.length === 0 ? (
+            <div style={{ padding: 30, textAlign: "center", color: "var(--t3)", fontSize: 12.5 }}>
+              {lang === "en" ? "No tasks assigned today." : "Belum ada tugas hari ini."}
             </div>
-            <div style={{ position: "relative" }}>
-              <div style={{ fontSize: m.featured ? 34 : 17, fontWeight: 800, color: "var(--t1)", fontFamily: "var(--mono)", marginBottom: 4 }}>{m.big}</div>
-              <div style={{ fontSize: m.featured ? 13 : 12, color: m.accent, fontWeight: 600 }}>{m.sub}</div>
+          ) : (
+            <div style={{ maxHeight: 340, overflowY: "auto" }}>
+              {todayTasks.map((t, i) => (
+                <div key={t.id} className="staggerItem" style={{ display: "flex", alignItems: "center", gap: 12, padding: "11px 18px", borderBottom: "1px solid var(--border)", animationDelay: `${i * 0.03}s` }}>
+                  <div style={{ width: 30, height: 30, borderRadius: 8, background: "var(--bg2)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, flexShrink: 0 }}>
+                    {t.driver_avatar || "🧑‍✈️"}
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: "var(--t1)" }}>{t.driver_nama || "-"}</div>
+                    <div style={{ fontSize: 11.5, color: "var(--t3)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>📍 {t.tujuan}</div>
+                  </div>
+                  <span style={{ fontSize: 10.5, fontWeight: 700, padding: "3px 9px", borderRadius: "var(--pill)", background: `${STATUS_COLOR[t.status] || "var(--t3)"}18`, color: STATUS_COLOR[t.status] || "var(--t3)", whiteSpace: "nowrap" }}>
+                    {STATUS_LABEL_ID[t.status] || t.status}
+                  </span>
+                </div>
+              ))}
             </div>
+          )}
+        </div>
+
+        <div className="statPop" style={{ ...cardStyle, padding: 20 }}>
+          <div style={{ fontWeight: 800, fontSize: 14.5, color: "var(--t1)", marginBottom: 14 }}>💰 {lang === "en" ? "Operational Fund" : "Dana Operasional"}</div>
+          {showBothPlants ? (
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+              {[{ label: "CIK", k: kantongCik }, { label: "PRB", k: kantongPrb }].map((p) => {
+                const gapP = p.k ? (p.k.allocOpDriver + p.k.allocEmergency + p.k.cashAvailable + p.k.claimSubmitted + p.k.claimPaid) - p.k.totalBudget : 0;
+                return (
+                  <div key={p.label} style={{ padding: 14, borderRadius: 12, background: "var(--bg2)" }}>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: "var(--t3)", textTransform: "uppercase", marginBottom: 6 }}>{p.label}</div>
+                    <div style={{ fontSize: 18, fontWeight: 800, fontFamily: "var(--mono)", color: "var(--t1)" }}>{p.k ? `Rp ${fmtRp(p.k.totalBudget)}` : "-"}</div>
+                    <div style={{ fontSize: 11, fontWeight: 600, color: gapP === 0 ? "var(--green)" : gapP > 0 ? "var(--orange)" : "var(--red)", marginTop: 3 }}>
+                      {p.k ? `GAP ${gapP >= 0 ? "+" : ""}Rp ${fmtRp(gapP)}` : (lang === "en" ? "Not set up" : "Belum diisi")}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <div>
+              <div style={{ fontSize: 24, fontWeight: 800, fontFamily: "var(--mono)", color: "var(--t1)" }}>{myKantong ? `Rp ${fmtRp(myKantong.totalBudget)}` : "-"}</div>
+              <div style={{ fontSize: 12, color: "var(--t3)", marginTop: 4 }}>{myProfile?.plantScope} · {lang === "en" ? "Total Cash Operational" : "Total Cash Operasional"}</div>
+            </div>
+          )}
+          <button onClick={() => setActiveTab("opfund")} style={{ marginTop: 14, width: "100%", padding: "9px", borderRadius: 10, border: "1px solid var(--border2)", background: "var(--bg2)", color: "var(--t2)", fontWeight: 700, fontSize: 12, cursor: "pointer" }}>
+            {lang === "en" ? "Manage Fund →" : "Kelola Dana →"}
           </button>
-        ))}
+        </div>
+      </div>
+
+      {/* ══════════════════════════════════════════════════════
+          OVERTIME | CANTEEN | LOCKER | GAS STATION — 4 kartu
+      ══════════════════════════════════════════════════════ */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 14, marginBottom: 16 }}>
+        {/* Overtime */}
+        <div className="statPop" style={{ ...cardStyle, padding: 16 }}>
+          <div style={{ fontSize: 12.5, fontWeight: 800, color: "var(--t1)", marginBottom: 10 }}>⏱️ Overtime</div>
+          <div style={{ fontSize: 20, fontWeight: 800, fontFamily: "var(--mono)", color: "var(--t1)" }}>{fmtRp(animatedOtHours)} jam</div>
+          <div style={{ fontSize: 11.5, color: "var(--gold2)", fontWeight: 700, marginBottom: 10 }}>Rp {fmtRp(animatedOtAmount)}</div>
+          {otByPlant.map((p) => (
+            <div key={p.plant} style={{ marginBottom: 4 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10, color: "var(--t3)" }}>
+                <span>{p.plant}</span><span>{fmtRp(p.hours)}j</span>
+              </div>
+              <div style={{ height: 4, borderRadius: 4, background: "var(--border)", overflow: "hidden" }}>
+                <div style={{ height: "100%", width: `${(p.hours / maxOtPlantHours) * 100}%`, background: PLANT_COLOR[p.plant] || "var(--brand)" }} />
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Canteen */}
+        <div className="statPop" style={{ ...cardStyle, padding: 16 }}>
+          <div style={{ fontSize: 12.5, fontWeight: 800, color: "var(--t1)", marginBottom: 10 }}>🍱 {lang === "en" ? "Canteen (Month)" : "Kantin (Bulan Ini)"}</div>
+          <div style={{ marginBottom: 8 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, marginBottom: 2 }}>
+              <span style={{ color: "var(--t2)" }}>🥐 Snack</span><span style={{ fontWeight: 700, color: "var(--t1)" }}>{fmtRp(canteenSnackConsumed)}/{fmtRp(canteenSnackOrder)}</span>
+            </div>
+            <div style={{ height: 6, borderRadius: 4, background: "var(--border)", overflow: "hidden" }}>
+              <div style={{ height: "100%", width: `${(canteenSnackOrder / maxCanteenVal) * 100}%`, background: "var(--green)" }} />
+            </div>
+          </div>
+          <div>
+            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, marginBottom: 2 }}>
+              <span style={{ color: "var(--t2)" }}>🍽️ Meal</span><span style={{ fontWeight: 700, color: "var(--t1)" }}>{fmtRp(canteenMealConsumed)}/{fmtRp(canteenMealOrder)}</span>
+            </div>
+            <div style={{ height: 6, borderRadius: 4, background: "var(--border)", overflow: "hidden" }}>
+              <div style={{ height: "100%", width: `${(canteenMealOrder / maxCanteenVal) * 100}%`, background: "var(--brand)" }} />
+            </div>
+          </div>
+        </div>
+
+        {/* Locker */}
+        <div className="statPop" style={{ ...cardStyle, padding: 16, display: "flex", alignItems: "center", gap: 12 }}>
+          <svg viewBox="0 0 90 90" width={64} height={64} style={{ flexShrink: 0 }}>
+            <circle cx={45} cy={45} r={RL} fill="none" stroke="var(--border)" strokeWidth={10} />
+            <circle cx={45} cy={45} r={RL} fill="none" stroke="var(--red)" strokeWidth={10} strokeDasharray={`${(lockerUsedPct / 100) * CIRCL} ${CIRCL}`} strokeLinecap="round" transform="rotate(-90 45 45)" />
+            <text x={45} y={50} textAnchor="middle" fontSize={18} fontWeight={800} fill="var(--t1)" fontFamily="var(--mono)">{lockerTotal}</text>
+          </svg>
+          <div>
+            <div style={{ fontSize: 12.5, fontWeight: 800, color: "var(--t1)", marginBottom: 6 }}>🔐 Locker</div>
+            <div style={{ fontSize: 11, color: "var(--green)", fontWeight: 700 }}>{lockerAvailable} {lang === "en" ? "available" : "tersedia"}</div>
+            <div style={{ fontSize: 11, color: "var(--red)", fontWeight: 700 }}>{lockerUsed} {lang === "en" ? "used" : "dipakai"}</div>
+          </div>
+        </div>
+
+        {/* Gas Station */}
+        <div className="statPop" style={{ ...cardStyle, padding: 16 }}>
+          <div style={{ fontSize: 12.5, fontWeight: 800, color: "var(--t1)", marginBottom: 10 }}>⛽ {lang === "en" ? "Gas Stations" : "Pom Bensin"}</div>
+          <div style={{ fontSize: 24, fontWeight: 800, fontFamily: "var(--mono)", color: "var(--t1)" }}>{gasStations.length}</div>
+          <div style={{ fontSize: 11.5, color: "var(--t3)", marginTop: 4 }}>{fuelTypesCovered}/{FUEL_TYPES_LIST.length} {lang === "en" ? "fuel types" : "jenis BBM"}</div>
+        </div>
       </div>
 
       {/* ── Charts row ── */}
-      <div style={{ display: "grid", gridTemplateColumns: "1.6fr 1fr", gap: 16, marginBottom: 20 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "1.6fr 1fr", gap: 16, marginBottom: 16 }}>
         <div className="statPop" style={{ ...cardStyle, padding: 20 }}>
           <div style={{ fontSize: 14.5, fontWeight: 800, color: "var(--t1)", marginBottom: 16 }}>
             {lang === "en" ? "Claim Activity — Last 30 Days" : "Aktivitas Klaim — 30 Hari Terakhir"}
@@ -2272,7 +2295,7 @@ function OverviewTab({ setActiveTab, myProfile }: { setActiveTab: (t: DashboardT
         </div>
       </div>
 
-      <style>{`
+      <style>{'
         @keyframes heroFloat1 {
           0%, 100% { transform: translate(0, 0) scale(1); }
           50% { transform: translate(-25px, 30px) scale(1.08); }
