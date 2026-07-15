@@ -2568,18 +2568,18 @@ function ClaimsTab() {
         </div>
       </div>
 
-      <div className="statPop" style={{ display: "flex", gap: 28, padding: "16px 22px", marginBottom: 18, ...cardStyle, borderLeft: "3px solid var(--gold)" }}>
+     <div className="statPop" style={{ display: "flex", gap: 28, padding: "16px 22px", marginBottom: 18, ...cardStyle, borderLeft: "3px solid var(--gold)" }}>
         <div>
           <div style={{ fontSize: 13, color: "var(--t3)", fontWeight: 600 }}>{lang === "en" ? "Claims" : "Klaim"}</div>
-          <div className="numGrad" style={{ fontSize: 21, fontWeight: 800 }}>{filtered.length}</div>
+          <div className="numGrad" style={{ fontSize: 21, fontWeight: 800 }}>{animatedClaimsCount}</div>
         </div>
         <div style={{ borderLeft: "1px solid var(--border2)", paddingLeft: 28 }}>
           <div style={{ fontSize: 13, color: "var(--t3)", fontWeight: 600 }}>Total</div>
-          <div style={{ fontSize: 21, fontWeight: 800, color: "var(--t1)" }}>Rp {fmtRp(totalFiltered)}</div>
+          <div style={{ fontSize: 21, fontWeight: 800, color: "var(--t1)" }}>Rp {fmtRp(animatedTotalFiltered)}</div>
         </div>
         <div style={{ borderLeft: "1px solid var(--border2)", paddingLeft: 28 }}>
           <div style={{ fontSize: 13, color: "var(--t3)", fontWeight: 600 }}>{lang === "en" ? "Active Drivers" : "Driver Aktif"}</div>
-          <div style={{ fontSize: 21, fontWeight: 800, color: "var(--t1)" }}>{uniqueDriversFiltered}</div>
+          <div style={{ fontSize: 21, fontWeight: 800, color: "var(--t1)" }}>{animatedActiveDriversClaims}</div>
         </div>
       </div>
 
