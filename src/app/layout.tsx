@@ -48,11 +48,11 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="id">
+    <html lang="id" className={spaceMono.variable}>
       <head>
         <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
       </head>
-      <body className={spaceMono.variable}>
+      <body>
         <AppProviders>
           <AuthProvider>{children}</AuthProvider>
         </AppProviders>
