@@ -2371,6 +2371,9 @@ function ClaimsTab() {
   }, [claims, driverFilter, periodMode, filterDate, lang]);
   const totalFiltered = filtered.reduce((s, c) => s + c.total, 0);
   const uniqueDriversFiltered = new Set(filtered.map((c) => c.driver_id)).size;
+  const animatedClaimsCount = useCountUp(filtered.length);
+  const animatedTotalFiltered = useCountUp(totalFiltered);
+  const animatedActiveDrivers = useCountUp(uniqueDriversFiltered);
 
   function openAdd() {
     setFormDriverId("");
@@ -2877,6 +2880,9 @@ function OvertimeTab({ myProfile }: { myProfile: MyProfile | null }) {
 
   const totalHours = filtered.reduce((s, o) => s + o.hours, 0);
   const totalAmount = filtered.reduce((s, o) => s + o.amount, 0);
+  const animatedEntries = useCountUp(filtered.length);
+  const animatedTotalHours = useCountUp(totalHours);
+  const animatedTotalAmount = useCountUp(totalAmount);
 
   const byPlant = OT_PLANTS.map((plant) => {
     const rows = filtered.filter((o) => o.plant === plant);
@@ -2969,17 +2975,17 @@ function OvertimeTab({ myProfile }: { myProfile: MyProfile | null }) {
       {error && <div style={{ padding: 12, borderRadius: 10, background: "var(--red-soft)", color: "var(--red)", marginBottom: 14, fontSize: 13 }}>{error}</div>}
 
      <div className="statCardRow">
-        <div className="statCardCompact">
+       <div className="statCardCompact">
           <div className="iconBadge badge-blue icon">📝</div>
-          <div><div className="value">{filtered.length}</div><div className="label">{lang === "en" ? "Entries" : "Entri"}</div></div>
+          <div><div className="value">{animatedEntries}</div><div className="label">{lang === "en" ? "Entries" : "Entri"}</div></div>
         </div>
         <div className="statCardCompact">
           <div className="iconBadge badge-teal icon">⏱️</div>
-          <div><div className="value">{fmtRp(totalHours)} jam</div><div className="label">Total Jam OT</div></div>
+          <div><div className="value">{fmtRp(animatedTotalHours)} jam</div><div className="label">Total Jam OT</div></div>
         </div>
         <div className="statCardCompact">
           <div className="iconBadge badge-orange icon">💰</div>
-          <div><div className="value">Rp {fmtRp(totalAmount)}</div><div className="label">Total Nominal</div></div>
+          <div><div className="value">Rp {fmtRp(animatedTotalAmount)}</div><div className="label">Total Nominal</div></div>
         </div>
         <div className="statCardCompact">
           <div className="iconBadge badge-purple icon">🏭</div>
@@ -3319,6 +3325,9 @@ function DriverBudgetTab() {
 
   const totalDrivers = tiers.reduce((s, t) => s + t.activeDriverCount, 0);
   const totalBudget = tiers.reduce((s, t) => s + t.amountPerMonth * t.activeDriverCount, 0);
+  const animatedTotalDrivers = useCountUp(totalDrivers);
+  const animatedTotalBudget = useCountUp(totalBudget);
+  const animatedYearlyBudget = useCountUp(totalBudget * 12);
 
   function openAdd() {
     setEditing(null);
@@ -3385,15 +3394,15 @@ function DriverBudgetTab() {
       <div className="statCardRow">
         <div className="statCardCompact">
           <div className="iconBadge badge-blue icon">🧑‍✈️</div>
-          <div><div className="value">{totalDrivers}</div><div className="label">{lang === "en" ? "Total Drivers" : "Total Driver"}</div></div>
+          <div><div className="value">{animatedTotalDrivers}</div><div className="label">{lang === "en" ? "Total Drivers" : "Total Driver"}</div></div>
         </div>
         <div className="statCardCompact">
           <div className="iconBadge badge-teal icon">💳</div>
-          <div><div className="value">Rp {fmtRp(totalBudget)}</div><div className="label">{lang === "en" ? "Budget/Month" : "Budget/Bulan"}</div></div>
+          <div><div className="value">Rp {fmtRp(animatedTotalBudget)}</div><div className="label">{lang === "en" ? "Budget/Month" : "Budget/Bulan"}</div></div>
         </div>
         <div className="statCardCompact">
           <div className="iconBadge badge-purple icon">📅</div>
-          <div><div className="value">Rp {fmtRp(totalBudget * 12)}</div><div className="label">{lang === "en" ? "Per Year" : "Per Tahun"}</div></div>
+          <div><div className="value">Rp {fmtRp(animatedYearlyBudget)}</div><div className="label">{lang === "en" ? "Per Year" : "Per Tahun"}</div></div>
         </div>
       </div>
 
