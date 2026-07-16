@@ -3567,8 +3567,7 @@ function OpFundTab({ myProfile }: { myProfile: MyProfile | null }) {
     if (lockedPlant) setViewPlant(lockedPlant);
   }, [lockedPlant]);
 
-  const [kantongCik, setKantongCik] = useState<Kantong | null>(null);
-  const [kantongPrb, setKantongPrb] = useState<Kantong | null>(null);
+  const [kantong, setKantong] = useState<Kantong | null>(null);
   const [history, setHistory] = useState<Kantong[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
