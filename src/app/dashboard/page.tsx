@@ -1800,6 +1800,7 @@ async function getOverviewKantong(profile: MyProfile | null): Promise<Kantong | 
     cashAvailable: (cik?.cashAvailable ?? 0) + (prb?.cashAvailable ?? 0),
     claimSubmitted: (cik?.claimSubmitted ?? 0) + (prb?.claimSubmitted ?? 0),
     claimPaid: (cik?.claimPaid ?? 0) + (prb?.claimPaid ?? 0),
+    unsubmittedClaim: (cik?.unsubmittedClaim ?? 0) + (prb?.unsubmittedClaim ?? 0),
     lastReset: cik?.lastReset ?? prb?.lastReset ?? "",
   };
 }
