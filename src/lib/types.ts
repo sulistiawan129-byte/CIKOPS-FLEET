@@ -101,6 +101,7 @@ export interface Kantong {
   cashAvailable: number;
   claimSubmitted: number;
   claimPaid: number;
+  unsubmittedClaim: number;
   lastReset: string;
 }
 
