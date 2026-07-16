@@ -2150,8 +2150,7 @@ function OverviewTab({ setActiveTab, myProfile }: { setActiveTab: (t: DashboardT
             </svg>
           </button>
         </div>
-
-     </div>
+      </div>
 
       <div className="sectionHeading">Finance</div>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 16, marginBottom: 22 }}>
@@ -2357,6 +2356,7 @@ function OverviewTab({ setActiveTab, myProfile }: { setActiveTab: (t: DashboardT
             </svg>
           </button>
         </div>
+      </div>
 
       <div className="sectionHeading">{lang === "en" ? "Trends & Analytics" : "Tren & Analitik"}</div>
       {/* ── Charts row ── */}
