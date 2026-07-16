@@ -1118,3 +1118,28 @@ h1, h2, h3 {
   transform: translateY(-2px);
   box-shadow: 0 12px 32px rgba(139, 92, 246, 0.55);
 }
+
+/* ── Varian warna tambahan untuk .hexBadge — dipakai di Tasks Today,
+   Operational Fund, Overtime, Canteen, Gas Stations. ── */
+.hexBadge.blue   { background: rgba(96, 165, 250, 0.1); box-shadow: 0 0 24px rgba(96, 165, 250, 0.45); }
+.hexBadge.blue svg   { color: #60a5fa; filter: drop-shadow(0 0 6px rgba(96, 165, 250, 0.7)); }
+.hexBadge.blue::before { background: linear-gradient(135deg, #60a5fa, #3b82f6); }
+
+.hexBadge.gold   { background: rgba(216, 169, 78, 0.1); box-shadow: 0 0 24px rgba(216, 169, 78, 0.45); }
+.hexBadge.gold svg   { color: #d8a94e; filter: drop-shadow(0 0 6px rgba(216, 169, 78, 0.7)); }
+.hexBadge.gold::before { background: linear-gradient(135deg, #f0c674, #d8a94e); }
+
+.hexBadge.teal   { background: rgba(45, 212, 191, 0.1); box-shadow: 0 0 24px rgba(45, 212, 191, 0.45); }
+.hexBadge.teal svg   { color: #2dd4bf; filter: drop-shadow(0 0 6px rgba(45, 212, 191, 0.7)); }
+.hexBadge.teal::before { background: linear-gradient(135deg, #5eead4, #2dd4bf); }
+
+.hexBadge.green  { background: rgba(52, 211, 153, 0.1); box-shadow: 0 0 24px rgba(52, 211, 153, 0.45); }
+.hexBadge.green svg  { color: #34d399; filter: drop-shadow(0 0 6px rgba(52, 211, 153, 0.7)); }
+.hexBadge.green::before { background: linear-gradient(135deg, #6ee7b7, #34d399); }
+
+.hexBadge.red    { background: rgba(239, 68, 68, 0.1); box-shadow: 0 0 24px rgba(239, 68, 68, 0.45); }
+.hexBadge.red svg    { color: #ef4444; filter: drop-shadow(0 0 6px rgba(239, 68, 68, 0.7)); }
+.hexBadge.red::before { background: linear-gradient(135deg, #f87171, #ef4444); }
+
+.hexBadge.small { width: 44px; height: 44px; }
+.hexBadge.small svg { width: 20px; height: 20px; }
