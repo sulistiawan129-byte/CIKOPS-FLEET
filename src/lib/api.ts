@@ -566,7 +566,8 @@ interface KantongRow {
   alloc_emergency: number;
   cash_available: number;
   claim_submitted: number;
-  claim_paid: number;
+claim_paid: number;
+  unsubmitted_claim: number;
   last_reset: string;
 }
 
@@ -575,6 +576,7 @@ function mapKantongRow(row: KantongRow): Kantong {
     id: row.id,
     period: row.period,
     plant: row.plant,
+    unsubmittedClaim: Number(row.unsubmitted_claim) || 0,
     totalBudget: Number(row.total_budget) || 0,
     allocOpDriver: Number(row.alloc_op_driver) || 0,
     allocEmergency: Number(row.alloc_emergency) || 0,
@@ -600,7 +602,8 @@ export interface KantongInput {
   allocEmergency: number;
   cashAvailable: number;
   claimSubmitted: number;
-  claimPaid: number;
+claimPaid: number;
+  unsubmittedClaim: number;
   lastReset: string;
 }
 
@@ -614,6 +617,7 @@ export async function updateKantongBudget(input: KantongInput): Promise<void> {
       cash_available: input.cashAvailable,
       claim_submitted: input.claimSubmitted,
       claim_paid: input.claimPaid,
+      unsubmitted_claim: input.unsubmittedClaim,
       last_reset: input.lastReset,
     })
     .eq("period", input.period)
