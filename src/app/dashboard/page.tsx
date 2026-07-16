@@ -1881,9 +1881,21 @@ function OverviewTab({ setActiveTab, myProfile }: { setActiveTab: (t: DashboardT
   const urgentDocsPre = docBucketsPre.urgent + docBucketsPre.mid;
   const availableDriversPre = drivers.filter((d) => d.aktif).length;
 
+  const nowPre = new Date();
+  const thisMonthTotalPre = claims
+    .filter((c) => { const d = new Date(c.periodDate); return d.getMonth() === nowPre.getMonth() && d.getFullYear() === nowPre.getFullYear(); })
+    .reduce((s, c) => s + c.total, 0);
+  const periodNowPre = `${nowPre.getFullYear()}-${String(nowPre.getMonth() + 1).padStart(2, "0")}`;
+  const otThisMonthPre = overtimes.filter((o) => o.period === periodNowPre);
+  const otHoursPre = otThisMonthPre.reduce((s, o) => s + o.hours, 0);
+  const otAmountPre = otThisMonthPre.reduce((s, o) => s + o.amount, 0);
+
   const animatedVehicleCount = useCountUp(vehicles.length);
   const animatedAvailableDrivers = useCountUp(availableDriversPre);
   const animatedUrgentDocs = useCountUp(urgentDocsPre);
+  const animatedThisMonthTotal = useCountUp(thisMonthTotalPre);
+  const animatedOtHours = useCountUp(otHoursPre);
+  const animatedOtAmount = useCountUp(otAmountPre);
 
   if (loading) return <div style={{ padding: 60, textAlign: "center", color: "var(--t3)" }}>{lang === "en" ? "Loading overview..." : "Memuat ringkasan..."}</div>;
 
@@ -1906,7 +1918,6 @@ function OverviewTab({ setActiveTab, myProfile }: { setActiveTab: (t: DashboardT
     return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
   });
   const thisMonthTotal = thisMonthClaims.reduce((s, c) => s + c.total, 0);
-  const animatedThisMonthTotal = useCountUp(thisMonthTotal);
   const lastMonthDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
   const lastMonthTotal = claims
     .filter((c) => { const d = new Date(c.periodDate); return d.getMonth() === lastMonthDate.getMonth() && d.getFullYear() === lastMonthDate.getFullYear(); })
@@ -1918,8 +1929,6 @@ function OverviewTab({ setActiveTab, myProfile }: { setActiveTab: (t: DashboardT
   const otThisMonth = overtimes.filter((o) => o.period === periodNow);
   const otHours = otThisMonth.reduce((s, o) => s + o.hours, 0);
   const otAmount = otThisMonth.reduce((s, o) => s + o.amount, 0);
-  const animatedOtHours = useCountUp(otHours);
-  const animatedOtAmount = useCountUp(otAmount);
   const otByPlant = OT_PLANTS.map((p) => ({ plant: p, hours: otThisMonth.filter((o) => o.plant === p).reduce((s, o) => s + o.hours, 0) }));
   const maxOtPlantHours = Math.max(...otByPlant.map((p) => p.hours), 1);
 
