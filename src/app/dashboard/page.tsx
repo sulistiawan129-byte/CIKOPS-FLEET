@@ -2151,6 +2151,8 @@ function OverviewTab({ setActiveTab, myProfile }: { setActiveTab: (t: DashboardT
           </button>
         </div>
 
+     </div>
+
       <div className="sectionHeading">Finance</div>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 16, marginBottom: 22 }}>
         {/* Overtime — dikasih lebih banyak ruang (bukan 1 dari 4 kolom sempit) */}
