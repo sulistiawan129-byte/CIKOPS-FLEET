@@ -19,7 +19,6 @@
   --border: #dce8f5;
   --border2: #c8dced;
 
-  /* "brand" = primary blue (dashboard accents, links, primary actions) */
   --brand: #3d6ff2;
   --brand2: #2a52d6;
   --navy: #14315c;
@@ -32,10 +31,6 @@
   --red-soft: #fbe9e8;
   --purple: #6f5ec7;
 
-  /* Secondary accent — teal, matching the CIKOPS-FM reference palette.
-     Variable names kept as --gold* (legacy) so every existing component
-     that already references them updates automatically — only the
-     VALUES changed here, from warm gold to teal. */
   --gold: #17c3b2;
   --gold2: #0f9c8f;
   --gold-soft: #e3f8f6;
@@ -62,29 +57,20 @@
   --safe-bottom: env(safe-area-inset-bottom, 0px);
   --safe-top: env(safe-area-inset-top, 0px);
 
-  /* Lebar maksimum konten — dipakai bersama oleh .pageContainer di sini
-     DAN oleh .body / .reportBody di page.module.css, supaya kalau mau
-     ganti lebar layout, cukup ubah satu angka ini saja. */
   --content-max: 1280px;
 
-  /* Varian warna teks "di atas *-soft background" — sebelumnya di
-     page.module.css nilai #b25700 (teks oranye) dan #06915a (teks
-     hijau) ditulis berulang di beberapa tempat sebagai hex hardcode.
-     Sekarang jadi token supaya satu sumber kebenaran. */
   --orange-text: #b25700;
   --green-text: #06915a;
 
-  /* Skala ukuran font — dipakai SEMUA komponen, bukan angka bebas lagi. */
-  --fs-xs: 11px;    /* label kapital kecil, caption */
-  --fs-sm: 12.5px;  /* teks sekunder, sub-label */
-  --fs-base: 14px;  /* body text default */
-  --fs-md: 16px;    /* sub-heading kecil */
-  --fs-lg: 20px;    /* heading kartu */
-  --fs-xl: 26px;    /* angka statistik utama */
-  --fs-2xl: 34px;   /* angka hero/featured */
-  --fs-3xl: 44px;   /* angka hero besar (gauge, dsb) */
+  --fs-xs: 11px;
+  --fs-sm: 12.5px;
+  --fs-base: 14px;
+  --fs-md: 16px;
+  --fs-lg: 20px;
+  --fs-xl: 26px;
+  --fs-2xl: 34px;
+  --fs-3xl: 44px;
 
-  /* Skala spacing — kelipatan 4px, konsisten di semua padding/gap. */
   --sp-1: 4px;
   --sp-2: 8px;
   --sp-3: 12px;
@@ -130,21 +116,13 @@
   --shadow-brand: 0 10px 26px rgba(91, 140, 255, 0.32);
   --shadow-gold: 0 8px 22px rgba(45, 212, 196, 0.28);
 
-  /* Di dark mode, teks-di-atas-*-soft-background di page.module.css
-     dulu di-override manual per selector ([data-theme="dark"] .pillAssigned,
-     .mobileActionWarn, .rowActionWarn, .pillDone, .liveBadge — 5 tempat).
-     Sekarang cukup token ini yang berubah, otomatis semua tempat yang
-     pakai var(--orange-text)/var(--green-text) ikut berubah. */
   --orange-text: var(--orange);
   --green-text: var(--green);
 }
 
-/* ── Base html/body — SATU tempat saja untuk font-size dasar.
-   Kalau mau base 16px, cukup ubah --fs-base di :root, tidak perlu
-   cari-cari selector body lain lagi. ── */
 html {
   height: 100%;
-  font-size: 16px; /* root em, TIDAK sama dengan body font-size di bawah */
+  font-size: 16px;
 }
 
 body {
@@ -189,29 +167,15 @@ select {
   display: none;
 }
 
-/* Heading pakai font display (Poppins). Angka/statistik JANGAN ikut
-   sini — sebelumnya `.numGrad` nyasar ke aturan ini (jadi Poppins),
-   padahal semua angka di app ini seharusnya pakai SATU font mono
-   yang sama (lihat blok "SEMUA ANGKA PAKAI FONT YANG SAMA" di bawah). */
 h1, h2, h3 {
   font-family: var(--font-display);
 }
 
-/* ════════════════════════════════════════════════════════════
-   SEMUA ANGKA PAKAI FONT YANG SAMA — JetBrains Mono, tabular-nums
-   Ini yang bikin angka di foto referensi terlihat rapi: satu font
-   mono dipakai konsisten untuk SEMUA angka (statistik, saldo, tabel),
-   bukan campur Inter di satu tempat & Poppins di tempat lain.
-   `.numGrad`, `.num`, `.statValue`, `.statHero` semua disatukan ke
-   `var(--mono)` di sini.
-════════════════════════════════════════════════════════════ */
 .numGrad,
 .heroGlow .numGrad {
   font-family: var(--mono);
 }
 
-/* Utility class ukuran font — supaya bisa langsung dipakai via
-   className, konsisten, tanpa perlu tulis angka px manual lagi. */
 .fs-xs  { font-size: var(--fs-xs); }
 .fs-sm  { font-size: var(--fs-sm); }
 .fs-base{ font-size: var(--fs-base); }
@@ -221,9 +185,6 @@ h1, h2, h3 {
 .fs-2xl { font-size: var(--fs-2xl); }
 .fs-3xl { font-size: var(--fs-3xl); }
 
-/* ── Reusable gold pill button — the reference's signature CTA shape.
-   (base style + shimmer sweep + press feedback digabung jadi satu
-   blok — sebelumnya tersebar di 3 tempat terpisah di file asli) ── */
 .pillBtn {
   position: relative;
   overflow: hidden;
@@ -261,14 +222,9 @@ h1, h2, h3 {
   left: 130%;
 }
 .pillBtn:active {
-  /* file asli mendefinisikan translateY(0) lalu scale(0.97) secara
-     terpisah — translateY(0) langsung tertimpa dan tidak pernah
-     kelihatan efeknya, jadi cukup satu ini saja */
   transform: scale(0.97);
 }
 
-/* ── Premium content card — hover-lift + fade-in, used across every
-   FleetOS tab so stat cards/list cards feel alive instead of static. ── */
 .statPop {
   animation: cardIn 0.35s ease both;
   transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
@@ -308,9 +264,6 @@ h1, h2, h3 {
   border-color: rgba(91, 140, 255, 0.4);
   box-shadow: 0 0 28px rgba(91, 140, 255, 0.35), 0 16px 40px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.06);
 }
-/* ── Premium hero panel — radial sky/gold glow behind a gradient
-   surface, the one "signature" treatment reserved for hero/overview
-   sections so it doesn't get diluted by overuse. ── */
 .heroGlow {
   position: relative;
   overflow: hidden;
@@ -331,8 +284,6 @@ h1, h2, h3 {
   pointer-events: none;
 }
 
-/* ── Tab nav — active pill gets a soft glow, inactive items lift subtly
-   on hover so the whole strip feels tactile instead of flat buttons. ── */
 .tabPill {
   transition: background 0.15s, color 0.15s, transform 0.15s, box-shadow 0.15s;
 }
@@ -343,8 +294,6 @@ h1, h2, h3 {
   box-shadow: var(--shadow-gold);
 }
 
-/* ── Premium input focus — subtle brand glow instead of default browser
-   outline, applied across every FleetOS form field. ── */
 .premiumInput {
   transition: border-color 0.15s, box-shadow 0.15s;
 }
@@ -354,9 +303,6 @@ h1, h2, h3 {
   box-shadow: 0 0 0 3px rgba(61, 111, 242, 0.15);
 }
 
-/* ── Gradient-text numbers — the "premium fintech dashboard" signature:
-   big KPI figures get a brand→gold gradient fill instead of flat color.
-   Apply via className="numGrad" on any large stat/number element. ── */
 .numGrad {
   background: linear-gradient(120deg, var(--brand), var(--gold));
   -webkit-background-clip: text;
@@ -367,44 +313,30 @@ h1, h2, h3 {
   font-feature-settings: "tnum";
 }
 
-/* ── Plain tabular number utility — for any KPI/stat value that doesn't
-   use the gradient treatment, keeps digits perfectly aligned like the
-   reference dashboard (font-variant-numeric: tabular-nums). ── */
 .num {
   font-variant-numeric: tabular-nums;
   font-feature-settings: "tnum";
   font-family: var(--mono);
 }
 
-/* ── Uppercase label utility — the reference dashboard's signature
-   micro-label treatment (uppercase + wide letter-spacing) used for
-   KPI labels, section headers, table headers, etc. ── */
 .labelCaps {
   text-transform: uppercase;
   letter-spacing: 0.09em;
   font-weight: 700;
 }
 
-/* ── Card accent glow — the thin top color bar on module cards now bleeds
-   a soft matching glow downward instead of sitting as a flat stripe. ── */
 .cardAccentGlow {
   box-shadow: 0 6px 16px -6px currentColor;
 }
 
-/* ── Staggered fade for lists — pair with an inline `animationDelay` per
-   item (e.g. driver rankings, claim rows) for a cascading reveal. ── */
 .staggerItem {
   animation: fadeUp 0.4s ease both;
 }
 
-/* ── Tab content transition — the active tab's panel fades/slides in
-   instead of popping instantly when switching tabs. ── */
 .tabContent {
   animation: fadeUp 0.28s ease both;
 }
 
-/* ── Modal entrance — scale+fade in instead of popping instantly. Applied
-   to the overlay backdrop (fades) and the modal box (scales+lifts). ── */
 .modalOverlayAnim {
   animation: overlayIn 0.18s ease both;
 }
@@ -412,14 +344,10 @@ h1, h2, h3 {
   animation: modalIn 0.25s cubic-bezier(0.34, 1.56, 0.64, 1) both;
 }
 
-/* ── Gauge/donut fill-in — the stroke-dashoffset transitions smoothly
-   whenever its value changes, so scores/percentages visibly "fill up"
-   on load instead of snapping straight to their final state. ── */
 .gaugeAnimated {
   transition: stroke-dashoffset 1.1s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-/* ── Sidebar — smooth active-state transition + icon nudge on hover. ── */
 .sidebarItem {
   transition: background 0.2s ease, color 0.2s ease, transform 0.15s ease;
 }
@@ -427,8 +355,6 @@ h1, h2, h3 {
   transform: translateX(2px);
 }
 
-/* ── Loading shimmer — replaces plain "Loading..." text with a soft
-   sweeping gradient placeholder, feels alive instead of static. ── */
 .shimmerBlock {
   background: linear-gradient(90deg, var(--bg2) 25%, var(--border2) 50%, var(--bg2) 75%);
   background-size: 200% 100%;
@@ -436,12 +362,10 @@ h1, h2, h3 {
   border-radius: 8px;
 }
 
-/* ── Icon micro-bounce — small celebratory nudge for success states. ── */
 .iconBounce {
   animation: bounceIn 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) both;
 }
 
-/* ── Row hover — subtle background sweep for list/table rows. ── */
 .rowHover {
   transition: background 0.15s ease;
 }
@@ -479,9 +403,6 @@ h1, h2, h3 {
   to { opacity: 1; }
 }
 @keyframes shake {
-  /* NB: keyframe ini tidak dipakai class manapun di file ini — aman
-     dibiarkan, tapi kalau tidak dipakai di komponen lain juga boleh
-     dihapus untuk mengecilkan file. */
   0%, 100% { transform: translateX(0); }
   25% { transform: translateX(-6px); }
   75% { transform: translateX(6px); }
@@ -500,9 +421,6 @@ h1, h2, h3 {
   }
 }
 
-/* ── Icon badge — base + varian warna via modifier class.
-   Warna kategori hidup di sini, BUKAN di border kartu (lihat
-   .cardNeutral di bawah). ── */
 .iconBadge {
   width: 44px;
   height: 44px;
@@ -540,16 +458,6 @@ h1, h2, h3 {
   color: var(--brand);
 }
 
-/* ════════════════════════════════════════════════════════════
-   DESIGN SYSTEM — "Executive Dark Navy + Electric Blue"
-   Tema terpadu: satu warna aksen (brand biru) untuk semua elemen
-   interaktif/aktif, warna lain cuma untuk status data.
-   (Sebelumnya blok ini ada 2 kali dengan angka spacing/font-size
-   sedikit berbeda — sekarang satu definisi konsisten memakai versi
-   "compact" yang efektif menang di file asli.)
-════════════════════════════════════════════════════════════ */
-
-/* ── Sidebar nav item ── */
 .navItem {
   position: relative;
   display: flex;
@@ -617,8 +525,6 @@ h1, h2, h3 {
   margin-top: 4px;
 }
 
-/* ── Topbar utility button — bentuk bulat seragam untuk SEMUA tombol
-   kontrol (bahasa, tema, notifikasi), bukan campur pill/kotak/lingkaran. ── */
 .topbarIconBtn {
   width: 36px;
   height: 36px;
@@ -639,8 +545,6 @@ h1, h2, h3 {
   border-color: var(--brand);
 }
 
-/* ── Kartu netral — pengganti kartu ber-border warna-warni. Warna
-   cuma muncul di badge ikon & angka, bukan bingkai kartu. ── */
 .cardNeutral {
   background: var(--surface);
   border: 1px solid var(--border2);
@@ -652,10 +556,6 @@ h1, h2, h3 {
   box-shadow: var(--shadow-md);
 }
 
-/* ── Hirarki angka statistik — dua lapis ketat: label kapital kecil
-   di atas/bawah, angka besar tebal jadi fokus utama. Sekarang pakai
-   token skala tipografi (--fs-xs / --fs-xl) alih-alih angka hardcode
-   yang tadinya berbeda antara dua definisi (11px/32px vs 10.5px/26px). ── */
 .statLabel {
   font-size: var(--fs-xs);
   font-weight: 700;
@@ -678,9 +578,6 @@ h1, h2, h3 {
   margin-top: 2px;
 }
 
-/* ── Efek glow halus untuk elemen "live"/futuristik (dipakai di
-   badge status Live, indikator online, dsb) — dipakai secukupnya,
-   bukan di mana-mana. ── */
 .glowDot {
   width: 7px;
   height: 7px;
@@ -691,21 +588,12 @@ h1, h2, h3 {
   flex-shrink: 0;
 }
 
-/* ════════════════════════════════════════════════════════════
-   DESIGN SYSTEM v2 — pola reusable untuk bikin tampilan lebih rapat
-   dan premium di semua halaman, bukan cuma satu tab.
-════════════════════════════════════════════════════════════ */
-
-/* Pembungkus konten tab — mencegah kartu melebar sampai ujung layar
-   di monitor lebar. Pakai ini sebagai div terluar tiap tab. */
 .pageContainer {
   max-width: var(--content-max);
   margin: 0 auto;
   padding: 20px;
 }
 
-/* Baris kartu statistik ringkas — horizontal, ikon+angka+label,
-   LEBAR TETAP (bukan auto-fit yang melar). */
 .statCardRow {
   display: flex;
   flex-wrap: wrap;
@@ -749,8 +637,6 @@ h1, h2, h3 {
   margin-top: 1px;
 }
 
-/* Grid kartu kotak proporsional (locker, gas station map legend,
-   dsb) — otomatis kotak (aspectRatio 1/1). */
 .squareGrid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(76px, 1fr));
@@ -760,8 +646,6 @@ h1, h2, h3 {
   aspect-ratio: 1 / 1;
 }
 
-/* Section heading — dipakai buat mecah halaman panjang jadi
-   beberapa blok visual yang jelas. */
 .sectionHeading {
   display: flex;
   align-items: center;
@@ -782,8 +666,6 @@ h1, h2, h3 {
   flex-shrink: 0;
 }
 
-/* Kartu konten standar, padding rapat, pakai skala --sp-* (dulu 16px 18px
-   hardcode — 18 bukan bagian dari skala, sekarang dibulatkan ke 16). */
 .cardCompact {
   background: linear-gradient(180deg, var(--surface2), var(--surface));
   border: 1px solid var(--border2);
@@ -792,7 +674,6 @@ h1, h2, h3 {
   padding: var(--sp-4);
 }
 
-/* Tabel lebih rapat — baris lebih pendek, font sedikit lebih kecil. */
 .tableCompact {
   width: 100%;
   border-collapse: collapse;
@@ -811,31 +692,6 @@ h1, h2, h3 {
   border-top: 1px solid var(--border);
 }
 
-/* ════════════════════════════════════════════════════════════
-   MONEY BAR — ringkasan angka finansial (mis. saldo/pemasukan/
-   pengeluaran) persis seperti referensi foto: mono bold, tabular,
-   biru/teal/merah di atas navy gelap.
-
-   SENGAJA selalu gelap apa pun tema aplikasi (light/dark) — dipakai
-   untuk highlight ringkasan finansial yang ingin selalu menonjol.
-   Warna biru/teal/merahnya diambil PERSIS dari nilai dark theme
-   yang sudah ada di :root[data-theme="dark"] (--brand/--gold/--red)
-   supaya tetap satu identitas warna dengan sisa aplikasi, bukan
-   warna baru yang lepas sendiri.
-
-   Markup contoh:
-   <div class="moneyBar">
-     <div class="moneyItem">
-       <span class="moneyValue isBlue">Rp 48.000.000</span>
-     </div>
-     <div class="moneyItem">
-       <span class="moneyValue isTeal">Rp 20.500.000</span>
-     </div>
-     <div class="moneyItem">
-       <span class="moneyValue isRed">-Rp 27.500.000</span>
-     </div>
-   </div>
-════════════════════════════════════════════════════════════ */
 .moneyBar {
   display: flex;
   align-items: stretch;
@@ -863,9 +719,6 @@ h1, h2, h3 {
   background: rgba(255, 255, 255, 0.12);
 }
 
-/* Label kecil opsional di atas angka (tidak kelihatan di foto yang
-   di-crop, tapi disediakan untuk pemakaian nyata — mis. "Total
-   Pemasukan", "Saldo", "Total Pengeluaran"). */
 .moneyLabel {
   display: block;
   font-family: var(--font);
@@ -892,13 +745,6 @@ h1, h2, h3 {
 .moneyValue.isTeal { color: #2dd4c4; }
 .moneyValue.isRed  { color: #ff6b63; }
 
-/* ════════════════════════════════════════════════════════════
-   GLASSMORPHISM + NEON ACCENT — kesan premium/modern untuk kartu
-   dan judul section, dipakai lewat className tambahan "cardGlass"
-   di samping style inline yang sudah ada.
-════════════════════════════════════════════════════════════ */
-
-/* Judul section — sekarang gradient warna, lebih besar & tebal. */
 .sectionHeading {
   font-size: 14.5px !important;
   font-weight: 800 !important;
@@ -915,9 +761,6 @@ h1, h2, h3 {
   width: 4px !important;
 }
 
-/* Kartu glassmorphism + neon glow saat hover — dipakai bareng
-   className "statPop" yang sudah ada (jangan diganti, cukup
-   ditambah). Efek beda dikit antara light/dark mode. */
 .cardGlass {
   background: rgba(255, 255, 255, 0.6) !important;
   backdrop-filter: blur(18px);
@@ -942,8 +785,6 @@ h1, h2, h3 {
   box-shadow: 0 0 28px rgba(91, 140, 255, 0.35), 0 16px 40px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.06) !important;
 }
 
-/* Varian neon lebih kuat — dipakai buat kartu yang mau ditonjolkan
-   (opsional, tambahkan className "cardNeon" kalau mau efek lebih). */
 .cardNeon {
   position: relative;
 }
@@ -962,9 +803,11 @@ h1, h2, h3 {
 }
 
 /* ════════════════════════════════════════════════════════════
-   HEXAGON & CIRCLE OUTLINE-GLOW BADGES — versi presisi mengikuti
-   referensi: background gelap transparan + border glow warna, BUKAN
-   fill solid seperti .iconBadge/.neonIconBadge sebelumnya.
+   HEXAGON & CIRCLE OUTLINE-GLOW BADGES
+   NB: nama class "hexBadge" dipertahankan (biar semua className di JSX
+   nggak perlu diganti), tapi bentuknya sekarang rounded-square, BUKAN
+   hexagon lagi — clip-path hexagon sebelumnya motong sudut ikon SVG
+   di dalamnya sehingga ikon nggak pernah kelihatan utuh/penuh.
 ════════════════════════════════════════════════════════════ */
 
 .hexBadge {
@@ -973,7 +816,7 @@ h1, h2, h3 {
   display: flex;
   align-items: center;
   justify-content: center;
-  clip-path: polygon(25% 3%, 75% 3%, 100% 50%, 75% 97%, 25% 97%, 0% 50%);
+  border-radius: 18px;
   flex-shrink: 0;
   position: relative;
 }
@@ -984,7 +827,7 @@ h1, h2, h3 {
   content: "";
   position: absolute;
   inset: 0;
-  clip-path: polygon(25% 3%, 75% 3%, 100% 50%, 75% 97%, 25% 97%, 0% 50%);
+  border-radius: inherit;
   padding: 2px;
   background: linear-gradient(135deg, #a78bfa, #7c5cff);
   -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
@@ -1013,12 +856,6 @@ h1, h2, h3 {
 .circleBadge.orange svg { color: #fb923c; filter: drop-shadow(0 0 4px rgba(251, 146, 60, 0.6)); }
 .circleBadge.gold   { background: rgba(216, 169, 78, 0.08); border-color: rgba(216, 169, 78, 0.5); box-shadow: 0 0 16px rgba(216, 169, 78, 0.4); }
 .circleBadge.gold svg   { color: #d8a94e; filter: drop-shadow(0 0 4px rgba(216, 169, 78, 0.6)); }
-
-/* ════════════════════════════════════════════════════════════
-   NEON CARD SYSTEM v2 — ADAPTIF TEMA. Wadah kartu ikut terang/gelap
-   (sama seperti .statPop), tapi badge/gauge/tombol gradient tetap
-   neon cerah di kedua mode.
-════════════════════════════════════════════════════════════ */
 
 .neonCard {
   background: linear-gradient(160deg, var(--surface2), var(--surface));
@@ -1049,8 +886,6 @@ h1, h2, h3 {
   background: linear-gradient(135deg, rgba(91, 140, 255, 0.65), rgba(167, 147, 255, 0.5), rgba(255, 120, 200, 0.4));
 }
 
-/* Badge pill "ACTIVE" — tint hijau lembut ikut tema, teks/dot tetap
-   hijau terang di kedua mode (statusnya sama pentingnya di mana pun). */
 .neonBadgePill {
   display: inline-flex;
   align-items: center;
@@ -1075,7 +910,6 @@ h1, h2, h3 {
   box-shadow: 0 0 8px #2dd4bf;
 }
 
-/* Sub-stat panel (Available/Used) — background tint ikut tema. */
 .neonSubCard {
   display: flex;
   border-radius: 16px;
@@ -1095,8 +929,6 @@ h1, h2, h3 {
 [data-theme="dark"] .neonSubCard .half.available { background: linear-gradient(135deg, rgba(45, 212, 191, 0.1), transparent); }
 [data-theme="dark"] .neonSubCard .half.used { background: linear-gradient(135deg, rgba(239, 68, 68, 0.1), transparent); }
 
-/* Tombol utama — TETAP gradient neon cerah di kedua mode, ini elemen
-   yang sengaja jadi fokus/CTA jadi tidak perlu ikut tema. */
 .neonBtn {
   width: 100%;
   padding: 16px;
@@ -1119,8 +951,6 @@ h1, h2, h3 {
   box-shadow: 0 12px 32px rgba(139, 92, 246, 0.55);
 }
 
-/* ── Varian warna tambahan untuk .hexBadge — dipakai di Tasks Today,
-   Operational Fund, Overtime, Canteen, Gas Stations. ── */
 .hexBadge.blue   { background: rgba(96, 165, 250, 0.1); box-shadow: 0 0 24px rgba(96, 165, 250, 0.45); }
 .hexBadge.blue svg   { color: #60a5fa; filter: drop-shadow(0 0 6px rgba(96, 165, 250, 0.7)); }
 .hexBadge.blue::before { background: linear-gradient(135deg, #60a5fa, #3b82f6); }
@@ -1141,5 +971,5 @@ h1, h2, h3 {
 .hexBadge.red svg    { color: #ef4444; filter: drop-shadow(0 0 6px rgba(239, 68, 68, 0.7)); }
 .hexBadge.red::before { background: linear-gradient(135deg, #f87171, #ef4444); }
 
-.hexBadge.small { width: 44px; height: 44px; }
+.hexBadge.small { width: 44px; height: 44px; border-radius: 14px; }
 .hexBadge.small svg { width: 20px; height: 20px; }
