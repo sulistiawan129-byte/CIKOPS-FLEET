@@ -213,7 +213,7 @@ function ModalPortal({
         overflowY: "auto",
       }}
     >
-      <div
+     <div
         onClick={(e) => e.stopPropagation()}
         className="modalPop"
         style={{
@@ -222,6 +222,10 @@ function ModalPortal({
           maxHeight: "calc(100vh - 48px)",
           overflowY: "auto",
           margin: "auto",
+          background: "var(--surface)",
+          border: "1px solid var(--border2)",
+          borderRadius: "var(--r2)",
+          boxShadow: "var(--shadow-lg)",
         }}
       >
         {children}
