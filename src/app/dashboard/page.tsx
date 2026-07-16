@@ -2006,7 +2006,7 @@ function OverviewTab({ setActiveTab, myProfile }: { setActiveTab: (t: DashboardT
     { icon: "💳", label: lang === "en" ? "Driver Budget" : "Budget Driver", tab: "driverbudget" },
     { icon: "🍱", label: lang === "en" ? "Canteen" : "Kantin", tab: "canteen" },
     { icon: "🔐", label: "Locker", tab: "locker" },
-  ];
+ ].filter((q) => canAccessTab(myProfile, q.tab));
 
   const STATUS_COLOR: Record<string, string> = { ASSIGNED: "var(--brand)", "ON GOING": "var(--orange)", DONE: "var(--green)", CANCELLED: "var(--red)" };
   const STATUS_LABEL_ID: Record<string, string> = { ASSIGNED: "Ditugaskan", "ON GOING": "Berjalan", DONE: "Selesai", CANCELLED: "Batal" };
@@ -2209,8 +2209,12 @@ function OverviewTab({ setActiveTab, myProfile }: { setActiveTab: (t: DashboardT
         </div>
       </div>
 
+      {(canAccessTab(myProfile, "canteen") || canAccessTab(myProfile, "locker") || canAccessTab(myProfile, "gasstations")) && (
+      <>
       <div className="sectionHeading">{lang === "en" ? "Facility" : "Fasilitas"}</div>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 16, marginBottom: 22 }}>
+      <div style={{ display: "grid", gridTemplateColumns: `repeat(${[canAccessTab(myProfile, "canteen"), canAccessTab(myProfile, "locker"), canAccessTab(myProfile, "gasstations")].filter(Boolean).length}, 1fr)`, gap: 16, marginBottom: 22 }}>
+        {canAccessTab(myProfile, "canteen") && (
+        <>
         {/* Canteen */}
        <div className="neonCard">
           <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16, position: "relative", zIndex: 1 }}>
@@ -2244,7 +2248,11 @@ function OverviewTab({ setActiveTab, myProfile }: { setActiveTab: (t: DashboardT
             </svg>
           </button>
         </div>
+        </>
+        )}
 
+        {canAccessTab(myProfile, "locker") && (
+        <>
         {/* Locker — 100% mengikuti referensi: hexagon badge outline-glow,
             gauge dengan glow kuat + marker dot, sub-stat lingkaran outline. */}
         <div className="neonCard" style={{ gridColumn: "span 1" }}>
@@ -2346,7 +2354,11 @@ function OverviewTab({ setActiveTab, myProfile }: { setActiveTab: (t: DashboardT
             </svg>
           </button>
         </div>
+        </>
+        )}
 
+        {canAccessTab(myProfile, "gasstations") && (
+        <>
         {/* Gas Station */}
         <div className="neonCard">
           <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16, position: "relative", zIndex: 1 }}>
@@ -2366,7 +2378,11 @@ function OverviewTab({ setActiveTab, myProfile }: { setActiveTab: (t: DashboardT
             </svg>
           </button>
         </div>
+        </>
+        )}
       </div>
+      </>
+      )}
 
       <div className="sectionHeading">{lang === "en" ? "Trends & Analytics" : "Tren & Analitik"}</div>
       {/* ── Charts row ── */}
