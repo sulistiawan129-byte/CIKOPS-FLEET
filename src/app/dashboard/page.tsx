@@ -3991,7 +3991,8 @@ function ReportsTab({ myProfile }: { myProfile: MyProfile | null }) {
   const [allClaims, setAllClaims] = useState<Claim[]>([]);
   const [allOvertimes, setAllOvertimes] = useState<Overtime[]>([]);
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
-  const [kantong, setKantong] = useState<Kantong | null>(null);
+  const [kantongCik, setKantongCik] = useState<Kantong | null>(null);
+  const [kantongPrb, setKantongPrb] = useState<Kantong | null>(null);
   const [tiers, setTiers] = useState<DriverTier[]>([]);
   const [drivers, setDrivers] = useState<Driver[]>([]);
 
