@@ -98,12 +98,7 @@ function healthLabel(eff: number, lang: string): string {
   return lang === "en" ? "Needs Attention" : "Perlu Perhatian";
 }
 
-const cardStyle: CSSProperties = {
-  background: "linear-gradient(180deg, var(--surface2), var(--surface))",
-  border: "1px solid var(--border2)",
-  borderRadius: "var(--r2)",
-  boxShadow: "var(--shadow-md)",
-};
+const cardStyle: CSSProperties = { borderRadius: "var(--r2)" };
 
 export default function CanteenTab() {
   const { lang, t } = useLang();
