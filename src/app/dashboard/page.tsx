@@ -2075,9 +2075,16 @@ function OverviewTab({ setActiveTab, myProfile }: { setActiveTab: (t: DashboardT
           TASKS HARI INI (detail) + OPERATIONAL FUND (CIK/PRB)
       ══════════════════════════════════════════════════════ */}
       <div style={{ display: "grid", gridTemplateColumns: "1.3fr 1fr", gap: 16, marginBottom: 22 }}>
-        <div className="statPop" style={{ ...cardStyle, overflow: "hidden" }}>
-          <div style={{ padding: "14px 18px", borderBottom: "1px solid var(--border)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <div style={{ fontWeight: 800, fontSize: 14.5, color: "var(--t1)" }}>🗂️ {lang === "en" ? "Tasks Today" : "Tugas Hari Ini"}</div>
+        <div className="neonCard" style={{ padding: 0, overflow: "hidden" }}>
+          <div style={{ padding: "18px 20px", borderBottom: "1px solid var(--border)", display: "flex", justifyContent: "space-between", alignItems: "center", position: "relative", zIndex: 1 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+              <div className="hexBadge blue small">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+                </svg>
+              </div>
+              <div style={{ fontWeight: 800, fontSize: 16, color: "var(--t1)" }}>{lang === "en" ? "Tasks Today" : "Tugas Hari Ini"}</div>
+            </div>
             <button onClick={() => setActiveTab("tasks")} style={{ fontSize: 12, fontWeight: 700, color: "var(--brand)", background: "none", border: "none", cursor: "pointer" }}>
               {lang === "en" ? "View all →" : "Lihat semua →"}
             </button>
@@ -2106,14 +2113,21 @@ function OverviewTab({ setActiveTab, myProfile }: { setActiveTab: (t: DashboardT
           )}
         </div>
 
-        <div className="statPop" style={{ ...cardStyle, padding: 20 }}>
-          <div style={{ fontWeight: 800, fontSize: 14.5, color: "var(--t1)", marginBottom: 14 }}>💰 {lang === "en" ? "Operational Fund" : "Dana Operasional"}</div>
+        <div className="neonCard">
+          <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20, position: "relative", zIndex: 1 }}>
+            <div className="hexBadge gold small">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                <rect x="2" y="6" width="20" height="14" rx="2" /><path d="M2 10h20" /><circle cx="16" cy="15" r="1.5" />
+              </svg>
+            </div>
+            <div style={{ fontWeight: 800, fontSize: 16, color: "var(--t1)" }}>{lang === "en" ? "Operational Fund" : "Dana Operasional"}</div>
+          </div>
           {showBothPlants ? (
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, position: "relative", zIndex: 1 }}>
               {[{ label: "CIK", k: kantongCik }, { label: "PRB", k: kantongPrb }].map((p) => {
                 const gapP = p.k ? (p.k.allocOpDriver + p.k.allocEmergency + p.k.cashAvailable + p.k.claimSubmitted + p.k.claimPaid) - p.k.totalBudget : 0;
                 return (
-                  <div key={p.label} style={{ padding: 14, borderRadius: 12, background: "var(--bg2)" }}>
+                  <div key={p.label} style={{ padding: 14, borderRadius: 12, border: "1px solid var(--border2)", background: "var(--bg2)" }}>
                     <div style={{ fontSize: 11, fontWeight: 700, color: "var(--t3)", textTransform: "uppercase", marginBottom: 6 }}>{p.label}</div>
                     <div style={{ fontSize: 18, fontWeight: 800, fontFamily: "var(--mono)", color: "var(--t1)" }}>{p.k ? `Rp ${fmtRp(p.k.totalBudget)}` : "-"}</div>
                     <div style={{ fontSize: 11, fontWeight: 600, color: gapP === 0 ? "var(--green)" : gapP > 0 ? "var(--orange)" : "var(--red)", marginTop: 3 }}>
@@ -2124,38 +2138,52 @@ function OverviewTab({ setActiveTab, myProfile }: { setActiveTab: (t: DashboardT
               })}
             </div>
           ) : (
-            <div>
+            <div style={{ position: "relative", zIndex: 1 }}>
               <div style={{ fontSize: 24, fontWeight: 800, fontFamily: "var(--mono)", color: "var(--t1)" }}>{myKantong ? `Rp ${fmtRp(myKantong.totalBudget)}` : "-"}</div>
               <div style={{ fontSize: 12, color: "var(--t3)", marginTop: 4 }}>{myProfile?.plantScope} · {lang === "en" ? "Total Cash Operational" : "Total Cash Operasional"}</div>
             </div>
           )}
-          <button onClick={() => setActiveTab("opfund")} style={{ marginTop: 14, width: "100%", padding: "9px", borderRadius: 10, border: "1px solid var(--border2)", background: "var(--bg2)", color: "var(--t2)", fontWeight: 700, fontSize: 12, cursor: "pointer" }}>
-            {lang === "en" ? "Manage Fund →" : "Kelola Dana →"}
+          <button className="neonBtn" onClick={() => setActiveTab("opfund")} style={{ marginTop: 16, position: "relative", zIndex: 1, padding: "12px" }}>
+            {lang === "en" ? "Manage Fund" : "Kelola Dana"}
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" width={16} height={16}>
+              <path d="M5 12h14M12 5l7 7-7 7" />
+            </svg>
           </button>
         </div>
-      </div>
 
       <div className="sectionHeading">Finance</div>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 16, marginBottom: 22 }}>
         {/* Overtime — dikasih lebih banyak ruang (bukan 1 dari 4 kolom sempit) */}
-        <div className="statPop" style={{ ...cardStyle, padding: 20 }}>
-          <div style={{ fontSize: 13, fontWeight: 800, color: "var(--t1)", marginBottom: 12 }}>⏱️ Overtime {lang === "en" ? "This Month" : "Bulan Ini"}</div>
-          <div style={{ display: "flex", alignItems: "baseline", gap: 10, marginBottom: 12 }}>
-            <div style={{ fontSize: 24, fontWeight: 800, fontFamily: "var(--mono)", color: "var(--t1)" }}>{fmtRp(animatedOtHours)} jam</div>
-            <div style={{ fontSize: 13, color: "var(--gold2)", fontWeight: 700 }}>Rp {fmtRp(animatedOtAmount)}</div>
-          </div>
-          {otByPlant.map((p) => (
-            <div key={p.plant} style={{ marginBottom: 8 }}>
-              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11.5, color: "var(--t3)", marginBottom: 3 }}>
-                <span style={{ fontWeight: 600, color: "var(--t2)" }}>{p.plant}</span><span>{fmtRp(p.hours)} jam</span>
-              </div>
-              <div style={{ height: 6, borderRadius: 4, background: "var(--border)", overflow: "hidden" }}>
-                <div style={{ height: "100%", width: `${(p.hours / maxOtPlantHours) * 100}%`, background: PLANT_COLOR[p.plant] || "var(--brand)" }} />
-              </div>
+        <div className="neonCard">
+          <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16, position: "relative", zIndex: 1 }}>
+            <div className="hexBadge teal small">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 3" />
+              </svg>
             </div>
-          ))}
-          <button onClick={() => setActiveTab("overtime")} style={{ marginTop: 8, width: "100%", padding: "8px", borderRadius: 10, border: "1px solid var(--border2)", background: "var(--bg2)", color: "var(--t2)", fontWeight: 700, fontSize: 11.5, cursor: "pointer" }}>
-            {lang === "en" ? "View Overtime →" : "Lihat Overtime →"}
+            <div style={{ fontWeight: 800, fontSize: 16, color: "var(--t1)" }}>Overtime {lang === "en" ? "This Month" : "Bulan Ini"}</div>
+          </div>
+          <div style={{ display: "flex", alignItems: "baseline", gap: 10, marginBottom: 14, position: "relative", zIndex: 1 }}>
+            <div style={{ fontSize: 24, fontWeight: 800, fontFamily: "var(--mono)", color: "var(--t1)" }}>{fmtRp(animatedOtHours)} jam</div>
+            <div style={{ fontSize: 13, color: "#2dd4bf", fontWeight: 700 }}>Rp {fmtRp(animatedOtAmount)}</div>
+          </div>
+          <div style={{ position: "relative", zIndex: 1 }}>
+            {otByPlant.map((p) => (
+              <div key={p.plant} style={{ marginBottom: 10 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11.5, color: "var(--t3)", marginBottom: 4 }}>
+                  <span style={{ fontWeight: 600, color: "var(--t2)" }}>{p.plant}</span><span>{fmtRp(p.hours)} jam</span>
+                </div>
+                <div style={{ height: 7, borderRadius: 4, background: "var(--border)", overflow: "hidden" }}>
+                  <div style={{ height: "100%", width: `${(p.hours / maxOtPlantHours) * 100}%`, background: PLANT_COLOR[p.plant] || "var(--brand)", boxShadow: `0 0 8px ${PLANT_COLOR[p.plant] || "var(--brand)"}` }} />
+                </div>
+              </div>
+            ))}
+          </div>
+          <button className="neonBtn" onClick={() => setActiveTab("overtime")} style={{ marginTop: 6, position: "relative", zIndex: 1, padding: "12px" }}>
+            {lang === "en" ? "View Overtime" : "Lihat Overtime"}
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" width={16} height={16}>
+              <path d="M5 12h14M12 5l7 7-7 7" />
+            </svg>
           </button>
         </div>
 
@@ -2173,26 +2201,36 @@ function OverviewTab({ setActiveTab, myProfile }: { setActiveTab: (t: DashboardT
       <div className="sectionHeading">{lang === "en" ? "Facility" : "Fasilitas"}</div>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 16, marginBottom: 22 }}>
         {/* Canteen */}
-        <div className="statPop" style={{ ...cardStyle, padding: 18 }}>
-          <div style={{ fontSize: 13, fontWeight: 800, color: "var(--t1)", marginBottom: 12 }}>🍱 {lang === "en" ? "Canteen (Month)" : "Kantin (Bulan Ini)"}</div>
-          <div style={{ marginBottom: 10 }}>
-            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11.5, marginBottom: 3 }}>
+       <div className="neonCard">
+          <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16, position: "relative", zIndex: 1 }}>
+            <div className="hexBadge green small">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                <path d="M3 2v7c0 1.1.9 2 2 2h1v11" /><path d="M8 2v20" /><path d="M17 2a3 3 0 0 0-3 3v6a3 3 0 0 0 3 3v9" />
+              </svg>
+            </div>
+            <div style={{ fontWeight: 800, fontSize: 16, color: "var(--t1)" }}>{lang === "en" ? "Canteen (Month)" : "Kantin (Bulan Ini)"}</div>
+          </div>
+          <div style={{ position: "relative", zIndex: 1, marginBottom: 10 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11.5, marginBottom: 4 }}>
               <span style={{ color: "var(--t2)" }}>🥐 Snack</span><span style={{ fontWeight: 700, color: "var(--t1)" }}>{fmtRp(canteenSnackConsumed)}/{fmtRp(canteenSnackOrder)}</span>
             </div>
-            <div style={{ height: 6, borderRadius: 4, background: "var(--border)", overflow: "hidden" }}>
-              <div style={{ height: "100%", width: `${(canteenSnackOrder / maxCanteenVal) * 100}%`, background: "var(--green)" }} />
+            <div style={{ height: 7, borderRadius: 4, background: "var(--border)", overflow: "hidden" }}>
+              <div style={{ height: "100%", width: `${(canteenSnackOrder / maxCanteenVal) * 100}%`, background: "#34d399", boxShadow: "0 0 8px #34d399" }} />
             </div>
           </div>
-          <div style={{ marginBottom: 10 }}>
-            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11.5, marginBottom: 3 }}>
+          <div style={{ position: "relative", zIndex: 1, marginBottom: 14 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11.5, marginBottom: 4 }}>
               <span style={{ color: "var(--t2)" }}>🍽️ Meal</span><span style={{ fontWeight: 700, color: "var(--t1)" }}>{fmtRp(canteenMealConsumed)}/{fmtRp(canteenMealOrder)}</span>
             </div>
-            <div style={{ height: 6, borderRadius: 4, background: "var(--border)", overflow: "hidden" }}>
-              <div style={{ height: "100%", width: `${(canteenMealOrder / maxCanteenVal) * 100}%`, background: "var(--brand)" }} />
+            <div style={{ height: 7, borderRadius: 4, background: "var(--border)", overflow: "hidden" }}>
+              <div style={{ height: "100%", width: `${(canteenMealOrder / maxCanteenVal) * 100}%`, background: "var(--brand)", boxShadow: "0 0 8px var(--brand)" }} />
             </div>
           </div>
-          <button onClick={() => setActiveTab("canteen")} style={{ width: "100%", padding: "8px", borderRadius: 10, border: "1px solid var(--border2)", background: "var(--bg2)", color: "var(--t2)", fontWeight: 700, fontSize: 11.5, cursor: "pointer" }}>
-            {lang === "en" ? "View Canteen →" : "Lihat Kantin →"}
+          <button className="neonBtn" onClick={() => setActiveTab("canteen")} style={{ position: "relative", zIndex: 1, padding: "12px" }}>
+            {lang === "en" ? "View Canteen" : "Lihat Kantin"}
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" width={16} height={16}>
+              <path d="M5 12h14M12 5l7 7-7 7" />
+            </svg>
           </button>
         </div>
 
@@ -2299,15 +2337,24 @@ function OverviewTab({ setActiveTab, myProfile }: { setActiveTab: (t: DashboardT
         </div>
 
         {/* Gas Station */}
-        <div className="statPop" style={{ ...cardStyle, padding: 18 }}>
-          <div style={{ fontSize: 13, fontWeight: 800, color: "var(--t1)", marginBottom: 10 }}>⛽ {lang === "en" ? "Gas Stations" : "Pom Bensin"}</div>
-          <div style={{ fontSize: 24, fontWeight: 800, fontFamily: "var(--mono)", color: "var(--t1)" }}>{gasStations.length}</div>
-          <div style={{ fontSize: 12, color: "var(--t3)", marginTop: 4, marginBottom: 12 }}>{fuelTypesCovered}/{FUEL_TYPES_LIST.length} {lang === "en" ? "fuel types" : "jenis BBM"}</div>
-          <button onClick={() => setActiveTab("gasstations")} style={{ width: "100%", padding: "8px", borderRadius: 10, border: "1px solid var(--border2)", background: "var(--bg2)", color: "var(--t2)", fontWeight: 700, fontSize: 11.5, cursor: "pointer" }}>
-            {lang === "en" ? "View Stations →" : "Lihat Pom Bensin →"}
+        <div className="neonCard">
+          <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16, position: "relative", zIndex: 1 }}>
+            <div className="hexBadge red small">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                <path d="M3 22V6a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v16" /><path d="M3 10h10" /><path d="M15 6l3.5 3.5a1.5 1.5 0 0 0 2.5-1.1V6.5" />
+              </svg>
+            </div>
+            <div style={{ fontWeight: 800, fontSize: 16, color: "var(--t1)" }}>{lang === "en" ? "Gas Stations" : "Pom Bensin"}</div>
+          </div>
+          <div style={{ position: "relative", zIndex: 1, fontSize: 30, fontWeight: 800, fontFamily: "var(--mono)", color: "var(--t1)" }}>{gasStations.length}</div>
+          <div style={{ position: "relative", zIndex: 1, fontSize: 12, color: "var(--t3)", marginTop: 4, marginBottom: 16 }}>{fuelTypesCovered}/{FUEL_TYPES_LIST.length} {lang === "en" ? "fuel types" : "jenis BBM"}</div>
+          <button className="neonBtn" onClick={() => setActiveTab("gasstations")} style={{ position: "relative", zIndex: 1, padding: "12px" }}>
+            {lang === "en" ? "View Stations" : "Lihat Pom Bensin"}
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" width={16} height={16}>
+              <path d="M5 12h14M12 5l7 7-7 7" />
+            </svg>
           </button>
         </div>
-      </div>
 
       <div className="sectionHeading">{lang === "en" ? "Trends & Analytics" : "Tren & Analitik"}</div>
       {/* ── Charts row ── */}
