@@ -213,7 +213,7 @@ function ModalPortal({
         overflowY: "auto",
       }}
     >
-      <div
+     <div
         onClick={(e) => e.stopPropagation()}
         className="modalPop"
         style={{
@@ -222,6 +222,10 @@ function ModalPortal({
           maxHeight: "calc(100vh - 48px)",
           overflowY: "auto",
           margin: "auto",
+          background: "var(--surface)",
+          border: "1px solid var(--border2)",
+          borderRadius: "var(--r2)",
+          boxShadow: "var(--shadow-lg)",
         }}
       >
         {children}
@@ -1800,6 +1804,7 @@ async function getOverviewKantong(profile: MyProfile | null): Promise<Kantong | 
     cashAvailable: (cik?.cashAvailable ?? 0) + (prb?.cashAvailable ?? 0),
     claimSubmitted: (cik?.claimSubmitted ?? 0) + (prb?.claimSubmitted ?? 0),
     claimPaid: (cik?.claimPaid ?? 0) + (prb?.claimPaid ?? 0),
+    unsubmittedClaim: (cik?.unsubmittedClaim ?? 0) + (prb?.unsubmittedClaim ?? 0),
     lastReset: cik?.lastReset ?? prb?.lastReset ?? "",
   };
 }
@@ -1999,7 +2004,7 @@ function OverviewTab({ setActiveTab, myProfile }: { setActiveTab: (t: DashboardT
 
   const cardStyle: CSSProperties = { background: "linear-gradient(180deg, var(--surface2), var(--surface))", border: "1px solid var(--border2)", borderRadius: "var(--r2)", boxShadow: "var(--shadow-md)" };
 
-  const quickAccess: { icon: string; label: string; tab: DashboardTab }[] = [
+ const quickAccessAll: { icon: string; label: string; tab: DashboardTab }[] = [
     { icon: "🚗", label: lang === "en" ? "Vehicles" : "Armada", tab: "vehicles" },
     { icon: "🧾", label: lang === "en" ? "Claims" : "Klaim", tab: "claims" },
     { icon: "⏱️", label: "Overtime", tab: "overtime" },
@@ -2007,6 +2012,7 @@ function OverviewTab({ setActiveTab, myProfile }: { setActiveTab: (t: DashboardT
     { icon: "🍱", label: lang === "en" ? "Canteen" : "Kantin", tab: "canteen" },
     { icon: "🔐", label: "Locker", tab: "locker" },
   ];
+  const quickAccess = quickAccessAll.filter((q) => canAccessTab(myProfile, q.tab));
 
   const STATUS_COLOR: Record<string, string> = { ASSIGNED: "var(--brand)", "ON GOING": "var(--orange)", DONE: "var(--green)", CANCELLED: "var(--red)" };
   const STATUS_LABEL_ID: Record<string, string> = { ASSIGNED: "Ditugaskan", "ON GOING": "Berjalan", DONE: "Selesai", CANCELLED: "Batal" };
@@ -2150,6 +2156,7 @@ function OverviewTab({ setActiveTab, myProfile }: { setActiveTab: (t: DashboardT
             </svg>
           </button>
         </div>
+      </div>
 
       <div className="sectionHeading">Finance</div>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 16, marginBottom: 22 }}>
@@ -2188,18 +2195,32 @@ function OverviewTab({ setActiveTab, myProfile }: { setActiveTab: (t: DashboardT
         </div>
 
         {/* Driver Budget — dipindah ke sini biar section Finance lengkap (Fund + Overtime + Budget) */}
-        <div className="statPop" style={{ ...cardStyle, padding: 20 }}>
-          <div style={{ fontSize: 13, fontWeight: 800, color: "var(--t1)", marginBottom: 12 }}>💳 {lang === "en" ? "Driver Budget" : "Budget Driver"}</div>
-          <div style={{ fontSize: 24, fontWeight: 800, fontFamily: "var(--mono)", color: "var(--t1)" }}>Rp {fmtRp(totalTierBudget)}</div>
-          <div style={{ fontSize: 12, color: "var(--t3)", marginTop: 4, marginBottom: 12 }}>{totalTierDrivers} {lang === "en" ? "drivers" : "driver"} · {tiers.length} tier</div>
-          <button onClick={() => setActiveTab("driverbudget")} style={{ width: "100%", padding: "8px", borderRadius: 10, border: "1px solid var(--border2)", background: "var(--bg2)", color: "var(--t2)", fontWeight: 700, fontSize: 11.5, cursor: "pointer" }}>
-            {lang === "en" ? "View Budget →" : "Lihat Budget →"}
+        <div className="neonCard">
+          <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16, position: "relative", zIndex: 1 }}>
+            <div className="hexBadge gold small">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                <rect x="2" y="5" width="20" height="14" rx="2" /><line x1="2" y1="10" x2="22" y2="10" />
+              </svg>
+            </div>
+            <div style={{ fontWeight: 800, fontSize: 16, color: "var(--t1)" }}>{lang === "en" ? "Driver Budget" : "Budget Driver"}</div>
+          </div>
+          <div style={{ fontSize: 24, fontWeight: 800, fontFamily: "var(--mono)", color: "var(--t1)", position: "relative", zIndex: 1 }}>Rp {fmtRp(totalTierBudget)}</div>
+          <div style={{ fontSize: 12, color: "var(--t3)", marginTop: 4, marginBottom: 16, position: "relative", zIndex: 1 }}>{totalTierDrivers} {lang === "en" ? "drivers" : "driver"} · {tiers.length} tier</div>
+          <button className="neonBtn" onClick={() => setActiveTab("driverbudget")} style={{ position: "relative", zIndex: 1, padding: "12px" }}>
+            {lang === "en" ? "View Budget" : "Lihat Budget"}
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" width={16} height={16}>
+              <path d="M5 12h14M12 5l7 7-7 7" />
+            </svg>
           </button>
         </div>
       </div>
 
+      {(canAccessTab(myProfile, "canteen") || canAccessTab(myProfile, "locker") || canAccessTab(myProfile, "gasstations")) && (
+      <>
       <div className="sectionHeading">{lang === "en" ? "Facility" : "Fasilitas"}</div>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 16, marginBottom: 22 }}>
+      <div style={{ display: "grid", gridTemplateColumns: `repeat(${[canAccessTab(myProfile, "canteen"), canAccessTab(myProfile, "locker"), canAccessTab(myProfile, "gasstations")].filter(Boolean).length}, 1fr)`, gap: 16, marginBottom: 22 }}>
+        {canAccessTab(myProfile, "canteen") && (
+        <>
         {/* Canteen */}
        <div className="neonCard">
           <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16, position: "relative", zIndex: 1 }}>
@@ -2233,7 +2254,11 @@ function OverviewTab({ setActiveTab, myProfile }: { setActiveTab: (t: DashboardT
             </svg>
           </button>
         </div>
+        </>
+        )}
 
+        {canAccessTab(myProfile, "locker") && (
+        <>
         {/* Locker — 100% mengikuti referensi: hexagon badge outline-glow,
             gauge dengan glow kuat + marker dot, sub-stat lingkaran outline. */}
         <div className="neonCard" style={{ gridColumn: "span 1" }}>
@@ -2335,7 +2360,11 @@ function OverviewTab({ setActiveTab, myProfile }: { setActiveTab: (t: DashboardT
             </svg>
           </button>
         </div>
+        </>
+        )}
 
+        {canAccessTab(myProfile, "gasstations") && (
+        <>
         {/* Gas Station */}
         <div className="neonCard">
           <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16, position: "relative", zIndex: 1 }}>
@@ -2355,6 +2384,11 @@ function OverviewTab({ setActiveTab, myProfile }: { setActiveTab: (t: DashboardT
             </svg>
           </button>
         </div>
+        </>
+        )}
+      </div>
+      </>
+      )}
 
       <div className="sectionHeading">{lang === "en" ? "Trends & Analytics" : "Tren & Analitik"}</div>
       {/* ── Charts row ── */}
@@ -2755,18 +2789,41 @@ function ClaimsTab() {
         </div>
       </div>
 
-     <div className="statPop" style={{ display: "flex", gap: 28, padding: "16px 22px", marginBottom: 18, ...cardStyle, borderLeft: "3px solid var(--gold)" }}>
-        <div>
-          <div style={{ fontSize: 13, color: "var(--t3)", fontWeight: 600 }}>{lang === "en" ? "Claims" : "Klaim"}</div>
-          <div className="numGrad" style={{ fontSize: 21, fontWeight: 800 }}>{animatedClaimsCount}</div>
-        </div>
-        <div style={{ borderLeft: "1px solid var(--border2)", paddingLeft: 28 }}>
-          <div style={{ fontSize: 13, color: "var(--t3)", fontWeight: 600 }}>Total</div>
-          <div style={{ fontSize: 21, fontWeight: 800, color: "var(--t1)" }}>Rp {fmtRp(animatedTotalFiltered)}</div>
-        </div>
-        <div style={{ borderLeft: "1px solid var(--border2)", paddingLeft: 28 }}>
-          <div style={{ fontSize: 13, color: "var(--t3)", fontWeight: 600 }}>{lang === "en" ? "Active Drivers" : "Driver Aktif"}</div>
-          <div style={{ fontSize: 21, fontWeight: 800, color: "var(--t1)" }}>{animatedActiveDriversClaims}</div>
+      <div className="neonCard" style={{ padding: 0, overflow: "hidden", marginBottom: 18 }}>
+        <div style={{ display: "flex", flexWrap: "wrap" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 14, padding: "18px 24px", position: "relative", zIndex: 1 }}>
+            <div className="hexBadge blue small">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16l3-2 3 2 3-2 3 2V4a2 2 0 0 0-2-2Z" /><path d="M9 8h6M9 12h6" />
+              </svg>
+            </div>
+            <div>
+              <div className="statValue" style={{ fontSize: 22 }}>{animatedClaimsCount}</div>
+              <div className="statLabel">{lang === "en" ? "Claims" : "Klaim"}</div>
+            </div>
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 14, padding: "18px 24px", borderLeft: "1px solid var(--border2)", position: "relative", zIndex: 1 }}>
+            <div className="hexBadge gold small">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                <rect x="2" y="6" width="20" height="14" rx="2" /><path d="M2 10h20" /><circle cx="16" cy="15" r="1.5" />
+              </svg>
+            </div>
+            <div>
+              <div className="statValue" style={{ fontSize: 22 }}>Rp {fmtRp(animatedTotalFiltered)}</div>
+              <div className="statLabel">Total</div>
+            </div>
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 14, padding: "18px 24px", borderLeft: "1px solid var(--border2)", position: "relative", zIndex: 1 }}>
+            <div className="hexBadge teal small">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M23 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" />
+              </svg>
+            </div>
+            <div>
+              <div className="statValue" style={{ fontSize: 22 }}>{animatedActiveDriversClaims}</div>
+              <div className="statLabel">{lang === "en" ? "Active Drivers" : "Driver Aktif"}</div>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -3161,22 +3218,40 @@ function OvertimeTab({ myProfile }: { myProfile: MyProfile | null }) {
 
       {error && <div style={{ padding: 12, borderRadius: 10, background: "var(--red-soft)", color: "var(--red)", marginBottom: 14, fontSize: 13 }}>{error}</div>}
 
-     <div className="statCardRow">
-       <div className="statCardCompact">
-          <div className="iconBadge badge-blue icon">📝</div>
-          <div><div className="value">{animatedEntries}</div><div className="label">{lang === "en" ? "Entries" : "Entri"}</div></div>
-        </div>
-        <div className="statCardCompact">
-          <div className="iconBadge badge-teal icon">⏱️</div>
-          <div><div className="value">{fmtRp(animatedTotalHours)} jam</div><div className="label">Total Jam OT</div></div>
-        </div>
-        <div className="statCardCompact">
-          <div className="iconBadge badge-orange icon">💰</div>
-          <div><div className="value">Rp {fmtRp(animatedTotalAmount)}</div><div className="label">Total Nominal</div></div>
-        </div>
-        <div className="statCardCompact">
-          <div className="iconBadge badge-purple icon">🏭</div>
-          <div><div className="value" style={{ color: topPlant ? PLANT_COLOR[topPlant.plant] : "var(--t1)" }}>{topPlant?.plant || "-"}</div><div className="label">Plant Terbanyak OT</div></div>
+      <div className="neonCard" style={{ padding: 0, overflow: "hidden", marginBottom: 18 }}>
+        <div style={{ display: "flex", flexWrap: "wrap" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 14, padding: "18px 22px", position: "relative", zIndex: 1 }}>
+            <div className="hexBadge blue small">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                <path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+              </svg>
+            </div>
+            <div><div className="statValue" style={{ fontSize: 20 }}>{animatedEntries}</div><div className="statLabel">{lang === "en" ? "Entries" : "Entri"}</div></div>
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 14, padding: "18px 22px", borderLeft: "1px solid var(--border2)", position: "relative", zIndex: 1 }}>
+            <div className="hexBadge teal small">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 3" />
+              </svg>
+            </div>
+            <div><div className="statValue" style={{ fontSize: 20 }}>{fmtRp(animatedTotalHours)} jam</div><div className="statLabel">Total Jam OT</div></div>
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 14, padding: "18px 22px", borderLeft: "1px solid var(--border2)", position: "relative", zIndex: 1 }}>
+            <div className="hexBadge gold small">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                <rect x="2" y="6" width="20" height="14" rx="2" /><path d="M2 10h20" /><circle cx="16" cy="15" r="1.5" />
+              </svg>
+            </div>
+            <div><div className="statValue" style={{ fontSize: 20 }}>Rp {fmtRp(animatedTotalAmount)}</div><div className="statLabel">Total Nominal</div></div>
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 14, padding: "18px 22px", borderLeft: "1px solid var(--border2)", position: "relative", zIndex: 1 }}>
+            <div className="hexBadge purple small">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                <path d="M2 20h20V10l-5 4V8l-5 4V6l-5 4v10z" />
+              </svg>
+            </div>
+            <div><div className="statValue" style={{ fontSize: 20, color: topPlant ? PLANT_COLOR[topPlant.plant] : "var(--t1)" }}>{topPlant?.plant || "-"}</div><div className="statLabel">Plant Terbanyak OT</div></div>
+          </div>
         </div>
       </div>
 
@@ -3351,6 +3426,7 @@ function LoginScreen() {
   const { signIn } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const isMobile = useIsMobile();
@@ -3364,8 +3440,8 @@ function LoginScreen() {
     if (err) setError(t.loginErrorGeneric);
   }
 
-  const inputStyle: CSSProperties = { width: "100%", padding: "11px 14px", borderRadius: 10, border: "1px solid var(--border2)", background: "var(--bg2)", color: "var(--t1)", fontSize: 14 };
-  const labelStyle: CSSProperties = { fontSize: 13, fontWeight: 700, color: "var(--t2)", marginBottom: 5, display: "block" };
+  const inputStyle: CSSProperties = { width: "100%", padding: "11px 14px 11px 40px", borderRadius: 10, border: "1px solid var(--border2)", background: "var(--bg2)", color: "var(--t1)", fontSize: 14 };
+  const labelStyle: CSSProperties = { fontSize: 11, fontWeight: 700, color: "var(--t3)", marginBottom: 6, display: "block", textTransform: "uppercase", letterSpacing: "0.06em" };
 
   return (
     <div style={{ minHeight: "100vh", display: "flex" }}>
@@ -3383,11 +3459,9 @@ function LoginScreen() {
             padding: "48px 44px",
           }}
         >
-          {/* Abstract flowing glow shapes, echoing the reference's wave motif */}
           <div style={{ position: "absolute", top: "-15%", right: "-10%", width: 380, height: 380, borderRadius: "50%", background: "radial-gradient(circle, rgba(255,255,255,0.14), transparent 70%)" }} />
           <div style={{ position: "absolute", bottom: "-20%", left: "-15%", width: 420, height: 420, borderRadius: "50%", background: "radial-gradient(circle, rgba(23,195,178,0.22), transparent 70%)" }} />
           <div style={{ position: "absolute", top: "38%", left: "48%", width: 260, height: 260, borderRadius: "50%", border: "1px solid rgba(255,255,255,0.12)" }} />
-
           <div style={{ position: "relative", zIndex: 1, display: "flex", alignItems: "center", gap: 12 }}>
             <img src="/logo.png" alt="CIKOPS" style={{ width: 48, height: 48 }} />
             <div>
@@ -3395,73 +3469,105 @@ function LoginScreen() {
               <div style={{ fontSize: 13, color: "rgba(255,255,255,0.7)" }}>Integrated Facility Management</div>
             </div>
           </div>
-
           <div style={{ position: "relative", zIndex: 1 }}>
             <div style={{ fontSize: 26, fontWeight: 800, color: "#fff", lineHeight: 1.3, marginBottom: 10 }}>
               {lang === "en" ? "One System," : "Satu Sistem,"}
               <br />
-              {lang === "en" ? "All Operations in Harmony" : "Semua Operasional Selaras"}
+              {lang === "en" ? "All Operations in " : "Semua Operasional "}
+              <span style={{ background: "linear-gradient(120deg, #5eead4, #a78bfa)", WebkitBackgroundClip: "text", backgroundClip: "text", WebkitTextFillColor: "transparent", color: "transparent" }}>
+                {lang === "en" ? "Harmony" : "Selaras"}
+              </span>
             </div>
+            <div style={{ width: 40, height: 3, borderRadius: 2, background: "rgba(255,255,255,0.4)", marginBottom: 14 }} />
             <div style={{ fontSize: 13, color: "rgba(255,255,255,0.72)", maxWidth: 340 }}>
               {lang === "en"
                 ? "Fleet, finance, and facility operations — managed in one integrated ecosystem."
                 : "Fleet, finance, dan fasilitas — dikelola dalam satu ekosistem terintegrasi."}
             </div>
           </div>
-
-          <div style={{ position: "relative", zIndex: 1, fontSize: 13, color: "rgba(255,255,255,0.5)" }}>
-            © {new Date().getFullYear()} {t.appName}. All rights reserved.
+          <div style={{ position: "relative", zIndex: 1, fontSize: 12, color: "rgba(255,255,255,0.5)" }}>
+            © {new Date().getFullYear()} <span style={{ color: "#5eead4", fontWeight: 700 }}>{t.appName}</span>. All rights reserved.
           </div>
         </div>
       )}
 
-      {/* ── Right: login form panel ── */}
-      <div style={{ flex: 1, display: "flex", flexDirection: "column", background: "var(--bg)" }}>
-        <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, padding: 20 }}>
+      {/* ── Right: login form panel — floating glass card on dotted bg ── */}
+      <div style={{ flex: 1, display: "flex", flexDirection: "column", position: "relative", background: "var(--bg2)" }}>
+        <div style={{ position: "absolute", inset: 0, backgroundImage: "radial-gradient(circle, var(--border2) 1.3px, transparent 1.3px)", backgroundSize: "22px 22px", pointerEvents: "none" }} />
+
+        <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, padding: 20, position: "relative", zIndex: 1 }}>
           <button
             onClick={() => setLang(lang === "id" ? "en" : "id")}
-            style={{ padding: "6px 12px", borderRadius: "var(--pill)", border: "1px solid var(--border2)", background: "var(--surface)", color: "var(--t2)", fontWeight: 700, fontSize: 12, cursor: "pointer" }}
+            className="topbarIconBtn"
+            style={{ width: "auto", padding: "0 12px", borderRadius: "var(--pill)", fontWeight: 700, fontSize: 12 }}
           >
             {lang === "id" ? "EN" : "ID"}
           </button>
-          <button
-            onClick={toggleTheme}
-            style={{ padding: "6px 12px", borderRadius: "var(--pill)", border: "1px solid var(--border2)", background: "var(--surface)", cursor: "pointer" }}
-          >
+          <button onClick={toggleTheme} className="topbarIconBtn">
             {theme === "dark" ? "☀️" : "🌙"}
           </button>
         </div>
 
-        <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
-          <div className="tabContent" style={{ width: "100%", maxWidth: 360 }}>
-            {isMobile && (
-              <div style={{ textAlign: "center", marginBottom: 20 }}>
-                <img src="/logo.png" alt="CIKOPS" style={{ width: 48, height: 48, margin: "0 auto 10px" }} />
+        <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", padding: 20, position: "relative", zIndex: 1 }}>
+          <div className="tabContent cardGlass" style={{ width: "100%", maxWidth: 380, padding: "36px 32px" }}>
+            <div style={{ textAlign: "center", marginBottom: 26 }}>
+              <div className="hexBadge blue" style={{ margin: "0 auto 16px" }}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="5" y="11" width="14" height="10" rx="2" />
+                  <path d="M8 11V7a4 4 0 0 1 8 0v4" />
+                </svg>
               </div>
-            )}
-            <div style={{ marginBottom: 28 }}>
-              <div style={{ fontSize: 22, fontWeight: 800, color: "var(--t1)" }}>{t.loginTitle}</div>
-              <div style={{ fontSize: 13, color: "var(--t3)", marginTop: 4 }}>{t.loginSubtitle}</div>
+              <div style={{ fontSize: 20, fontWeight: 800, color: "var(--t1)" }}>{t.loginTitle}</div>
+              <div style={{ fontSize: 12.5, color: "var(--t3)", marginTop: 4 }}>{t.loginSubtitle}</div>
             </div>
 
             <form onSubmit={handleSubmit}>
               <div style={{ marginBottom: 14 }}>
                 <label style={labelStyle}>{t.loginEmail.toUpperCase()}</label>
-                <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} className="premiumInput" style={inputStyle} />
+                <div style={{ position: "relative" }}>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" width={16} height={16} style={{ position: "absolute", left: 13, top: "50%", transform: "translateY(-50%)", color: "var(--t3)", pointerEvents: "none" }}>
+                    <rect x="2" y="4" width="20" height="16" rx="2" /><path d="m2 7 10 6 10-6" />
+                  </svg>
+                  <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} className="premiumInput" style={inputStyle} />
+                </div>
               </div>
               <div style={{ marginBottom: 20 }}>
                 <label style={labelStyle}>{t.loginPassword.toUpperCase()}</label>
-                <input type="password" required value={password} onChange={(e) => setPassword(e.target.value)} className="premiumInput" style={inputStyle} />
+                <div style={{ position: "relative" }}>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" width={16} height={16} style={{ position: "absolute", left: 13, top: "50%", transform: "translateY(-50%)", color: "var(--t3)", pointerEvents: "none" }}>
+                    <rect x="5" y="11" width="14" height="10" rx="2" /><path d="M8 11V7a4 4 0 0 1 8 0v4" />
+                  </svg>
+                  <input type={showPassword ? "text" : "password"} required value={password} onChange={(e) => setPassword(e.target.value)} className="premiumInput" style={{ ...inputStyle, paddingRight: 40 }} />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword((p) => !p)}
+                    aria-label={showPassword ? "Hide password" : "Show password"}
+                    style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", color: "var(--t3)", padding: 4, display: "flex" }}
+                  >
+                    {showPassword ? (
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" width={17} height={17}>
+                        <path d="M9.88 9.88a3 3 0 1 0 4.24 4.24" /><path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68M6.61 6.61A13.526 13.526 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61" /><path d="m2 2 20 20" />
+                      </svg>
+                    ) : (
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" width={17} height={17}>
+                        <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7Z" /><circle cx="12" cy="12" r="3" />
+                      </svg>
+                    )}
+                  </button>
+                </div>
               </div>
-
               {error && (
                 <div style={{ padding: 10, borderRadius: 10, background: "var(--red-soft)", color: "var(--red)", fontSize: 12.5, marginBottom: 16 }}>
                   {error}
                 </div>
               )}
-
-              <button type="submit" className="pillBtn" disabled={busy} style={{ width: "100%", justifyContent: "center", padding: "12px", fontSize: 14, opacity: busy ? 0.7 : 1 }}>
+              <button type="submit" className="neonBtn" disabled={busy} style={{ padding: "12px", fontSize: 14, opacity: busy ? 0.7 : 1 }}>
                 {busy ? t.loginSigningIn : t.loginButton}
+                {!busy && (
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" width={16} height={16}>
+                    <path d="M5 12h14M12 5l7 7-7 7" />
+                  </svg>
+                )}
               </button>
             </form>
 
@@ -3578,18 +3684,32 @@ function DriverBudgetTab() {
 
   return (
     <div style={{ padding: 20 }}>
-      <div className="statCardRow">
-        <div className="statCardCompact">
-          <div className="iconBadge badge-blue icon">🧑‍✈️</div>
-          <div><div className="value">{animatedTotalDrivers}</div><div className="label">{lang === "en" ? "Total Drivers" : "Total Driver"}</div></div>
-        </div>
-        <div className="statCardCompact">
-          <div className="iconBadge badge-teal icon">💳</div>
-          <div><div className="value">Rp {fmtRp(animatedTotalBudget)}</div><div className="label">{lang === "en" ? "Budget/Month" : "Budget/Bulan"}</div></div>
-        </div>
-        <div className="statCardCompact">
-          <div className="iconBadge badge-purple icon">📅</div>
-          <div><div className="value">Rp {fmtRp(animatedYearlyBudget)}</div><div className="label">{lang === "en" ? "Per Year" : "Per Tahun"}</div></div>
+      <div className="neonCard" style={{ padding: 0, overflow: "hidden", marginBottom: 18 }}>
+        <div style={{ display: "flex", flexWrap: "wrap" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 14, padding: "18px 22px", position: "relative", zIndex: 1 }}>
+            <div className="hexBadge blue small">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="8" r="4" /><path d="M4 21v-2a6 6 0 0 1 6-6h4a6 6 0 0 1 6 6v2" />
+              </svg>
+            </div>
+            <div><div className="statValue" style={{ fontSize: 20 }}>{animatedTotalDrivers}</div><div className="statLabel">{lang === "en" ? "Total Drivers" : "Total Driver"}</div></div>
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 14, padding: "18px 22px", borderLeft: "1px solid var(--border2)", position: "relative", zIndex: 1 }}>
+            <div className="hexBadge teal small">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                <rect x="2" y="5" width="20" height="14" rx="2" /><path d="M2 10h20" />
+              </svg>
+            </div>
+            <div><div className="statValue" style={{ fontSize: 20 }}>Rp {fmtRp(animatedTotalBudget)}</div><div className="statLabel">{lang === "en" ? "Budget/Month" : "Budget/Bulan"}</div></div>
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 14, padding: "18px 22px", borderLeft: "1px solid var(--border2)", position: "relative", zIndex: 1 }}>
+            <div className="hexBadge purple small">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                <rect x="3" y="5" width="18" height="16" rx="2" /><path d="M3 10h18M8 3v4M16 3v4" />
+              </svg>
+            </div>
+            <div><div className="statValue" style={{ fontSize: 20 }}>Rp {fmtRp(animatedYearlyBudget)}</div><div className="statLabel">{lang === "en" ? "Per Year" : "Per Tahun"}</div></div>
+          </div>
         </div>
       </div>
 
@@ -3713,6 +3833,7 @@ function OpFundTab({ myProfile }: { myProfile: MyProfile | null }) {
   const [eCash, setECash] = useState("");
   const [eSubmitted, setESubmitted] = useState("");
   const [ePaid, setEPaid] = useState("");
+  const [eUnsubmittedClaim, setEUnsubmittedClaim] = useState("");
   const [saving, setSaving] = useState(false);
 
   // First-time setup — shown only when no kantong row exists yet at all
@@ -3736,6 +3857,7 @@ function OpFundTab({ myProfile }: { myProfile: MyProfile | null }) {
         setECash(String(k.cashAvailable));
         setESubmitted(String(k.claimSubmitted));
         setEPaid(String(k.claimPaid));
+        setEUnsubmittedClaim(String(k.unsubmittedClaim));
       }
     } catch (e) {
       setError(e instanceof Error ? e.message : "Gagal memuat Dana Operasional");
@@ -3755,7 +3877,7 @@ function OpFundTab({ myProfile }: { myProfile: MyProfile | null }) {
 
   const totalBudgetPre = kantong?.totalBudget ?? 0;
   const outstandingPre = kantong
-    ? kantong.allocOpDriver + kantong.allocEmergency + kantong.cashAvailable + kantong.claimSubmitted + kantong.claimPaid
+    ? kantong.allocOpDriver + kantong.allocEmergency + kantong.cashAvailable + kantong.claimSubmitted + kantong.claimPaid + kantong.unsubmittedClaim
     : 0;
   const gapPre = outstandingPre - totalBudgetPre;
   const animatedTotalBudget = useCountUp(totalBudgetPre);
@@ -3884,7 +4006,7 @@ function OpFundTab({ myProfile }: { myProfile: MyProfile | null }) {
   }
 
   const totalAlokasi = kantong.allocOpDriver + kantong.allocEmergency;
-  const outstanding = totalAlokasi + kantong.cashAvailable + kantong.claimSubmitted + kantong.claimPaid;
+  const outstanding = totalAlokasi + kantong.cashAvailable + kantong.claimSubmitted + kantong.claimPaid + kantong.unsubmittedClaim;
   const gap = outstanding - kantong.totalBudget;
   const gapColor = gap === 0 ? "var(--green)" : gap > 0 ? "var(--orange)" : "var(--red)";
   const gapText = gap === 0 ? "Sesuai" : gap > 0 ? "Outstanding melebihi total cash" : "Outstanding di bawah total cash";
@@ -3902,6 +4024,7 @@ function OpFundTab({ myProfile }: { myProfile: MyProfile | null }) {
         cashAvailable: evalExpr(eCash) ?? kantong.cashAvailable,
         claimSubmitted: evalExpr(eSubmitted) ?? kantong.claimSubmitted,
         claimPaid: evalExpr(ePaid) ?? kantong.claimPaid,
+        unsubmittedClaim: evalExpr(eUnsubmittedClaim) ?? kantong.unsubmittedClaim,
         lastReset: kantong.lastReset,
       };
       await updateKantongBudget(updated);
@@ -3937,6 +4060,7 @@ function OpFundTab({ myProfile }: { myProfile: MyProfile | null }) {
     { label: "Cash Available (A4)", value: kantong.cashAvailable, color: "var(--green)" },
     { label: lang === "en" ? "Claim Submitted (A5)" : "Klaim Diajukan (A5)", value: kantong.claimSubmitted, color: "var(--brand)" },
     { label: lang === "en" ? "Claim Paid (A6)" : "Klaim Dibayar (A6)", value: kantong.claimPaid, color: "var(--purple)" },
+    { label: lang === "en" ? "Unsubmitted Claim (A7)" : "Klaim Belum Diajukan (A7)", value: kantong.unsubmittedClaim, color: "var(--gold2)" },
   ];
 
   const fundHealthPct = kantong.totalBudget > 0
@@ -3948,7 +4072,7 @@ function OpFundTab({ myProfile }: { myProfile: MyProfile | null }) {
 
   const trendData = history.map((h) => ({
     period: h.period,
-    gap: h.allocOpDriver + h.allocEmergency + h.cashAvailable + h.claimSubmitted + h.claimPaid - h.totalBudget,
+gap: h.allocOpDriver + h.allocEmergency + h.cashAvailable + h.claimSubmitted + h.claimPaid + h.unsubmittedClaim - h.totalBudget,
   }));
   const chartW = 640, chartH = 140, chartPad = 30;
   const maxAbsGap = Math.max(...trendData.map((d) => Math.abs(d.gap)), 1);
@@ -4079,7 +4203,8 @@ function OpFundTab({ myProfile }: { myProfile: MyProfile | null }) {
               <div><label style={labelStyle}>EMERGENCY (A2)</label><input className="premiumInput" style={inputStyle} value={eEmergency} onChange={(e) => setEEmergency(e.target.value)} /></div>
               <div><label style={labelStyle}>CASH AVAILABLE (A4)</label><input className="premiumInput" style={inputStyle} value={eCash} onChange={(e) => setECash(e.target.value)} /></div>
               <div><label style={labelStyle}>{lang === "en" ? "CLAIM SUBMITTED (A5)" : "CLAIM DIAJUKAN (A5)"}</label><input className="premiumInput" style={inputStyle} value={eSubmitted} onChange={(e) => setESubmitted(e.target.value)} /></div>
-              <div><label style={labelStyle}>{lang === "en" ? "CLAIM PAID (A6)" : "CLAIM DIBAYAR (A6)"}</label><input className="premiumInput" style={inputStyle} value={ePaid} onChange={(e) => setEPaid(e.target.value)} /></div>
+             <div><label style={labelStyle}>{lang === "en" ? "CLAIM PAID (A6)" : "CLAIM DIBAYAR (A6)"}</label><input className="premiumInput" style={inputStyle} value={ePaid} onChange={(e) => setEPaid(e.target.value)} /></div>
+              <div><label style={labelStyle}>{lang === "en" ? "UNSUBMITTED CLAIM (A7)" : "KLAIM BELUM DIAJUKAN (A7)"}</label><input className="premiumInput" style={inputStyle} value={eUnsubmittedClaim} onChange={(e) => setEUnsubmittedClaim(e.target.value)} placeholder="0" /></div>
             </div>
             <div style={{ display: "flex", gap: 10, marginTop: 18 }}>
               <button onClick={() => setShowEdit(false)} style={{ flex: 1, padding: "10px", borderRadius: 10, border: "1px solid var(--border2)", background: "var(--surface2)", color: "var(--t2)", fontWeight: 700, cursor: "pointer" }}>{t.actionCancel}</button>
@@ -4718,22 +4843,32 @@ return (
       {error && <div style={{ padding: 12, borderRadius: 10, background: "var(--red-soft)", color: "var(--red)", marginBottom: 14, fontSize: 13 }}>{error}</div>}
 
       {/* ── Stat cards ── */}
-      <div className="statCardRow">
-        {[
-          { label: lang === "en" ? "Total Stations" : "Total SPBU", sub: lang === "en" ? "points saved" : "titik tersimpan", value: String(totalStations), badge: "badge-blue", icon: "⛽" },
-          { label: lang === "en" ? "Fuel Types Tracked" : "Jenis BBM Terlacak", sub: lang === "en" ? "types at ≥1 station" : "jenis di ≥1 SPBU", value: `${fuelTypesTracked}/${FUEL_TYPES_LIST.length}`, badge: "badge-teal", icon: "🧪" },
-          { label: lang === "en" ? "Avg Fuel Types/Station" : "Rata BBM/SPBU", sub: lang === "en" ? "types per point" : "jenis per titik", value: avgFuelTypesPerStation.toFixed(1), badge: "badge-purple", icon: "📊" },
-          { label: lang === "en" ? "No Fuel Data Yet" : "Belum Ada Data BBM", sub: lang === "en" ? "needs completing" : "perlu dilengkapi", value: String(noFuelDataYet), badge: noFuelDataYet > 0 ? "badge-red" : "badge-green", icon: "⚠️" },
-        ].map((s, i) => (
-          <div key={i} className="statCardCompact statPop" style={{ animationDelay: `${i * 0.05}s` }}>
-            <div className={`iconBadge ${s.badge} icon`}>{s.icon}</div>
-            <div>
-              <div className="value">{s.value}</div>
-              <div className="label">{s.label}</div>
-              <div style={{ fontSize: 11, color: "var(--t3)", marginTop: 1 }}>{s.sub}</div>
+      <div className="neonCard" style={{ padding: 0, overflow: "hidden", marginBottom: 18 }}>
+        <div style={{ display: "flex", flexWrap: "wrap" }}>
+          {[
+            { label: lang === "en" ? "Total Stations" : "Total SPBU", sub: lang === "en" ? "points saved" : "titik tersimpan", value: String(totalStations), badge: "blue",
+              icon: <><path d="M3 22V6a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v16" /><path d="M3 10h10" /><path d="M15 6l3.5 3.5a1.5 1.5 0 0 0 2.5-1.1V6.5" /></> },
+            { label: lang === "en" ? "Fuel Types Tracked" : "Jenis BBM Terlacak", sub: lang === "en" ? "types at ≥1 station" : "jenis di ≥1 SPBU", value: `${fuelTypesTracked}/${FUEL_TYPES_LIST.length}`, badge: "teal",
+              icon: <><path d="M9 2v6L4 20a1 1 0 0 0 1 2h14a1 1 0 0 0 1-2L15 8V2" /><path d="M9 2h6" /></> },
+            { label: lang === "en" ? "Avg Fuel Types/Station" : "Rata BBM/SPBU", sub: lang === "en" ? "types per point" : "jenis per titik", value: avgFuelTypesPerStation.toFixed(1), badge: "purple",
+              icon: <><path d="M3 3v18h18" /><path d="M18 17V9M13 17V5M8 17v-4" /></> },
+            { label: lang === "en" ? "No Fuel Data Yet" : "Belum Ada Data BBM", sub: lang === "en" ? "needs completing" : "perlu dilengkapi", value: String(noFuelDataYet), badge: noFuelDataYet > 0 ? "red" : "green",
+              icon: <><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z" /><path d="M12 9v4M12 17h.01" /></> },
+          ].map((s, i) => (
+            <div key={i} className="statPop" style={{ display: "flex", alignItems: "center", gap: 14, padding: "18px 22px", borderLeft: i > 0 ? "1px solid var(--border2)" : "none", position: "relative", zIndex: 1, animationDelay: `${i * 0.05}s` }}>
+              <div className={`hexBadge ${s.badge} small`}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                  {s.icon}
+                </svg>
+              </div>
+              <div>
+                <div className="statValue" style={{ fontSize: 20 }}>{s.value}</div>
+                <div className="statLabel">{s.label}</div>
+                <div style={{ fontSize: 11, color: "var(--t3)", marginTop: 1 }}>{s.sub}</div>
+              </div>
             </div>
-          </div>
-        ))}
+          ))}
+        </div>
       </div>
 
       {/* ── Fuel distribution + Data completeness + Growth trend ── */}
