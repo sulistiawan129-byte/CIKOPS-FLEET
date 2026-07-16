@@ -3567,7 +3567,8 @@ function OpFundTab({ myProfile }: { myProfile: MyProfile | null }) {
     if (lockedPlant) setViewPlant(lockedPlant);
   }, [lockedPlant]);
 
-  const [kantong, setKantong] = useState<Kantong | null>(null);
+  const [kantongCik, setKantongCik] = useState<Kantong | null>(null);
+  const [kantongPrb, setKantongPrb] = useState<Kantong | null>(null);
   const [history, setHistory] = useState<Kantong[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -4017,43 +4018,55 @@ function ReportsTab({ myProfile }: { myProfile: MyProfile | null }) {
   // up front — it's cheap and shared across every period the user might
   // pick. Tasks are fetched per-period on demand (see handleGenerate),
   // since they're queried by date range server-side.
+  const loadMaster = useCallback(async () => {
+    setError(null);
+    try {
+      const [c, ot, v, kCik, kPrb, t, d] = await Promise.all([
+        getClaims(),
+        getOvertimes(),
+        getAllVehiclesFull(),
+        getCurrentKantong("CIK"),
+        getCurrentKantong("PRB"),
+        getDriverTiers(),
+        getDrivers(),
+      ]);
+      setAllClaims(c);
+      setAllOvertimes(ot);
+      setVehicles(v);
+      setKantongCik(kCik);
+      setKantongPrb(kPrb);
+      setTiers(t);
+      setDrivers(d);
+      return { c, ot, v, kCik, kPrb, t };
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Gagal memuat data master laporan");
+      return null;
+    }
+  }, []);
+
   useEffect(() => {
     (async () => {
       setLoadingMaster(true);
-      setError(null);
-      try {
-        const [c, ot, v, k, t, d] = await Promise.all([
-          getClaims(),
-          getOvertimes(),
-          getAllVehiclesFull(),
-          getOverviewKantong(myProfile),
-          getDriverTiers(),
-          getDrivers(),
-        ]);
-        setAllClaims(c);
-        setAllOvertimes(ot);
-        setVehicles(v);
-        setKantong(k);
-        setTiers(t);
-        setDrivers(d);
-      } catch (e) {
-        setError(e instanceof Error ? e.message : "Gagal memuat data master laporan");
-      } finally {
-        setLoadingMaster(false);
-      }
+      await loadMaster();
+      setLoadingMaster(false);
     })();
-  }, []);
+  }, [loadMaster]);
 
   async function handleGenerate() {
     setGenerating(true);
     setError(null);
     try {
+      // Refresh dulu semua data master supaya laporan tidak pakai data basi.
+      const fresh = await loadMaster();
+      if (!fresh) { setGenerating(false); return; }
+      const { c: freshClaims, ot: freshOt, v: freshVehicles, kCik: freshKCik, kPrb: freshKPrb, t: freshTiers } = fresh;
+      const myKantongForReport = myProfile?.plantScope === "PRB" ? freshKPrb : freshKCik;
+
       const period: ReportPeriod = { mode, month, year, dateFrom, dateTo };
       const { from, to } = getPeriodDateRange(period);
       const tasks = await getTasksByRange(from, to);
 
-      const data = buildFleetReportData(period, allClaims, allOvertimes, vehicles, kantong, tiers, tasks);
-
+      const data = buildFleetReportData(period, freshClaims, freshOt, freshVehicles, myKantongForReport, freshTiers, tasks);
       // Previous-period data, for trend insights — silently skipped if it
       // fails (trend is a nice-to-have, not worth blocking the report).
       let prevData: FleetReportData | null = null;
@@ -4061,7 +4074,7 @@ function ReportsTab({ myProfile }: { myProfile: MyProfile | null }) {
         const prevPeriod = getPreviousPeriod(period);
         const prevRange = getPeriodDateRange(prevPeriod);
         const prevTasks = await getTasksByRange(prevRange.from, prevRange.to);
-        prevData = buildFleetReportData(prevPeriod, allClaims, allOvertimes, vehicles, kantong, tiers, prevTasks);
+        prevData = buildFleetReportData(prevPeriod, freshClaims, freshOt, freshVehicles, myKantongForReport, freshTiers, prevTasks);
       } catch {
         prevData = null;
       }
