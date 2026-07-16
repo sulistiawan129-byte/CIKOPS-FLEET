@@ -1997,7 +1997,7 @@ function OverviewTab({ setActiveTab, myProfile }: { setActiveTab: (t: DashboardT
     ...overtimes.map((o) => ({ kind: "overtime" as const, date: `${o.period}-01`, driver: o.driverName, amount: o.amount, meta: `${o.plant} · ${fmtRp(o.hours)} jam` })),
   ].filter((a) => a.driver).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).slice(0, 6);
 
-  const cardStyle: CSSProperties = { background: "linear-gradient(180deg, var(--surface2), var(--surface))", border: "1px solid var(--border2)", borderRadius: "var(--r2)", boxShadow: "var(--shadow-md)" };
+  const cardStyle: CSSProperties = { borderRadius: "var(--r2)" };
 
   const quickAccess: { icon: string; label: string; tab: DashboardTab }[] = [
     { icon: "🚗", label: lang === "en" ? "Vehicles" : "Armada", tab: "vehicles" },
@@ -2525,12 +2525,7 @@ function ClaimsTab() {
     }
   }
 
-  const cardStyle: CSSProperties = {
-    background: "linear-gradient(180deg, var(--surface2), var(--surface))",
-    border: "1px solid var(--border2)",
-    borderRadius: "var(--r2)",
-    boxShadow: "var(--shadow-md)",
-  };
+  const cardStyle: CSSProperties = { borderRadius: "var(--r2)" };
   const inputStyle: CSSProperties = {
     width: "100%",
     padding: "9px 12px",
@@ -3011,7 +3006,7 @@ function OvertimeTab({ myProfile }: { myProfile: MyProfile | null }) {
     }
   }
 
-  const cardStyle: CSSProperties = { background: "linear-gradient(180deg, var(--surface2), var(--surface))", border: "1px solid var(--border2)", borderRadius: "var(--r2)", boxShadow: "var(--shadow-md)" };
+  const cardStyle: CSSProperties = { borderRadius: "var(--r2)" };
   const inputStyle: CSSProperties = { width: "100%", padding: "9px 12px", borderRadius: 10, border: "1px solid var(--border2)", background: "var(--bg2)", color: "var(--t1)", fontSize: 13, fontFamily: "var(--font)" };
   const labelStyle: CSSProperties = { fontSize: 13, fontWeight: 700, color: "var(--t2)", marginBottom: 5, display: "block" };
 
@@ -3445,12 +3440,12 @@ function DriverBudgetTab() {
     }
   }
 
-  const cardStyle: CSSProperties = { background: "linear-gradient(180deg, var(--surface2), var(--surface))", border: "1px solid var(--border2)", borderRadius: "var(--r2)", boxShadow: "var(--shadow-md)" };
+  const cardStyle: CSSProperties = { borderRadius: "var(--r2)" };
   const inputStyle: CSSProperties = { width: "100%", padding: "9px 12px", borderRadius: 10, border: "1px solid var(--border2)", background: "var(--bg2)", color: "var(--t1)", fontSize: 13, fontFamily: "var(--font)" };
   const labelStyle: CSSProperties = { fontSize: 13, fontWeight: 700, color: "var(--t2)", marginBottom: 5, display: "block" };
 
   return (
-    <div className="pageContainer">
+    <div style={{ padding: 20 }}>
       <div className="statCardRow">
         <div className="statCardCompact">
           <div className="iconBadge badge-blue icon">🧑‍✈️</div>
@@ -3800,7 +3795,7 @@ function OpFundTab({ myProfile }: { myProfile: MyProfile | null }) {
     }
   }
 
-  const cardStyle: CSSProperties = { background: "linear-gradient(180deg, var(--surface2), var(--surface))", border: "1px solid var(--border2)", borderRadius: "var(--r2)", boxShadow: "var(--shadow-md)" };
+  const cardStyle: CSSProperties = { borderRadius: "var(--r2)" };
   const inputStyle: CSSProperties = { width: "100%", padding: "9px 12px", borderRadius: 10, border: "1px solid var(--border2)", background: "var(--bg2)", color: "var(--t1)", fontSize: 13, fontFamily: "var(--font)" };
   const labelStyle: CSSProperties = { fontSize: 13, fontWeight: 700, color: "var(--t2)", marginBottom: 5, display: "block" };
 
@@ -4103,7 +4098,7 @@ function ReportsTab({ myProfile }: { myProfile: MyProfile | null }) {
     }
   }
 
-  const cardStyle: CSSProperties = { background: "linear-gradient(180deg, var(--surface2), var(--surface))", border: "1px solid var(--border2)", borderRadius: "var(--r2)", boxShadow: "var(--shadow-md)" };
+  const cardStyle: CSSProperties = { borderRadius: "var(--r2)" };
   const inputStyle: CSSProperties = { width: "100%", padding: "9px 12px", borderRadius: 10, border: "1px solid var(--border2)", background: "var(--bg2)", color: "var(--t1)", fontSize: 13, fontFamily: "var(--font)" };
 
   // ── Derived views of reportData (only meaningful once generated) ──
@@ -4501,7 +4496,7 @@ function GasStationsTab() {
     }
   }
 
-  const cardStyle: CSSProperties = { background: "linear-gradient(180deg, var(--surface2), var(--surface))", border: "1px solid var(--border2)", borderRadius: "var(--r2)", boxShadow: "var(--shadow-md)" };
+  const cardStyle: CSSProperties = { borderRadius: "var(--r2)" };
   const inputStyle: CSSProperties = { width: "100%", padding: "9px 12px", borderRadius: 10, border: "1px solid var(--border2)", background: "var(--bg2)", color: "var(--t1)", fontSize: 13, fontFamily: "var(--font)" };
   const labelStyle: CSSProperties = { fontSize: 13, fontWeight: 700, color: "var(--t2)", marginBottom: 5, display: "block" };
 
@@ -4909,12 +4904,7 @@ function VehiclesTab({ myProfile }: { myProfile: MyProfile | null }) {
     }
   }
 
-  const cardStyle: CSSProperties = {
-    background: "linear-gradient(180deg, var(--surface2), var(--surface))",
-    border: "1px solid var(--border2)",
-    borderRadius: "var(--r2)",
-    boxShadow: "var(--shadow-md)",
-  };
+ const cardStyle: CSSProperties = { borderRadius: "var(--r2)" };
   const inputStyle: CSSProperties = {
     width: "100%",
     padding: "9px 12px",
@@ -4933,8 +4923,8 @@ function VehiclesTab({ myProfile }: { myProfile: MyProfile | null }) {
     display: "block",
   };
 
- return (
-    <div className="pageContainer">
+  return (
+    <div style={{ padding: 20 }}>
       <div
         style={{
           display: "flex",
@@ -5284,7 +5274,7 @@ function MasterDataTab({
    restrictedToDriversOnly ? "drivers" : initialSub
    );
 
-  const cardStyle: CSSProperties = { background: "linear-gradient(180deg, var(--surface2), var(--surface))", border: "1px solid var(--border2)", borderRadius: "var(--r2)", boxShadow: "var(--shadow-md)" };
+  const cardStyle: CSSProperties = { borderRadius: "var(--r2)" };
 
   return (
     <div style={{ padding: 20 }}>
