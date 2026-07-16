@@ -1999,14 +1999,15 @@ function OverviewTab({ setActiveTab, myProfile }: { setActiveTab: (t: DashboardT
 
   const cardStyle: CSSProperties = { background: "linear-gradient(180deg, var(--surface2), var(--surface))", border: "1px solid var(--border2)", borderRadius: "var(--r2)", boxShadow: "var(--shadow-md)" };
 
-  const quickAccess: { icon: string; label: string; tab: DashboardTab }[] = [
+ const quickAccessAll: { icon: string; label: string; tab: DashboardTab }[] = [
     { icon: "🚗", label: lang === "en" ? "Vehicles" : "Armada", tab: "vehicles" },
     { icon: "🧾", label: lang === "en" ? "Claims" : "Klaim", tab: "claims" },
     { icon: "⏱️", label: "Overtime", tab: "overtime" },
     { icon: "💳", label: lang === "en" ? "Driver Budget" : "Budget Driver", tab: "driverbudget" },
     { icon: "🍱", label: lang === "en" ? "Canteen" : "Kantin", tab: "canteen" },
     { icon: "🔐", label: "Locker", tab: "locker" },
- ].filter((q) => canAccessTab(myProfile, q.tab));
+  ];
+  const quickAccess = quickAccessAll.filter((q) => canAccessTab(myProfile, q.tab));
 
   const STATUS_COLOR: Record<string, string> = { ASSIGNED: "var(--brand)", "ON GOING": "var(--orange)", DONE: "var(--green)", CANCELLED: "var(--red)" };
   const STATUS_LABEL_ID: Record<string, string> = { ASSIGNED: "Ditugaskan", "ON GOING": "Berjalan", DONE: "Selesai", CANCELLED: "Batal" };
