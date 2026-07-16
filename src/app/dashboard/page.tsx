@@ -2189,12 +2189,22 @@ function OverviewTab({ setActiveTab, myProfile }: { setActiveTab: (t: DashboardT
         </div>
 
         {/* Driver Budget — dipindah ke sini biar section Finance lengkap (Fund + Overtime + Budget) */}
-        <div className="statPop" style={{ ...cardStyle, padding: 20 }}>
-          <div style={{ fontSize: 13, fontWeight: 800, color: "var(--t1)", marginBottom: 12 }}>💳 {lang === "en" ? "Driver Budget" : "Budget Driver"}</div>
-          <div style={{ fontSize: 24, fontWeight: 800, fontFamily: "var(--mono)", color: "var(--t1)" }}>Rp {fmtRp(totalTierBudget)}</div>
-          <div style={{ fontSize: 12, color: "var(--t3)", marginTop: 4, marginBottom: 12 }}>{totalTierDrivers} {lang === "en" ? "drivers" : "driver"} · {tiers.length} tier</div>
-          <button onClick={() => setActiveTab("driverbudget")} style={{ width: "100%", padding: "8px", borderRadius: 10, border: "1px solid var(--border2)", background: "var(--bg2)", color: "var(--t2)", fontWeight: 700, fontSize: 11.5, cursor: "pointer" }}>
-            {lang === "en" ? "View Budget →" : "Lihat Budget →"}
+        <div className="neonCard">
+          <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16, position: "relative", zIndex: 1 }}>
+            <div className="hexBadge gold small">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                <rect x="2" y="5" width="20" height="14" rx="2" /><line x1="2" y1="10" x2="22" y2="10" />
+              </svg>
+            </div>
+            <div style={{ fontWeight: 800, fontSize: 16, color: "var(--t1)" }}>{lang === "en" ? "Driver Budget" : "Budget Driver"}</div>
+          </div>
+          <div style={{ fontSize: 24, fontWeight: 800, fontFamily: "var(--mono)", color: "var(--t1)", position: "relative", zIndex: 1 }}>Rp {fmtRp(totalTierBudget)}</div>
+          <div style={{ fontSize: 12, color: "var(--t3)", marginTop: 4, marginBottom: 16, position: "relative", zIndex: 1 }}>{totalTierDrivers} {lang === "en" ? "drivers" : "driver"} · {tiers.length} tier</div>
+          <button className="neonBtn" onClick={() => setActiveTab("driverbudget")} style={{ position: "relative", zIndex: 1, padding: "12px" }}>
+            {lang === "en" ? "View Budget" : "Lihat Budget"}
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" width={16} height={16}>
+              <path d="M5 12h14M12 5l7 7-7 7" />
+            </svg>
           </button>
         </div>
       </div>
