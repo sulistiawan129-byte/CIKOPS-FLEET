@@ -1015,18 +1015,19 @@ h1, h2, h3 {
 .circleBadge.gold svg   { color: #d8a94e; filter: drop-shadow(0 0 4px rgba(216, 169, 78, 0.6)); }
 
 /* ════════════════════════════════════════════════════════════
-   NEON DARK PREMIUM — sistem kartu gelap dengan border gradient
-   glow, badge ikon bercahaya, dan tombol gradient neon. Dipakai
-   lewat className, mulai dari kartu Locker sebagai referensi.
+   NEON CARD SYSTEM v2 — ADAPTIF TEMA. Wadah kartu ikut terang/gelap
+   (sama seperti .statPop), tapi badge/gauge/tombol gradient tetap
+   neon cerah di kedua mode.
 ════════════════════════════════════════════════════════════ */
 
 .neonCard {
-  background: linear-gradient(160deg, #0d1526, #0a0f1f);
+  background: linear-gradient(160deg, var(--surface2), var(--surface));
   border-radius: 24px;
   padding: 28px;
   position: relative;
   overflow: hidden;
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--border2);
+  box-shadow: var(--shadow-md);
 }
 .neonCard::before {
   content: "";
@@ -1034,40 +1035,37 @@ h1, h2, h3 {
   inset: 0;
   border-radius: inherit;
   padding: 1.5px;
-  background: linear-gradient(135deg, rgba(91, 140, 255, 0.65), rgba(167, 147, 255, 0.5), rgba(255, 120, 200, 0.4));
+  background: linear-gradient(135deg, rgba(91, 140, 255, 0.5), rgba(167, 147, 255, 0.4), rgba(255, 120, 200, 0.3));
   -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
   -webkit-mask-composite: xor;
   mask-composite: exclude;
   pointer-events: none;
 }
-
-.neonIconBadge {
-  width: 56px;
-  height: 56px;
-  border-radius: 16px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 24px;
-  flex-shrink: 0;
+[data-theme="dark"] .neonCard {
+  background: linear-gradient(160deg, #0d1526, #0a0f1f);
+  border-color: rgba(255, 255, 255, 0.06);
 }
-.neonIconBadge.purple { background: linear-gradient(135deg, #7c5cff, #a78bfa); box-shadow: 0 0 24px rgba(124, 92, 255, 0.55), 0 0 50px rgba(124, 92, 255, 0.25); }
-.neonIconBadge.teal   { background: linear-gradient(135deg, #0f766e, #2dd4bf); box-shadow: 0 0 20px rgba(45, 212, 191, 0.5); }
-.neonIconBadge.red    { background: linear-gradient(135deg, #dc2626, #ef4444); box-shadow: 0 0 20px rgba(239, 68, 68, 0.5); }
-.neonIconBadge.blue   { background: linear-gradient(135deg, #2563eb, #60a5fa); box-shadow: 0 0 20px rgba(96, 165, 250, 0.5); }
-.neonIconBadge.small  { width: 40px; height: 40px; border-radius: 12px; font-size: 16px; }
+[data-theme="dark"] .neonCard::before {
+  background: linear-gradient(135deg, rgba(91, 140, 255, 0.65), rgba(167, 147, 255, 0.5), rgba(255, 120, 200, 0.4));
+}
 
+/* Badge pill "ACTIVE" — tint hijau lembut ikut tema, teks/dot tetap
+   hijau terang di kedua mode (statusnya sama pentingnya di mana pun). */
 .neonBadgePill {
   display: inline-flex;
   align-items: center;
   gap: 6px;
   padding: 6px 14px;
   border-radius: 999px;
-  background: rgba(45, 212, 191, 0.12);
+  background: var(--green-soft);
   border: 1px solid rgba(45, 212, 191, 0.35);
-  color: #5eead4;
+  color: #0f9c8f;
   font-size: 11px;
   font-weight: 700;
+}
+[data-theme="dark"] .neonBadgePill {
+  background: rgba(45, 212, 191, 0.12);
+  color: #5eead4;
 }
 .neonBadgePill .dot {
   width: 6px;
@@ -1077,11 +1075,12 @@ h1, h2, h3 {
   box-shadow: 0 0 8px #2dd4bf;
 }
 
+/* Sub-stat panel (Available/Used) — background tint ikut tema. */
 .neonSubCard {
   display: flex;
   border-radius: 16px;
   overflow: hidden;
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--border2);
 }
 .neonSubCard .half {
   flex: 1;
@@ -1090,10 +1089,14 @@ h1, h2, h3 {
   gap: 12px;
   padding: 16px 18px;
 }
-.neonSubCard .half.available { background: linear-gradient(135deg, rgba(45, 212, 191, 0.1), transparent); }
-.neonSubCard .half.used { background: linear-gradient(135deg, rgba(239, 68, 68, 0.1), transparent); }
-.neonSubCard .divider { width: 1px; align-self: stretch; background: rgba(255, 255, 255, 0.08); }
+.neonSubCard .half.available { background: linear-gradient(135deg, rgba(45, 212, 191, 0.08), transparent); }
+.neonSubCard .half.used { background: linear-gradient(135deg, rgba(239, 68, 68, 0.08), transparent); }
+.neonSubCard .divider { width: 1px; align-self: stretch; background: var(--border2); }
+[data-theme="dark"] .neonSubCard .half.available { background: linear-gradient(135deg, rgba(45, 212, 191, 0.1), transparent); }
+[data-theme="dark"] .neonSubCard .half.used { background: linear-gradient(135deg, rgba(239, 68, 68, 0.1), transparent); }
 
+/* Tombol utama — TETAP gradient neon cerah di kedua mode, ini elemen
+   yang sengaja jadi fokus/CTA jadi tidak perlu ikut tema. */
 .neonBtn {
   width: 100%;
   padding: 16px;
