@@ -3773,6 +3773,7 @@ function OpFundTab({ myProfile }: { myProfile: MyProfile | null }) {
   const [eCash, setECash] = useState("");
   const [eSubmitted, setESubmitted] = useState("");
   const [ePaid, setEPaid] = useState("");
+  const [eUnsubmittedClaim, setEUnsubmittedClaim] = useState("");
   const [saving, setSaving] = useState(false);
 
   // First-time setup — shown only when no kantong row exists yet at all
@@ -3796,6 +3797,7 @@ function OpFundTab({ myProfile }: { myProfile: MyProfile | null }) {
         setECash(String(k.cashAvailable));
         setESubmitted(String(k.claimSubmitted));
         setEPaid(String(k.claimPaid));
+        setEUnsubmittedClaim(String(k.unsubmittedClaim));
       }
     } catch (e) {
       setError(e instanceof Error ? e.message : "Gagal memuat Dana Operasional");
@@ -3815,7 +3817,7 @@ function OpFundTab({ myProfile }: { myProfile: MyProfile | null }) {
 
   const totalBudgetPre = kantong?.totalBudget ?? 0;
   const outstandingPre = kantong
-    ? kantong.allocOpDriver + kantong.allocEmergency + kantong.cashAvailable + kantong.claimSubmitted + kantong.claimPaid
+    ? kantong.allocOpDriver + kantong.allocEmergency + kantong.cashAvailable + kantong.claimSubmitted + kantong.claimPaid + kantong.unsubmittedClaim
     : 0;
   const gapPre = outstandingPre - totalBudgetPre;
   const animatedTotalBudget = useCountUp(totalBudgetPre);
@@ -3944,7 +3946,7 @@ function OpFundTab({ myProfile }: { myProfile: MyProfile | null }) {
   }
 
   const totalAlokasi = kantong.allocOpDriver + kantong.allocEmergency;
-  const outstanding = totalAlokasi + kantong.cashAvailable + kantong.claimSubmitted + kantong.claimPaid;
+  const outstanding = totalAlokasi + kantong.cashAvailable + kantong.claimSubmitted + kantong.claimPaid + kantong.unsubmittedClaim;
   const gap = outstanding - kantong.totalBudget;
   const gapColor = gap === 0 ? "var(--green)" : gap > 0 ? "var(--orange)" : "var(--red)";
   const gapText = gap === 0 ? "Sesuai" : gap > 0 ? "Outstanding melebihi total cash" : "Outstanding di bawah total cash";
@@ -3962,6 +3964,7 @@ function OpFundTab({ myProfile }: { myProfile: MyProfile | null }) {
         cashAvailable: evalExpr(eCash) ?? kantong.cashAvailable,
         claimSubmitted: evalExpr(eSubmitted) ?? kantong.claimSubmitted,
         claimPaid: evalExpr(ePaid) ?? kantong.claimPaid,
+        unsubmittedClaim: evalExpr(eUnsubmittedClaim) ?? kantong.unsubmittedClaim,
         lastReset: kantong.lastReset,
       };
       await updateKantongBudget(updated);
@@ -3997,6 +4000,7 @@ function OpFundTab({ myProfile }: { myProfile: MyProfile | null }) {
     { label: "Cash Available (A4)", value: kantong.cashAvailable, color: "var(--green)" },
     { label: lang === "en" ? "Claim Submitted (A5)" : "Klaim Diajukan (A5)", value: kantong.claimSubmitted, color: "var(--brand)" },
     { label: lang === "en" ? "Claim Paid (A6)" : "Klaim Dibayar (A6)", value: kantong.claimPaid, color: "var(--purple)" },
+    { label: lang === "en" ? "Unsubmitted Claim (A7)" : "Klaim Belum Diajukan (A7)", value: kantong.unsubmittedClaim, color: "var(--gold2)" },
   ];
 
   const fundHealthPct = kantong.totalBudget > 0
@@ -4008,7 +4012,7 @@ function OpFundTab({ myProfile }: { myProfile: MyProfile | null }) {
 
   const trendData = history.map((h) => ({
     period: h.period,
-    gap: h.allocOpDriver + h.allocEmergency + h.cashAvailable + h.claimSubmitted + h.claimPaid - h.totalBudget,
+gap: h.allocOpDriver + h.allocEmergency + h.cashAvailable + h.claimSubmitted + h.claimPaid + h.unsubmittedClaim - h.totalBudget,
   }));
   const chartW = 640, chartH = 140, chartPad = 30;
   const maxAbsGap = Math.max(...trendData.map((d) => Math.abs(d.gap)), 1);
@@ -4139,7 +4143,8 @@ function OpFundTab({ myProfile }: { myProfile: MyProfile | null }) {
               <div><label style={labelStyle}>EMERGENCY (A2)</label><input className="premiumInput" style={inputStyle} value={eEmergency} onChange={(e) => setEEmergency(e.target.value)} /></div>
               <div><label style={labelStyle}>CASH AVAILABLE (A4)</label><input className="premiumInput" style={inputStyle} value={eCash} onChange={(e) => setECash(e.target.value)} /></div>
               <div><label style={labelStyle}>{lang === "en" ? "CLAIM SUBMITTED (A5)" : "CLAIM DIAJUKAN (A5)"}</label><input className="premiumInput" style={inputStyle} value={eSubmitted} onChange={(e) => setESubmitted(e.target.value)} /></div>
-              <div><label style={labelStyle}>{lang === "en" ? "CLAIM PAID (A6)" : "CLAIM DIBAYAR (A6)"}</label><input className="premiumInput" style={inputStyle} value={ePaid} onChange={(e) => setEPaid(e.target.value)} /></div>
+             <div><label style={labelStyle}>{lang === "en" ? "CLAIM PAID (A6)" : "CLAIM DIBAYAR (A6)"}</label><input className="premiumInput" style={inputStyle} value={ePaid} onChange={(e) => setEPaid(e.target.value)} /></div>
+              <div><label style={labelStyle}>{lang === "en" ? "UNSUBMITTED CLAIM (A7)" : "KLAIM BELUM DIAJUKAN (A7)"}</label><input className="premiumInput" style={inputStyle} value={eUnsubmittedClaim} onChange={(e) => setEUnsubmittedClaim(e.target.value)} placeholder="0" /></div>
             </div>
             <div style={{ display: "flex", gap: 10, marginTop: 18 }}>
               <button onClick={() => setShowEdit(false)} style={{ flex: 1, padding: "10px", borderRadius: 10, border: "1px solid var(--border2)", background: "var(--surface2)", color: "var(--t2)", fontWeight: 700, cursor: "pointer" }}>{t.actionCancel}</button>
