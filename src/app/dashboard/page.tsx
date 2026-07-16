@@ -3363,6 +3363,7 @@ function LoginScreen() {
   const { signIn } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const isMobile = useIsMobile();
@@ -3376,8 +3377,8 @@ function LoginScreen() {
     if (err) setError(t.loginErrorGeneric);
   }
 
-  const inputStyle: CSSProperties = { width: "100%", padding: "11px 14px", borderRadius: 10, border: "1px solid var(--border2)", background: "var(--bg2)", color: "var(--t1)", fontSize: 14 };
-  const labelStyle: CSSProperties = { fontSize: 13, fontWeight: 700, color: "var(--t2)", marginBottom: 5, display: "block" };
+  const inputStyle: CSSProperties = { width: "100%", padding: "11px 14px 11px 40px", borderRadius: 10, border: "1px solid var(--border2)", background: "var(--bg2)", color: "var(--t1)", fontSize: 14 };
+  const labelStyle: CSSProperties = { fontSize: 11, fontWeight: 700, color: "var(--t3)", marginBottom: 6, display: "block", textTransform: "uppercase", letterSpacing: "0.06em" };
 
   return (
     <div style={{ minHeight: "100vh", display: "flex" }}>
@@ -3395,85 +3396,295 @@ function LoginScreen() {
             padding: "48px 44px",
           }}
         >
-          {/* Abstract flowing glow shapes, echoing the reference's wave motif */}
           <div style={{ position: "absolute", top: "-15%", right: "-10%", width: 380, height: 380, borderRadius: "50%", background: "radial-gradient(circle, rgba(255,255,255,0.14), transparent 70%)" }} />
           <div style={{ position: "absolute", bottom: "-20%", left: "-15%", width: 420, height: 420, borderRadius: "50%", background: "radial-gradient(circle, rgba(23,195,178,0.22), transparent 70%)" }} />
           <div style={{ position: "absolute", top: "38%", left: "48%", width: 260, height: 260, borderRadius: "50%", border: "1px solid rgba(255,255,255,0.12)" }} />
-
           <div style={{ position: "relative", zIndex: 1, display: "flex", alignItems: "center", gap: 12 }}>
             <img src="/logo.png" alt="CIKOPS" style={{ width: 48, height: 48 }} />
             <div>
-              <div style={{ fontSize: 17, fontWeight: 800, color: "#fff" }}>{t.appName}</div>
-              <div style={{ fontSize: 13, color: "rgba(255,255,255,0.7)" }}>Integrated Facility Management</div>
-            </div>
-          </div>
+  <div
+    style={{
+      fontSize: 17,
+      fontWeight: 800,
+      color: "#fff",
+    }}
+  >
+    {t.appName}
+  </div>
 
-          <div style={{ position: "relative", zIndex: 1 }}>
-            <div style={{ fontSize: 26, fontWeight: 800, color: "#fff", lineHeight: 1.3, marginBottom: 10 }}>
-              {lang === "en" ? "One System," : "Satu Sistem,"}
-              <br />
-              {lang === "en" ? "All Operations in Harmony" : "Semua Operasional Selaras"}
-            </div>
-            <div style={{ fontSize: 13, color: "rgba(255,255,255,0.72)", maxWidth: 340 }}>
-              {lang === "en"
-                ? "Fleet, finance, and facility operations — managed in one integrated ecosystem."
-                : "Fleet, finance, dan fasilitas — dikelola dalam satu ekosistem terintegrasi."}
-            </div>
-          </div>
+  <div
+    style={{
+      fontSize: 13,
+      color: "rgba(255,255,255,.72)",
+      marginTop: 3,
+      letterSpacing: .5,
+    }}
+  >
+    {lang === "en"
+      ? "Integrated Facility Management Platform"
+      : "Platform Manajemen Fasilitas Terintegrasi"}
+  </div>
+</div>
+</div>
 
-          <div style={{ position: "relative", zIndex: 1, fontSize: 13, color: "rgba(255,255,255,0.5)" }}>
-            © {new Date().getFullYear()} {t.appName}. All rights reserved.
-          </div>
-        </div>
-      )}
+{/* ================= HERO ================= */}
+<div
+  style={{
+    position: "relative",
+    zIndex: 1,
+    maxWidth: 470,
+  }}
+>
+  {/* Badge */}
+  <div
+    style={{
+      display: "inline-flex",
+      alignItems: "center",
+      gap: 8,
+      padding: "8px 16px",
+      borderRadius: 999,
+      background: "rgba(255,255,255,.08)",
+      border: "1px solid rgba(255,255,255,.15)",
+      color: "#5eead4",
+      fontSize: 12,
+      fontWeight: 700,
+      marginBottom: 28,
+      backdropFilter: "blur(10px)",
+    }}
+  >
+    ●{" "}
+    {lang === "en"
+      ? "Integrated Facility Management"
+      : "Integrated Facility Management"}
+  </div>
 
-      {/* ── Right: login form panel ── */}
-      <div style={{ flex: 1, display: "flex", flexDirection: "column", background: "var(--bg)" }}>
-        <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, padding: 20 }}>
+  {/* Main Title */}
+  <div
+    style={{
+      fontSize: 46,
+      fontWeight: 800,
+      color: "#fff",
+      lineHeight: 1.15,
+      letterSpacing: "-1px",
+    }}
+  >
+    {lang === "en" ? (
+      <>
+        Manage Every
+        <br />
+        <span
+          style={{
+            background:
+              "linear-gradient(90deg,#5EEAD4,#60A5FA,#A78BFA)",
+            WebkitBackgroundClip: "text",
+            WebkitTextFillColor: "transparent",
+          }}
+        >
+          Facility.
+        </span>
+        <br />
+        Control Every Operation.
+      </>
+    ) : (
+      <>
+        Kelola Seluruh
+        <br />
+        <span
+          style={{
+            background:
+              "linear-gradient(90deg,#5EEAD4,#60A5FA,#A78BFA)",
+            WebkitBackgroundClip: "text",
+            WebkitTextFillColor: "transparent",
+          }}
+        >
+          Fasilitas.
+        </span>
+        <br />
+        Kendalikan Semua Operasional.
+      </>
+    )}
+  </div>
+
+  {/* Divider */}
+  <div
+    style={{
+      width: 70,
+      height: 4,
+      marginTop: 28,
+      marginBottom: 24,
+      borderRadius: 999,
+      background:
+        "linear-gradient(90deg,#5EEAD4,#60A5FA,#A78BFA)",
+      boxShadow: "0 0 18px rgba(96,165,250,.4)",
+    }}
+  />
+
+  {/* Description */}
+  <div
+    style={{
+      fontSize: 15,
+      lineHeight: 1.9,
+      color: "rgba(255,255,255,.75)",
+      maxWidth: 430,
+    }}
+  >
+    {lang === "en"
+      ? "One centralized platform to manage Fleet, Driver Operations, Assets, Locker Management, Operational Funds, Facility Services, Canteen, and Analytics with real-time visibility."
+      : "Satu platform terpusat untuk mengelola Fleet, Driver Operations, Asset Management, Locker, Dana Operasional, Facility Services, Kantin, dan Analytics secara real-time."}
+  </div>
+
+  {/* Features */}
+  <div
+    style={{
+      display: "flex",
+      flexWrap: "wrap",
+      gap: 12,
+      marginTop: 32,
+      maxWidth: 470,
+    }}
+  >
+    {[
+      "Fleet",
+      "Driver",
+      "Assets",
+      "Locker",
+      "Finance",
+      "Canteen",
+      "Facility",
+      "Analytics",
+    ].map((item) => (
+      <div
+        key={item}
+        style={{
+          padding: "9px 16px",
+          borderRadius: 999,
+          background: "rgba(255,255,255,.06)",
+          border: "1px solid rgba(255,255,255,.12)",
+          color: "#E2E8F0",
+          fontSize: 12,
+          fontWeight: 700,
+          backdropFilter: "blur(12px)",
+          boxShadow: "0 8px 24px rgba(0,0,0,.18)",
+          transition: ".3s",
+        }}
+      >
+        {item}
+      </div>
+    ))}
+  </div>
+</div>
+
+{/* ================= FOOTER ================= */}
+<div
+  style={{
+    position: "relative",
+    zIndex: 1,
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    color: "rgba(255,255,255,.5)",
+    fontSize: 12,
+  }}
+>
+  <div>
+    © {new Date().getFullYear()}{" "}
+    <span
+      style={{
+        color: "#5EEAD4",
+        fontWeight: 700,
+      }}
+    >
+      {t.appName}
+    </span>
+    . All rights reserved.
+  </div>
+
+  <div
+    style={{
+      color: "rgba(255,255,255,.35)",
+    }}
+  >
+    Version 2.0
+  </div>
+</div>
+
+      {/* ── Right: login form panel — floating glass card on dotted bg ── */}
+      <div style={{ flex: 1, display: "flex", flexDirection: "column", position: "relative", background: "var(--bg2)" }}>
+        <div style={{ position: "absolute", inset: 0, backgroundImage: "radial-gradient(circle, var(--border2) 1.3px, transparent 1.3px)", backgroundSize: "22px 22px", pointerEvents: "none" }} />
+
+        <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, padding: 20, position: "relative", zIndex: 1 }}>
           <button
             onClick={() => setLang(lang === "id" ? "en" : "id")}
-            style={{ padding: "6px 12px", borderRadius: "var(--pill)", border: "1px solid var(--border2)", background: "var(--surface)", color: "var(--t2)", fontWeight: 700, fontSize: 12, cursor: "pointer" }}
+            className="topbarIconBtn"
+            style={{ width: "auto", padding: "0 12px", borderRadius: "var(--pill)", fontWeight: 700, fontSize: 12 }}
           >
             {lang === "id" ? "EN" : "ID"}
           </button>
-          <button
-            onClick={toggleTheme}
-            style={{ padding: "6px 12px", borderRadius: "var(--pill)", border: "1px solid var(--border2)", background: "var(--surface)", cursor: "pointer" }}
-          >
+          <button onClick={toggleTheme} className="topbarIconBtn">
             {theme === "dark" ? "☀️" : "🌙"}
           </button>
         </div>
 
-        <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
-          <div className="tabContent" style={{ width: "100%", maxWidth: 360 }}>
-            {isMobile && (
-              <div style={{ textAlign: "center", marginBottom: 20 }}>
-                <img src="/logo.png" alt="CIKOPS" style={{ width: 48, height: 48, margin: "0 auto 10px" }} />
+        <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", padding: 20, position: "relative", zIndex: 1 }}>
+          <div className="tabContent cardGlass" style={{ width: "100%", maxWidth: 380, padding: "36px 32px" }}>
+            <div style={{ textAlign: "center", marginBottom: 26 }}>
+              <div className="hexBadge blue" style={{ margin: "0 auto 16px" }}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="5" y="11" width="14" height="10" rx="2" />
+                  <path d="M8 11V7a4 4 0 0 1 8 0v4" />
+                </svg>
               </div>
-            )}
-            <div style={{ marginBottom: 28 }}>
-              <div style={{ fontSize: 22, fontWeight: 800, color: "var(--t1)" }}>{t.loginTitle}</div>
-              <div style={{ fontSize: 13, color: "var(--t3)", marginTop: 4 }}>{t.loginSubtitle}</div>
+              <div style={{ fontSize: 20, fontWeight: 800, color: "var(--t1)" }}>{t.loginTitle}</div>
+              <div style={{ fontSize: 12.5, color: "var(--t3)", marginTop: 4 }}>{t.loginSubtitle}</div>
             </div>
 
             <form onSubmit={handleSubmit}>
               <div style={{ marginBottom: 14 }}>
                 <label style={labelStyle}>{t.loginEmail.toUpperCase()}</label>
-                <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} className="premiumInput" style={inputStyle} />
+                <div style={{ position: "relative" }}>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" width={16} height={16} style={{ position: "absolute", left: 13, top: "50%", transform: "translateY(-50%)", color: "var(--t3)", pointerEvents: "none" }}>
+                    <rect x="2" y="4" width="20" height="16" rx="2" /><path d="m2 7 10 6 10-6" />
+                  </svg>
+                  <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} className="premiumInput" style={inputStyle} />
+                </div>
               </div>
               <div style={{ marginBottom: 20 }}>
                 <label style={labelStyle}>{t.loginPassword.toUpperCase()}</label>
-                <input type="password" required value={password} onChange={(e) => setPassword(e.target.value)} className="premiumInput" style={inputStyle} />
+                <div style={{ position: "relative" }}>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" width={16} height={16} style={{ position: "absolute", left: 13, top: "50%", transform: "translateY(-50%)", color: "var(--t3)", pointerEvents: "none" }}>
+                    <rect x="5" y="11" width="14" height="10" rx="2" /><path d="M8 11V7a4 4 0 0 1 8 0v4" />
+                  </svg>
+                  <input type={showPassword ? "text" : "password"} required value={password} onChange={(e) => setPassword(e.target.value)} className="premiumInput" style={{ ...inputStyle, paddingRight: 40 }} />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword((p) => !p)}
+                    aria-label={showPassword ? "Hide password" : "Show password"}
+                    style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", color: "var(--t3)", padding: 4, display: "flex" }}
+                  >
+                    {showPassword ? (
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" width={17} height={17}>
+                        <path d="M9.88 9.88a3 3 0 1 0 4.24 4.24" /><path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68M6.61 6.61A13.526 13.526 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61" /><path d="m2 2 20 20" />
+                      </svg>
+                    ) : (
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" width={17} height={17}>
+                        <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7Z" /><circle cx="12" cy="12" r="3" />
+                      </svg>
+                    )}
+                  </button>
+                </div>
               </div>
-
               {error && (
                 <div style={{ padding: 10, borderRadius: 10, background: "var(--red-soft)", color: "var(--red)", fontSize: 12.5, marginBottom: 16 }}>
                   {error}
                 </div>
               )}
-
-              <button type="submit" className="pillBtn" disabled={busy} style={{ width: "100%", justifyContent: "center", padding: "12px", fontSize: 14, opacity: busy ? 0.7 : 1 }}>
+              <button type="submit" className="neonBtn" disabled={busy} style={{ padding: "12px", fontSize: 14, opacity: busy ? 0.7 : 1 }}>
                 {busy ? t.loginSigningIn : t.loginButton}
+                {!busy && (
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" width={16} height={16}>
+                    <path d="M5 12h14M12 5l7 7-7 7" />
+                  </svg>
+                )}
               </button>
             </form>
 
