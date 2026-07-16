@@ -78,12 +78,7 @@ function ModalPortal({
   );
 }
 
-const cardStyle: CSSProperties = {
-  background: "linear-gradient(180deg, var(--surface2), var(--surface))",
-  border: "1px solid var(--border2)",
-  borderRadius: "var(--r2)",
-  boxShadow: "var(--shadow-md)",
-};
+const cardStyle: CSSProperties = { borderRadius: "var(--r2)" };
 const inputStyle: CSSProperties = {
   width: "100%",
   padding: "9px 12px",
