@@ -8,6 +8,8 @@ import styles from "./dashboard.module.css";
 import {
   getMyProfile,
   canAccessTab,
+  getActivityLog,
+  type ActivityLogEntry,
   cancelTaskByAdmin,
   createTask,
   deleteTask,
