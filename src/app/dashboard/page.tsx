@@ -1881,21 +1881,9 @@ function OverviewTab({ setActiveTab, myProfile }: { setActiveTab: (t: DashboardT
   const urgentDocsPre = docBucketsPre.urgent + docBucketsPre.mid;
   const availableDriversPre = drivers.filter((d) => d.aktif).length;
 
-  const nowPre = new Date();
-  const thisMonthTotalPre = claims
-    .filter((c) => { const d = new Date(c.periodDate); return d.getMonth() === nowPre.getMonth() && d.getFullYear() === nowPre.getFullYear(); })
-    .reduce((s, c) => s + c.total, 0);
-  const periodNowPre = `${nowPre.getFullYear()}-${String(nowPre.getMonth() + 1).padStart(2, "0")}`;
-  const otThisMonthPre = overtimes.filter((o) => o.period === periodNowPre);
-  const otHoursPre = otThisMonthPre.reduce((s, o) => s + o.hours, 0);
-  const otAmountPre = otThisMonthPre.reduce((s, o) => s + o.amount, 0);
-
   const animatedVehicleCount = useCountUp(vehicles.length);
   const animatedAvailableDrivers = useCountUp(availableDriversPre);
   const animatedUrgentDocs = useCountUp(urgentDocsPre);
-  const animatedThisMonthTotal = useCountUp(thisMonthTotalPre);
-  const animatedOtHours = useCountUp(otHoursPre);
-  const animatedOtAmount = useCountUp(otAmountPre);
 
   if (loading) return <div style={{ padding: 60, textAlign: "center", color: "var(--t3)" }}>{lang === "en" ? "Loading overview..." : "Memuat ringkasan..."}</div>;
 
@@ -1918,6 +1906,7 @@ function OverviewTab({ setActiveTab, myProfile }: { setActiveTab: (t: DashboardT
     return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
   });
   const thisMonthTotal = thisMonthClaims.reduce((s, c) => s + c.total, 0);
+  const animatedThisMonthTotal = useCountUp(thisMonthTotal);
   const lastMonthDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
   const lastMonthTotal = claims
     .filter((c) => { const d = new Date(c.periodDate); return d.getMonth() === lastMonthDate.getMonth() && d.getFullYear() === lastMonthDate.getFullYear(); })
@@ -1929,6 +1918,8 @@ function OverviewTab({ setActiveTab, myProfile }: { setActiveTab: (t: DashboardT
   const otThisMonth = overtimes.filter((o) => o.period === periodNow);
   const otHours = otThisMonth.reduce((s, o) => s + o.hours, 0);
   const otAmount = otThisMonth.reduce((s, o) => s + o.amount, 0);
+  const animatedOtHours = useCountUp(otHours);
+  const animatedOtAmount = useCountUp(otAmount);
   const otByPlant = OT_PLANTS.map((p) => ({ plant: p, hours: otThisMonth.filter((o) => o.plant === p).reduce((s, o) => s + o.hours, 0) }));
   const maxOtPlantHours = Math.max(...otByPlant.map((p) => p.hours), 1);
 
@@ -1997,7 +1988,7 @@ function OverviewTab({ setActiveTab, myProfile }: { setActiveTab: (t: DashboardT
     ...overtimes.map((o) => ({ kind: "overtime" as const, date: `${o.period}-01`, driver: o.driverName, amount: o.amount, meta: `${o.plant} · ${fmtRp(o.hours)} jam` })),
   ].filter((a) => a.driver).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).slice(0, 6);
 
-  const cardStyle: CSSProperties = { borderRadius: "var(--r2)" };
+  const cardStyle: CSSProperties = { background: "linear-gradient(180deg, var(--surface2), var(--surface))", border: "1px solid var(--border2)", borderRadius: "var(--r2)", boxShadow: "var(--shadow-md)" };
 
   const quickAccess: { icon: string; label: string; tab: DashboardTab }[] = [
     { icon: "🚗", label: lang === "en" ? "Vehicles" : "Armada", tab: "vehicles" },
@@ -2196,20 +2187,105 @@ function OverviewTab({ setActiveTab, myProfile }: { setActiveTab: (t: DashboardT
           </button>
         </div>
 
-        {/* Locker */}
-        <div className="statPop" style={{ ...cardStyle, padding: 18, display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center", gap: 10 }}>
-          <svg viewBox="0 0 90 90" width={64} height={64} style={{ flexShrink: 0 }}>
-            <circle cx={45} cy={45} r={RL} fill="none" stroke="var(--border)" strokeWidth={10} />
-            <circle cx={45} cy={45} r={RL} fill="none" stroke="var(--red)" strokeWidth={10} strokeDasharray={`${(lockerUsedPct / 100) * CIRCL} ${CIRCL}`} strokeLinecap="round" transform="rotate(-90 45 45)" />
-            <text x={45} y={50} textAnchor="middle" fontSize={18} fontWeight={800} fill="var(--t1)" fontFamily="var(--mono)">{lockerTotal}</text>
-          </svg>
-          <div style={{ fontSize: 13, fontWeight: 800, color: "var(--t1)" }}>🔐 Locker</div>
-          <div style={{ display: "flex", gap: 16 }}>
-            <div><div style={{ fontSize: 12, color: "var(--green)", fontWeight: 700 }}>{lockerAvailable}</div><div style={{ fontSize: 10.5, color: "var(--t3)" }}>{lang === "en" ? "available" : "tersedia"}</div></div>
-            <div><div style={{ fontSize: 12, color: "var(--red)", fontWeight: 700 }}>{lockerUsed}</div><div style={{ fontSize: 10.5, color: "var(--t3)" }}>{lang === "en" ? "used" : "dipakai"}</div></div>
+        {/* Locker — 100% mengikuti referensi: hexagon badge outline-glow,
+            gauge dengan glow kuat + marker dot, sub-stat lingkaran outline. */}
+        <div className="neonCard" style={{ gridColumn: "span 1" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 22, position: "relative", zIndex: 1 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+              <div className="hexBadge purple">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="5" y="11" width="14" height="10" rx="2" />
+                  <path d="M8 11V7a4 4 0 0 1 8 0v4" />
+                </svg>
+              </div>
+              <div>
+                <div style={{ fontSize: 24, fontWeight: 800, color: "var(--t1)" }}>Locker</div>
+                <div style={{ fontSize: 12, color: "var(--t3)" }}>{lang === "en" ? "Smart Locker System" : "Sistem Locker Pintar"}</div>
+              </div>
+            </div>
+            <div className="neonBadgePill">
+              <span className="dot" />
+              {lang === "en" ? "ACTIVE" : "AKTIF"}
+            </div>
           </div>
-          <button onClick={() => setActiveTab("locker")} style={{ width: "100%", padding: "8px", borderRadius: 10, border: "1px solid var(--border2)", background: "var(--bg2)", color: "var(--t2)", fontWeight: 700, fontSize: 11.5, cursor: "pointer" }}>
-            {lang === "en" ? "View Locker →" : "Lihat Locker →"}
+
+          {(() => {
+            const RLk = 64, CIRCLk = 2 * Math.PI * RLk;
+            const availPct = lockerTotal > 0 ? (lockerAvailable / lockerTotal) * 100 : 100;
+            const angleRad = (-90 + (availPct / 100) * 360) * (Math.PI / 180);
+            const dotX = 80 + RLk * Math.cos(angleRad);
+            const dotY = 80 + RLk * Math.sin(angleRad);
+            return (
+              <div style={{ display: "flex", justifyContent: "center", marginBottom: 22, position: "relative", zIndex: 1 }}>
+                <svg viewBox="0 0 160 160" width={160} height={160}>
+                  <defs>
+                    <linearGradient id="lockerGaugeGrad2" x1="0%" y1="0%" x2="100%" y2="100%">
+                      <stop offset="0%" stopColor="#3b82f6" />
+                      <stop offset="100%" stopColor="#a78bfa" />
+                    </linearGradient>
+                    <filter id="lockerGlow2" x="-80%" y="-80%" width="260%" height="260%">
+                      <feGaussianBlur stdDeviation="8" result="blur1" />
+                      <feGaussianBlur stdDeviation="3" result="blur2" />
+                      <feMerge>
+                        <feMergeNode in="blur1" />
+                        <feMergeNode in="blur2" />
+                        <feMergeNode in="SourceGraphic" />
+                      </feMerge>
+                    </filter>
+                  </defs>
+                  <circle cx={80} cy={80} r={RLk} fill="none" stroke="var(--border)" strokeWidth={9} />
+                  <circle
+                    cx={80} cy={80} r={RLk} fill="none"
+                    stroke="url(#lockerGaugeGrad2)" strokeWidth={9} strokeLinecap="round"
+                    strokeDasharray={CIRCLk}
+                    strokeDashoffset={CIRCLk * (1 - availPct / 100)}
+                    transform="rotate(-90 80 80)"
+                    filter="url(#lockerGlow2)"
+                  />
+                  <circle cx={dotX} cy={dotY} r={5} fill="#fff" filter="url(#lockerGlow2)" />
+                  <text x={80} y={78} textAnchor="middle" fontSize={38} fontWeight={800} fill="var(--t1)" fontFamily="var(--mono)">{lockerTotal}</text>
+                  <text x={80} y={99} textAnchor="middle" fontSize={10} fill="var(--t3)" letterSpacing={1.5}>TOTAL LOCKER</text>
+                </svg>
+              </div>
+            );
+          })()}
+
+          <div className="neonSubCard" style={{ marginBottom: 16, position: "relative", zIndex: 1 }}>
+            <div className="half available" style={{ padding: "18px 20px" }}>
+              <div className="circleBadge teal">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M21 8v13H3V8" /><path d="M1 3h22v5H1z" /><path d="M10 12h4" />
+                </svg>
+              </div>
+              <div>
+                <div style={{ fontSize: 22, fontWeight: 800, color: "#2dd4bf", fontFamily: "var(--mono)" }}>{lockerAvailable}</div>
+                <div style={{ fontSize: 12, color: "var(--t3)" }}>{lang === "en" ? "Available" : "Tersedia"}</div>
+              </div>
+            </div>
+            <div className="divider" />
+            <div className="half used" style={{ padding: "18px 20px" }}>
+              <div className="circleBadge red">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="5" y="11" width="14" height="10" rx="2" />
+                  <path d="M8 11V7a4 4 0 0 1 8 0v4" />
+                </svg>
+              </div>
+              <div>
+                <div style={{ fontSize: 22, fontWeight: 800, color: "#ef4444", fontFamily: "var(--mono)" }}>{lockerUsed}</div>
+                <div style={{ fontSize: 12, color: "var(--t3)" }}>{lang === "en" ? "Used" : "Terisi"}</div>
+              </div>
+            </div>
+          </div>
+
+          <button className="neonBtn" onClick={() => setActiveTab("locker")} style={{ position: "relative", zIndex: 1 }}>
+            <svg viewBox="0 0 24 24" fill="currentColor" width={18} height={18}>
+              <rect x="3" y="3" width="7" height="7" rx="1" /><rect x="14" y="3" width="7" height="7" rx="1" />
+              <rect x="3" y="14" width="7" height="7" rx="1" /><rect x="14" y="14" width="7" height="7" rx="1" />
+            </svg>
+            {lang === "en" ? "View Locker" : "Lihat Locker"}
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" width={18} height={18}>
+              <path d="M5 12h14M12 5l7 7-7 7" />
+            </svg>
           </button>
         </div>
 
