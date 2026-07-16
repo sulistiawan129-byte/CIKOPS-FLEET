@@ -3402,211 +3402,31 @@ function LoginScreen() {
           <div style={{ position: "relative", zIndex: 1, display: "flex", alignItems: "center", gap: 12 }}>
             <img src="/logo.png" alt="CIKOPS" style={{ width: 48, height: 48 }} />
             <div>
-  <div
-    style={{
-      fontSize: 17,
-      fontWeight: 800,
-      color: "#fff",
-    }}
-  >
-    {t.appName}
-  </div>
-
-  <div
-    style={{
-      fontSize: 13,
-      color: "rgba(255,255,255,.72)",
-      marginTop: 3,
-      letterSpacing: .5,
-    }}
-  >
-    {lang === "en"
-      ? "Integrated Facility Management Platform"
-      : "Platform Manajemen Fasilitas Terintegrasi"}
-  </div>
-</div>
-</div>
-
-{/* ================= HERO ================= */}
-<div
-  style={{
-    position: "relative",
-    zIndex: 1,
-    maxWidth: 470,
-  }}
->
-  {/* Badge */}
-  <div
-    style={{
-      display: "inline-flex",
-      alignItems: "center",
-      gap: 8,
-      padding: "8px 16px",
-      borderRadius: 999,
-      background: "rgba(255,255,255,.08)",
-      border: "1px solid rgba(255,255,255,.15)",
-      color: "#5eead4",
-      fontSize: 12,
-      fontWeight: 700,
-      marginBottom: 28,
-      backdropFilter: "blur(10px)",
-    }}
-  >
-    ●{" "}
-    {lang === "en"
-      ? "Integrated Facility Management"
-      : "Integrated Facility Management"}
-  </div>
-
-  {/* Main Title */}
-  <div
-    style={{
-      fontSize: 46,
-      fontWeight: 800,
-      color: "#fff",
-      lineHeight: 1.15,
-      letterSpacing: "-1px",
-    }}
-  >
-    {lang === "en" ? (
-      <>
-        Manage Every
-        <br />
-        <span
-          style={{
-            background:
-              "linear-gradient(90deg,#5EEAD4,#60A5FA,#A78BFA)",
-            WebkitBackgroundClip: "text",
-            WebkitTextFillColor: "transparent",
-          }}
-        >
-          Facility.
-        </span>
-        <br />
-        Control Every Operation.
-      </>
-    ) : (
-      <>
-        Kelola Seluruh
-        <br />
-        <span
-          style={{
-            background:
-              "linear-gradient(90deg,#5EEAD4,#60A5FA,#A78BFA)",
-            WebkitBackgroundClip: "text",
-            WebkitTextFillColor: "transparent",
-          }}
-        >
-          Fasilitas.
-        </span>
-        <br />
-        Kendalikan Semua Operasional.
-      </>
-    )}
-  </div>
-
-  {/* Divider */}
-  <div
-    style={{
-      width: 70,
-      height: 4,
-      marginTop: 28,
-      marginBottom: 24,
-      borderRadius: 999,
-      background:
-        "linear-gradient(90deg,#5EEAD4,#60A5FA,#A78BFA)",
-      boxShadow: "0 0 18px rgba(96,165,250,.4)",
-    }}
-  />
-
-  {/* Description */}
-  <div
-    style={{
-      fontSize: 15,
-      lineHeight: 1.9,
-      color: "rgba(255,255,255,.75)",
-      maxWidth: 430,
-    }}
-  >
-    {lang === "en"
-      ? "One centralized platform to manage Fleet, Driver Operations, Assets, Locker Management, Operational Funds, Facility Services, Canteen, and Analytics with real-time visibility."
-      : "Satu platform terpusat untuk mengelola Fleet, Driver Operations, Asset Management, Locker, Dana Operasional, Facility Services, Kantin, dan Analytics secara real-time."}
-  </div>
-
-  {/* Features */}
-  <div
-    style={{
-      display: "flex",
-      flexWrap: "wrap",
-      gap: 12,
-      marginTop: 32,
-      maxWidth: 470,
-    }}
-  >
-    {[
-      "Fleet",
-      "Driver",
-      "Assets",
-      "Locker",
-      "Finance",
-      "Canteen",
-      "Facility",
-      "Analytics",
-    ].map((item) => (
-      <div
-        key={item}
-        style={{
-          padding: "9px 16px",
-          borderRadius: 999,
-          background: "rgba(255,255,255,.06)",
-          border: "1px solid rgba(255,255,255,.12)",
-          color: "#E2E8F0",
-          fontSize: 12,
-          fontWeight: 700,
-          backdropFilter: "blur(12px)",
-          boxShadow: "0 8px 24px rgba(0,0,0,.18)",
-          transition: ".3s",
-        }}
-      >
-        {item}
-      </div>
-    ))}
-  </div>
-</div>
-
-{/* ================= FOOTER ================= */}
-<div
-  style={{
-    position: "relative",
-    zIndex: 1,
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center",
-    color: "rgba(255,255,255,.5)",
-    fontSize: 12,
-  }}
->
-  <div>
-    © {new Date().getFullYear()}{" "}
-    <span
-      style={{
-        color: "#5EEAD4",
-        fontWeight: 700,
-      }}
-    >
-      {t.appName}
-    </span>
-    . All rights reserved.
-  </div>
-
-  <div
-    style={{
-      color: "rgba(255,255,255,.35)",
-    }}
-  >
-    Version 2.0
-  </div>
-</div>
+              <div style={{ fontSize: 17, fontWeight: 800, color: "#fff" }}>{t.appName}</div>
+              <div style={{ fontSize: 13, color: "rgba(255,255,255,0.7)" }}>Integrated Facility Management</div>
+            </div>
+          </div>
+          <div style={{ position: "relative", zIndex: 1 }}>
+            <div style={{ fontSize: 26, fontWeight: 800, color: "#fff", lineHeight: 1.3, marginBottom: 10 }}>
+              {lang === "en" ? "One System," : "Satu Sistem,"}
+              <br />
+              {lang === "en" ? "All Operations in " : "Semua Operasional "}
+              <span style={{ background: "linear-gradient(120deg, #5eead4, #a78bfa)", WebkitBackgroundClip: "text", backgroundClip: "text", WebkitTextFillColor: "transparent", color: "transparent" }}>
+                {lang === "en" ? "Harmony" : "Selaras"}
+              </span>
+            </div>
+            <div style={{ width: 40, height: 3, borderRadius: 2, background: "rgba(255,255,255,0.4)", marginBottom: 14 }} />
+            <div style={{ fontSize: 13, color: "rgba(255,255,255,0.72)", maxWidth: 340 }}>
+              {lang === "en"
+                ? "Fleet, finance, and facility operations — managed in one integrated ecosystem."
+                : "Fleet, finance, dan fasilitas — dikelola dalam satu ekosistem terintegrasi."}
+            </div>
+          </div>
+          <div style={{ position: "relative", zIndex: 1, fontSize: 12, color: "rgba(255,255,255,0.5)" }}>
+            © {new Date().getFullYear()} <span style={{ color: "#5eead4", fontWeight: 700 }}>{t.appName}</span>. All rights reserved.
+          </div>
+        </div>
+      )}
 
       {/* ── Right: login form panel — floating glass card on dotted bg ── */}
       <div style={{ flex: 1, display: "flex", flexDirection: "column", position: "relative", background: "var(--bg2)" }}>
