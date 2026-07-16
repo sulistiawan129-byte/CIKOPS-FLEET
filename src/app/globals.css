@@ -960,3 +960,56 @@ h1, h2, h3 {
   opacity: 0.5;
   pointer-events: none;
 }
+
+/* ════════════════════════════════════════════════════════════
+   HEXAGON & CIRCLE OUTLINE-GLOW BADGES — versi presisi mengikuti
+   referensi: background gelap transparan + border glow warna, BUKAN
+   fill solid seperti .iconBadge/.neonIconBadge sebelumnya.
+════════════════════════════════════════════════════════════ */
+
+.hexBadge {
+  width: 64px;
+  height: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  clip-path: polygon(25% 3%, 75% 3%, 100% 50%, 75% 97%, 25% 97%, 0% 50%);
+  flex-shrink: 0;
+  position: relative;
+}
+.hexBadge.purple { background: rgba(124, 92, 255, 0.1); box-shadow: 0 0 24px rgba(124, 92, 255, 0.45); }
+.hexBadge svg { width: 26px; height: 26px; }
+.hexBadge.purple svg { color: #a78bfa; filter: drop-shadow(0 0 6px rgba(167, 139, 250, 0.7)); }
+.hexBadge::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  clip-path: polygon(25% 3%, 75% 3%, 100% 50%, 75% 97%, 25% 97%, 0% 50%);
+  padding: 2px;
+  background: linear-gradient(135deg, #a78bfa, #7c5cff);
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+}
+
+.circleBadge {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  border: 1.5px solid;
+}
+.circleBadge svg { width: 20px; height: 20px; }
+.circleBadge.teal   { background: rgba(45, 212, 191, 0.08); border-color: rgba(45, 212, 191, 0.5); box-shadow: 0 0 16px rgba(45, 212, 191, 0.4); }
+.circleBadge.teal svg   { color: #2dd4bf; filter: drop-shadow(0 0 4px rgba(45, 212, 191, 0.6)); }
+.circleBadge.red    { background: rgba(239, 68, 68, 0.08); border-color: rgba(239, 68, 68, 0.5); box-shadow: 0 0 16px rgba(239, 68, 68, 0.4); }
+.circleBadge.red svg    { color: #ef4444; filter: drop-shadow(0 0 4px rgba(239, 68, 68, 0.6)); }
+.circleBadge.blue   { background: rgba(96, 165, 250, 0.08); border-color: rgba(96, 165, 250, 0.5); box-shadow: 0 0 16px rgba(96, 165, 250, 0.4); }
+.circleBadge.blue svg   { color: #60a5fa; filter: drop-shadow(0 0 4px rgba(96, 165, 250, 0.6)); }
+.circleBadge.orange { background: rgba(251, 146, 60, 0.08); border-color: rgba(251, 146, 60, 0.5); box-shadow: 0 0 16px rgba(251, 146, 60, 0.4); }
+.circleBadge.orange svg { color: #fb923c; filter: drop-shadow(0 0 4px rgba(251, 146, 60, 0.6)); }
+.circleBadge.gold   { background: rgba(216, 169, 78, 0.08); border-color: rgba(216, 169, 78, 0.5); box-shadow: 0 0 16px rgba(216, 169, 78, 0.4); }
+.circleBadge.gold svg   { color: #d8a94e; filter: drop-shadow(0 0 4px rgba(216, 169, 78, 0.6)); }
