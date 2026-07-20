@@ -313,6 +313,11 @@ export async function deleteTask(taskId: string): Promise<void> {
   const { error } = await supabase.from("tasks").delete().eq("id", taskId);
   if (error) throw error;
 }
+export async function deleteTaskBatch(batchId: string): Promise<number> {
+  const { data, error } = await supabase.rpc("delete_task_batch", { p_batch_id: batchId });
+  if (error) throw error;
+  return data ?? 0;
+}
 
 /* ════════════════════════════════════════════════════════════
    REALTIME SUBSCRIPTION
