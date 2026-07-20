@@ -20,6 +20,8 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 interface ClaimItem {
   type: string;
   expr: string;
@@ -36,6 +38,27 @@ interface ClaimEmailPayload {
   total: number;
   note?: string;
   lang?: "id" | "en";
+}
+
+/** Escape untuk mencegah HTML/markup injection dari field yang diisi user
+ * (driverName, note, item.type, item.expr, dll) sebelum disisipkan ke email HTML. */
+function escapeHtml(value: unknown): string {
+  return String(value ?? "").replace(/[&<>"']/g, (ch) => {
+    switch (ch) {
+      case "&":
+        return "&amp;";
+      case "<":
+        return "&lt;";
+      case ">":
+        return "&gt;";
+      case '"':
+        return "&quot;";
+      case "'":
+        return "&#39;";
+      default:
+        return ch;
+    }
+  });
 }
 
 function fmtRp(n: number): string {
@@ -60,8 +83,8 @@ function itemsTableRows(items: ClaimItem[]): string {
     .map(
       (i) => `
       <tr>
-        <td style="padding:8px 12px;border-bottom:1px solid #e3e7ef;font-size:13px;color:#2d375a;">${i.type}</td>
-        <td style="padding:8px 12px;border-bottom:1px solid #e3e7ef;font-size:13px;color:#5a6485;font-family:monospace;">${i.expr}</td>
+        <td style="padding:8px 12px;border-bottom:1px solid #e3e7ef;font-size:13px;color:#2d375a;">${escapeHtml(i.type)}</td>
+        <td style="padding:8px 12px;border-bottom:1px solid #e3e7ef;font-size:13px;color:#5a6485;font-family:monospace;">${escapeHtml(i.expr)}</td>
         <td style="padding:8px 12px;border-bottom:1px solid #e3e7ef;font-size:13px;color:#0d1328;font-weight:600;text-align:right;">Rp ${fmtRp(i.total)}</td>
       </tr>`
     )
@@ -70,6 +93,9 @@ function itemsTableRows(items: ClaimItem[]): string {
 
 function driverTemplate(p: ClaimEmailPayload): { subject: string; html: string } {
   const id = (p.lang ?? "id") === "id";
+  const driverName = escapeHtml(p.driverName);
+  const note = p.note ? escapeHtml(p.note) : "";
+
   const subject = id
     ? `Klaim Anda Telah Diterima — ${fmtDate(p.periodDate, "id")}`
     : `Your Claim Has Been Received — ${fmtDate(p.periodDate, "en")}`;
@@ -82,7 +108,7 @@ function driverTemplate(p: ClaimEmailPayload): { subject: string; html: string }
     </div>
     <div style="background:#fff;border-radius:0 0 16px 16px;padding:24px;">
       <p style="font-size:14px;color:#0d1328;line-height:1.6;">
-        ${id ? `Halo <strong>${p.driverName}</strong>,` : `Hi <strong>${p.driverName}</strong>,`}
+        ${id ? `Halo <strong>${driverName}</strong>,` : `Hi <strong>${driverName}</strong>,`}
       </p>
       <p style="font-size:14px;color:#2d375a;line-height:1.6;">
         ${id
@@ -107,7 +133,7 @@ function driverTemplate(p: ClaimEmailPayload): { subject: string; html: string }
         <span style="font-size:12px;font-weight:700;color:#5a6485;">TOTAL</span>
         <span style="font-size:18px;font-weight:800;color:#0f9c8f;">Rp ${fmtRp(p.total)}</span>
       </div>
-      ${p.note ? `<p style="font-size:12.5px;color:#5a6485;font-style:italic;margin-bottom:16px;">${id ? "Catatan" : "Note"}: ${p.note}</p>` : ""}
+      ${note ? `<p style="font-size:12.5px;color:#5a6485;font-style:italic;margin-bottom:16px;">${id ? "Catatan" : "Note"}: ${note}</p>` : ""}
       <p style="font-size:13px;color:#5a6485;line-height:1.6;">
         ${id
           ? "Terima kasih atas pengajuan klaim Anda. Tim GA akan memproses lebih lanjut sesuai jadwal pencairan."
@@ -122,9 +148,12 @@ function driverTemplate(p: ClaimEmailPayload): { subject: string; html: string }
 
 function managerTemplate(p: ClaimEmailPayload): { subject: string; html: string } {
   const id = (p.lang ?? "id") === "id";
+  const driverName = escapeHtml(p.driverName);
+  const note = p.note ? escapeHtml(p.note) : "";
+
   const subject = id
-    ? `[Notifikasi Klaim] ${p.driverName} — ${fmtDate(p.periodDate, "id")}`
-    : `[Claim Notification] ${p.driverName} — ${fmtDate(p.periodDate, "en")}`;
+    ? `[Notifikasi Klaim] ${driverName} — ${fmtDate(p.periodDate, "id")}`
+    : `[Claim Notification] ${driverName} — ${fmtDate(p.periodDate, "en")}`;
 
   const html = `
   <div style="font-family:Georgia,'Times New Roman',serif;max-width:560px;margin:0 auto;background:#ffffff;padding:0;border:1px solid #d1d5e6;">
@@ -143,7 +172,7 @@ function managerTemplate(p: ClaimEmailPayload): { subject: string; html: string 
       </p>
 
       <table style="width:100%;border-collapse:collapse;margin:18px 0;font-size:12.5px;">
-        <tr><td style="padding:5px 0;color:#5a6485;width:160px;">${id ? "Nama Driver" : "Driver Name"}</td><td style="padding:5px 0;color:#1a1a1a;font-weight:700;">${p.driverName}</td></tr>
+        <tr><td style="padding:5px 0;color:#5a6485;width:160px;">${id ? "Nama Driver" : "Driver Name"}</td><td style="padding:5px 0;color:#1a1a1a;font-weight:700;">${driverName}</td></tr>
         <tr><td style="padding:5px 0;color:#5a6485;">${id ? "Periode Klaim" : "Claim Period"}</td><td style="padding:5px 0;color:#1a1a1a;">${fmtDate(p.periodDate, p.lang ?? "id")}</td></tr>
         <tr><td style="padding:5px 0;color:#5a6485;">${id ? "Tanggal Pengajuan" : "Submission Date"}</td><td style="padding:5px 0;color:#1a1a1a;">${fmtDate(p.submissionDate, p.lang ?? "id")}</td></tr>
       </table>
@@ -166,7 +195,7 @@ function managerTemplate(p: ClaimEmailPayload): { subject: string; html: string 
         </tr>
       </table>
 
-      ${p.note ? `<p style="font-size:12.5px;color:#5a6485;margin-bottom:16px;"><em>${id ? "Catatan tambahan" : "Additional note"}: ${p.note}</em></p>` : ""}
+      ${note ? `<p style="font-size:12.5px;color:#5a6485;margin-bottom:16px;"><em>${id ? "Catatan tambahan" : "Additional note"}: ${note}</em></p>` : ""}
 
       <p style="font-size:13px;color:#1a1a1a;line-height:1.7;">
         ${id
@@ -190,6 +219,12 @@ serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
   }
+  if (req.method !== "POST") {
+    return new Response(JSON.stringify({ error: "Method not allowed. Use POST." }), {
+      status: 405,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
 
   try {
     if (!GMAIL_USER || !GMAIL_APP_PASSWORD) {
@@ -199,16 +234,30 @@ serve(async (req) => {
       );
     }
 
-    const payload: ClaimEmailPayload = await req.json();
-    const recipients = (Array.isArray(payload.toEmail) ? payload.toEmail : [payload.toEmail])
-      .map((e) => e.trim())
-      .filter(Boolean);
-
-    if (recipients.length === 0 || !payload.driverName || !payload.items) {
-      return new Response(JSON.stringify({ error: "Missing required fields." }), {
+    let payload: ClaimEmailPayload;
+    try {
+      payload = await req.json();
+    } catch {
+      return new Response(JSON.stringify({ error: "Invalid JSON body." }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
+    }
+
+    const recipients = (Array.isArray(payload.toEmail) ? payload.toEmail : [payload.toEmail])
+      .map((e) => (typeof e === "string" ? e.trim() : ""))
+      .filter((e) => EMAIL_RE.test(e));
+
+    if (
+      recipients.length === 0 ||
+      !payload.driverName ||
+      !Array.isArray(payload.items) ||
+      payload.items.length === 0
+    ) {
+      return new Response(
+        JSON.stringify({ error: "Missing required fields or no valid recipient email." }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
 
     const { subject, html } =
@@ -223,19 +272,41 @@ serve(async (req) => {
       },
     });
 
-    await client.send({
-      from: `${FROM_NAME} <${GMAIL_USER}>`,
-      to: recipients,
-      subject,
-      content: "Email ini memerlukan HTML untuk ditampilkan dengan benar.",
-      html,
-    });
-
+    // Kirim satu email per penerima (bukan satu panggilan dengan array
+    // banyak alamat) — lihat catatan di send-task-batch-email untuk alasan:
+    // menghindari header `To:` non-standar dari denomailer saat multi-
+    // recipient, dan mencegah penerima satu melihat alamat penerima lain.
+    const failed: string[] = [];
+    for (const to of recipients) {
+      try {
+        await client.send({
+          from: `${FROM_NAME} <${GMAIL_USER}>`,
+          to,
+          subject,
+          html,
+        });
+      } catch (sendErr) {
+        console.error(`Gagal kirim ke ${to}:`, sendErr);
+        failed.push(to);
+      }
+    }
     await client.close();
 
-    return new Response(JSON.stringify({ success: true, recipients }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    if (failed.length === recipients.length) {
+      return new Response(
+        JSON.stringify({ error: "Gagal mengirim ke semua penerima.", failed }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    return new Response(
+      JSON.stringify({
+        success: true,
+        recipients: recipients.filter((r) => !failed.includes(r)),
+        failed,
+      }),
+      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
   } catch (err) {
     return new Response(JSON.stringify({ error: String(err) }), {
       status: 500,
