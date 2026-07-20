@@ -41,11 +41,6 @@ export interface JobType {
   label: string;
 }
 
-/* ════════════════════════════════════════════════════════════
-   FLEETOS ENTITIES — ported from the original FleetOS system,
-   backed by the tables added in the Supabase merge migration.
-════════════════════════════════════════════════════════════ */
-
 export type Plant = "CIK" | "PRB";
 
 export interface ClaimItem {
@@ -57,8 +52,8 @@ export interface ClaimItem {
 export interface Claim {
   id: string;
   driver_id: string;
-  driverName: string; // resolved from drivers.nama (not a DB column)
-  driverEmail: string; // resolved from drivers.email
+  driverName: string;
+  driverEmail: string;
   submissionDate: string;
   periodDate: string;
   items: ClaimItem[];
@@ -72,10 +67,10 @@ export interface Claim {
 export interface Overtime {
   id: string;
   driver_id: string;
-  driverName: string; // resolved from drivers.nama
-  period: string; // "YYYY-MM"
+  driverName: string;
+  period: string;
   periodYear: number;
-  periodMonth: number; // 0-indexed
+  periodMonth: number;
   plant: Plant;
   hours: number;
   amount: number;
@@ -88,12 +83,12 @@ export interface DriverTier {
   name: string;
   color: string;
   amountPerMonth: number;
-  activeDriverCount: number; // derived, from driver_tier_summary view
+  activeDriverCount: number;
 }
 
 export interface Kantong {
   id: string;
-  period: string; // "YYYY-MM"
+  period: string;
   plant: Plant;
   totalBudget: number;
   allocOpDriver: number;
@@ -122,10 +117,9 @@ export interface GasStation {
   updatedAt: string;
 }
 
-/** Bentuk row dari view `tasks_detail` — sudah join driver & vehicle. */
 export interface TaskDetail {
   id: string;
-  tanggal: string; // yyyy-mm-dd
+  tanggal: string;
   driver_id: string | null;
   driver_nama: string | null;
   driver_avatar: string | null;
@@ -144,7 +138,7 @@ export interface TaskDetail {
   cancelled_at: string | null;
   cancelled_by: string | null;
   cancel_reason: string | null;
- plant: Plant;
+  plant: Plant;
   batch_id: string | null;
   batch_total_days: number;
 }
@@ -167,7 +161,6 @@ export function computeStats(tasks: TaskDetail[]): TaskStats {
   };
 }
 
-/** Ringkasan performa per driver untuk laporan. */
 export interface DriverSummary {
   driverId: string;
   driverNama: string;
@@ -175,8 +168,8 @@ export interface DriverSummary {
   done: number;
   cancelled: number;
   ongoingOrAssigned: number;
-  completionRate: number; // 0-100
-  avgDurationMinutes: number | null; // rata-rata accepted_at -> completed_at
+  completionRate: number;
+  avgDurationMinutes: number | null;
 }
 
 export function computeDriverSummaries(
@@ -191,10 +184,18 @@ export function computeDriverSummaries(
     byDriver.set(t.driver_id, list);
   }
 
+  const driverById = new Map(drivers.map((d) => [d.id, d]));
+
   const summaries: DriverSummary[] = [];
-  for (const driver of drivers) {
-    const list = byDriver.get(driver.id) ?? [];
-    if (list.length === 0) continue;
+  // Iterate over byDriver (derived straight from `tasks`), not over `drivers`.
+  // Iterating over `drivers` would silently drop any task whose driver_id
+  // isn't present in that array (e.g. an inactive/deleted driver that was
+  // filtered out before calling this function).
+  for (const [driverId, list] of byDriver) {
+    const driver = driverById.get(driverId);
+    // Fall back to the name already denormalized onto the task row when the
+    // driver record itself isn't available.
+    const driverNama = driver?.nama ?? list[0]?.driver_nama ?? "Unknown";
 
     const done = list.filter((t) => t.status === "DONE").length;
     const cancelled = list.filter((t) => t.status === "CANCELLED").length;
@@ -213,17 +214,20 @@ export function computeDriverSummaries(
     }
     const avgDurationMinutes =
       durations.length > 0
-        ? durations.reduce((a, b) => a + b, 0) / durations.length
+        ? Math.round(
+            (durations.reduce((a, b) => a + b, 0) / durations.length) * 100
+          ) / 100
         : null;
 
     summaries.push({
-      driverId: driver.id,
-      driverNama: driver.nama,
+      driverId,
+      driverNama,
       total: list.length,
       done,
       cancelled,
       ongoingOrAssigned,
-      completionRate: list.length > 0 ? (done / list.length) * 100 : 0,
+      completionRate:
+        list.length > 0 ? Math.round((done / list.length) * 10000) / 100 : 0,
       avgDurationMinutes,
     });
   }
@@ -231,18 +235,10 @@ export function computeDriverSummaries(
   return summaries.sort((a, b) => b.total - a.total);
 }
 
-/* ════════════════════════════════════════════════════════════
-   CANTEEN — merged from the standalone Canteen Ops system. Each row
-   is one day's report, broken down per shift (1/2/3) per category
-   (snack/meal). "Consumed" is always derived (order − leftover), it's
-   never stored directly — matching how the original GAS-based system
-   computed it.
-════════════════════════════════════════════════════════════ */
-
 export interface CanteenReport {
   id: string;
-  reportDate: string; // yyyy-mm-dd
-  snackOrder: [number, number, number]; // per shift 1/2/3
+  reportDate: string;
+  snackOrder: [number, number, number];
   snackLeftover: [number, number, number];
   mealOrder: [number, number, number];
   mealLeftover: [number, number, number];
@@ -258,8 +254,8 @@ export interface CanteenKPI {
   totalMealOrder: number;
   totalMealConsumed: number;
   totalMealLeftover: number;
-  snackEff: number; // %
-  mealEff: number; // %
+  snackEff: number;
+  mealEff: number;
 }
 
 export function computeCanteenKPI(rows: CanteenReport[]): CanteenKPI {
