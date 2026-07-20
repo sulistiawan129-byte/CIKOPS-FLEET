@@ -78,14 +78,19 @@ function fmtDate(d: string, lang: "id" | "en"): string {
   }
 }
 
-function itemsTableRows(items: ClaimItem[]): string {
-  return items
+function categorySummaryRows(items: ClaimItem[]): string {
+  const buckets: Record<string, number> = { Gasoline: 0, Toll: 0, Parking: 0, Other: 0 };
+  items.forEach((i) => {
+    const cat = i.type === "Gasoline" ? "Gasoline" : i.type === "Toll" ? "Toll" : i.type === "Parking" ? "Parking" : "Other";
+    buckets[cat] += i.total;
+  });
+  return Object.entries(buckets)
+    .filter(([, total]) => total > 0)
     .map(
-      (i) => `
+      ([cat, total]) => `
       <tr>
-        <td style="padding:8px 12px;border-bottom:1px solid #e3e7ef;font-size:13px;color:#2d375a;">${escapeHtml(i.type)}</td>
-        <td style="padding:8px 12px;border-bottom:1px solid #e3e7ef;font-size:13px;color:#5a6485;font-family:monospace;">${escapeHtml(i.expr)}</td>
-        <td style="padding:8px 12px;border-bottom:1px solid #e3e7ef;font-size:13px;color:#0d1328;font-weight:600;text-align:right;">Rp ${fmtRp(i.total)}</td>
+        <td style="padding:8px 12px;border-bottom:1px solid #e3e7ef;font-size:13px;color:#2d375a;">${cat}</td>
+        <td style="padding:8px 12px;border-bottom:1px solid #e3e7ef;font-size:13px;color:#0d1328;font-weight:600;text-align:right;">Rp ${fmtRp(total)}</td>
       </tr>`
     )
     .join("");
@@ -123,10 +128,11 @@ function driverTemplate(p: ClaimEmailPayload): { subject: string; html: string }
         <thead>
           <tr style="background:#eaf1fd;">
             <th style="padding:8px 12px;text-align:left;font-size:11px;color:#3d6ff2;text-transform:uppercase;">${id ? "Jenis" : "Type"}</th>
-            <th style="padding:8px 12px;text-align:left;font-size:11px;color:#3d6ff2;text-transform:uppercase;">${id ? "Rincian" : "Detail"}</th>
             <th style="padding:8px 12px;text-align:right;font-size:11px;color:#3d6ff2;text-transform:uppercase;">${id ? "Nominal" : "Amount"}</th>
           </tr>
         </thead>
+        <tbody>${categorySummaryRows(p.items)}</tbody>
+      </table>
         <tbody>${itemsTableRows(p.items)}</tbody>
       </table>
       <div style="display:flex;justify-content:space-between;align-items:center;background:#fff8e8;border:1px solid #d8a94e;border-radius:10px;padding:12px 16px;margin-bottom:20px;">
@@ -181,11 +187,10 @@ function managerTemplate(p: ClaimEmailPayload): { subject: string; html: string 
         <thead>
           <tr style="background:#14315c;">
             <th style="padding:9px 12px;text-align:left;font-size:11px;color:#fff;text-transform:uppercase;">${id ? "Jenis Klaim" : "Claim Type"}</th>
-            <th style="padding:9px 12px;text-align:left;font-size:11px;color:#fff;text-transform:uppercase;">${id ? "Rincian" : "Detail"}</th>
             <th style="padding:9px 12px;text-align:right;font-size:11px;color:#fff;text-transform:uppercase;">${id ? "Nominal" : "Amount"}</th>
           </tr>
         </thead>
-        <tbody>${itemsTableRows(p.items)}</tbody>
+        <tbody>${categorySummaryRows(p.items)}</tbody>
       </table>
 
       <table style="width:100%;border-collapse:collapse;margin-bottom:20px;">
