@@ -144,7 +144,9 @@ export interface TaskDetail {
   cancelled_at: string | null;
   cancelled_by: string | null;
   cancel_reason: string | null;
-  plant: Plant;
+ plant: Plant;
+  batch_id: string | null;
+  batch_total_days: number;
 }
 
 export interface TaskStats {
