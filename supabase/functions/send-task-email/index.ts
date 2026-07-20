@@ -75,8 +75,8 @@ function template(p: TaskBatchEmailPayload): { subject: string; html: string } {
   const dayCount = Number.isFinite(p.dayCount) ? p.dayCount : 0;
 
   const subject = id
-    ? `Penugasan Driver Rentang Tanggal - ${driverName} (${dayCount} hari)`
-    : `Multi-Day Driver Assignment - ${driverName} (${dayCount} days)`;
+    ? `Penugasan Driver Rentang Tanggal - ${p.driverName} (${p.dayCount} hari)`
+    : `Multi-Day Driver Assignment - ${p.driverName} (${p.dayCount} days)`;
 
   const html = `
   <div style="font-family:-apple-system,'Segoe UI',Roboto,Arial,sans-serif;max-width:520px;margin:0 auto;background:#f3f8fd;padding:24px;">
