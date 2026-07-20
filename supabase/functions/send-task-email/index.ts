@@ -160,7 +160,7 @@ serve(async (req) => {
       );
     }
 
-    const { subject, html } = template(payload);
+  const { subject, html } = template(payload);
     const client = new SMTPClient({
       connection: {
         hostname: "smtp.gmail.com",
@@ -169,29 +169,19 @@ serve(async (req) => {
         auth: { username: GMAIL_USER, password: GMAIL_APP_PASSWORD },
       },
     });
-    await client.send({
-      from: `${FROM_NAME} <${GMAIL_USER}>`,
-      to: recipients,
-      subject,
-      // Sengaja TIDAK mengisi `content` (plain-text) bersamaan dengan `html`.
-      // Kalau keduanya diisi, denomailer membungkus pesan sebagai
-      // multipart/mixed > multipart/alternative walau tidak ada attachment
-      // sama sekali. Sebagian mail client korporat (Exchange/Microsoft 365)
-      // gagal mem-parsing struktur itu karena tidak ada parameter
-      // name/filename yang seharusnya menyertai multipart/mixed, dan jatuh
-      // ke fallback menampilkan raw MIME source (bug yang kita alami).
-      // Dengan hanya mengisi `html`, hasilnya jadi single-part text/html
-      // biasa yang jauh lebih kompatibel di semua client.
-      html,
-    });
+    // Kirim satu-satu per penerima (bukan 1 email ke banyak alamat sekaligus) —
+    // denomailer bermasalah membentuk MIME multipart yang benar kalau "to"
+    // diisi lebih dari 1 alamat dalam satu panggilan .send().
+    for (const recipient of recipients) {
+      await client.send({
+        from: `${FROM_NAME} <${GMAIL_USER}>`,
+        to: [recipient],
+        subject,
+        content: "Email ini memerlukan HTML untuk ditampilkan dengan benar.",
+        html,
+      });
+    }
     await client.close();
     return new Response(JSON.stringify({ success: true, recipients }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
-  } catch (err) {
-    return new Response(JSON.stringify({ error: String(err) }), {
-      status: 500,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
-  }
-});
