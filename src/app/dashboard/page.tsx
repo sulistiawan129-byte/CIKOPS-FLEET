@@ -8,6 +8,8 @@ import styles from "./dashboard.module.css";
 import {
   getMyProfile,
   canAccessTab,
+  getActivityLog,
+  type ActivityLogEntry,
   cancelTaskByAdmin,
   createTask,
   deleteTask,
@@ -129,7 +131,8 @@ export type DashboardTab =
   | "reports"
   | "masterdata"
   | "canteen"
-  | "locker";
+  | "locker"
+  | "activitylog";
 
 interface NavTab { id: DashboardTab; icon: string; labelId: string; labelEn: string }
 interface NavGroup { id: string; labelId: string; labelEn: string; tabs: NavTab[] }
@@ -172,6 +175,7 @@ const NAV_GROUPS: NavGroup[] = [
     tabs: [
       { id: "reports", icon: "📈", labelId: "Report", labelEn: "Reports" },
       { id: "masterdata", icon: "🗄️", labelId: "Master Data", labelEn: "Master Data" },
+      { id: "activitylog", icon: "📋", labelId: "Log Aktivitas", labelEn: "Activity Log" },
     ],
   },
 ];
@@ -720,6 +724,7 @@ const [masterDataInitialSub, setMasterDataInitialSub] = useState<"drivers" | "em
 )}
           {activeTab === "canteen" && <CanteenTab />}
           {activeTab === "locker" && <LockerTab />}
+          {activeTab === "activitylog" && <ActivityLogTab />}
         </div>
       )}
         </div>
@@ -2538,6 +2543,177 @@ function weekRangeOf(dateStr: string, lang: string): { from: Date; to: Date; lab
   return { from: monday, to: sunday, label: `${fmt(monday)} – ${fmt(sunday)}` };
 }
 
+function ActivityLogTab() {
+  const { lang } = useLang();
+  const [logs, setLogs] = useState<ActivityLogEntry[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [tableFilter, setTableFilter] = useState<string>("all");
+  const [daysFilter, setDaysFilter] = useState<number>(7);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+
+  const TABLE_OPTIONS = ["all", "claims", "kantong", "drivers", "employees", "job_types"];
+  const TABLE_LABEL: Record<string, string> = {
+    all: lang === "en" ? "All Tables" : "Semua Tabel",
+    claims: "Claims",
+    kantong: lang === "en" ? "Operational Fund" : "Dana Operasional",
+    drivers: "Drivers",
+    employees: "Employees",
+    job_types: lang === "en" ? "Job Types" : "Jenis Pekerjaan",
+  };
+  const ACTION_COLOR: Record<string, string> = { INSERT: "var(--green)", UPDATE: "var(--brand)", DELETE: "var(--red)" };
+  const ACTION_LABEL_ID: Record<string, string> = { INSERT: "Ditambah", UPDATE: "Diubah", DELETE: "Dihapus" };
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const data = await getActivityLog({
+        tableName: tableFilter === "all" ? undefined : tableFilter,
+        days: daysFilter,
+      });
+      setLogs(data);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Gagal memuat log aktivitas");
+    } finally {
+      setLoading(false);
+    }
+  }, [tableFilter, daysFilter]);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  function diffFields(oldData: Record<string, unknown> | null, newData: Record<string, unknown> | null) {
+    if (!oldData || !newData) return [];
+    const keys = new Set([...Object.keys(oldData), ...Object.keys(newData)]);
+    const changes: { field: string; from: unknown; to: unknown }[] = [];
+    keys.forEach((k) => {
+      if (JSON.stringify(oldData[k]) !== JSON.stringify(newData[k])) {
+        changes.push({ field: k, from: oldData[k], to: newData[k] });
+      }
+    });
+    return changes;
+  }
+
+  function fmtVal(v: unknown): string {
+    if (v === null || v === undefined) return "-";
+    if (typeof v === "object") return JSON.stringify(v);
+    return String(v);
+  }
+
+  return (
+    <div style={{ padding: 20 }}>
+      <div className="sectionHeading">{lang === "en" ? "Activity Log" : "Log Aktivitas"}</div>
+      <div style={{ fontSize: 12.5, color: "var(--t3)", marginBottom: 18 }}>
+        {lang === "en"
+          ? "Complete audit trail of who changed what, across Claims, Operational Fund, and Master Data. Visible only to master admin."
+          : "Jejak audit lengkap siapa mengubah apa, mencakup Claims, Dana Operasional, dan Master Data. Cuma bisa dilihat oleh master admin."}
+      </div>
+
+      <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 18 }}>
+        <select
+          className="premiumInput"
+          value={tableFilter}
+          onChange={(e) => setTableFilter(e.target.value)}
+          style={{ padding: "9px 12px", borderRadius: 10, border: "1px solid var(--border2)", background: "var(--bg2)", color: "var(--t1)", fontSize: 13, fontFamily: "var(--font)" }}
+        >
+          {TABLE_OPTIONS.map((t) => (
+            <option key={t} value={t}>{TABLE_LABEL[t]}</option>
+          ))}
+        </select>
+        <div style={{ display: "flex", borderRadius: "var(--pill)", border: "1px solid var(--border2)", padding: 3, gap: 2 }}>
+          {[7, 30, 90].map((d) => (
+            <button
+              key={d}
+              onClick={() => setDaysFilter(d)}
+              className="tabPill"
+              style={{
+                padding: "6px 14px", borderRadius: "var(--pill)", border: "none", cursor: "pointer", fontSize: 12, fontWeight: 700,
+                background: daysFilter === d ? "linear-gradient(135deg, var(--brand), var(--brand2))" : "transparent",
+                color: daysFilter === d ? "#fff" : "var(--t2)",
+              }}
+            >
+              {lang === "en" ? `${d}d` : `${d} hari`}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {error && <div style={{ padding: 12, borderRadius: 10, background: "var(--red-soft)", color: "var(--red)", marginBottom: 14, fontSize: 13 }}>{error}</div>}
+
+      <div className="neonCard" style={{ padding: 0, overflow: "hidden" }}>
+        {loading ? (
+          <div style={{ padding: 40, textAlign: "center", color: "var(--t3)" }}>{lang === "en" ? "Loading..." : "Memuat..."}</div>
+        ) : logs.length === 0 ? (
+          <div style={{ padding: 40, textAlign: "center", color: "var(--t3)" }}>
+            {lang === "en" ? "No activity in this period." : "Tidak ada aktivitas pada periode ini."}
+          </div>
+        ) : (
+          logs.map((log, i) => {
+            const isOpen = expandedId === log.id;
+            const changes = log.action === "UPDATE" ? diffFields(log.oldData, log.newData) : [];
+            return (
+              <div key={log.id} className="staggerItem" style={{ borderBottom: "1px solid var(--border)", animationDelay: `${Math.min(i, 10) * 0.03}s` }}>
+                <div
+                  onClick={() => setExpandedId(isOpen ? null : log.id)}
+                  className="rowHover"
+                  style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 18px", cursor: "pointer", position: "relative", zIndex: 1 }}
+                >
+                  <span style={{ fontSize: 10.5, fontWeight: 700, padding: "3px 10px", borderRadius: "var(--pill)", background: `${ACTION_COLOR[log.action]}18`, color: ACTION_COLOR[log.action], whiteSpace: "nowrap" }}>
+                    {ACTION_LABEL_ID[log.action] || log.action}
+                  </span>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: "var(--t1)" }}>
+                      {log.actorName} <span style={{ fontWeight: 400, color: "var(--t3)" }}>· {log.actorRole}{log.actorPlant ? ` · ${log.actorPlant}` : ""}</span>
+                    </div>
+                    <div style={{ fontSize: 12, color: "var(--t3)" }}>
+                      {TABLE_LABEL[log.tableName] || log.tableName}
+                      {changes.length > 0 && ` — ${changes.length} ${lang === "en" ? "field(s) changed" : "field berubah"}`}
+                    </div>
+                  </div>
+                  <div style={{ fontSize: 11.5, color: "var(--t3)", whiteSpace: "nowrap" }}>
+                    {new Date(log.createdAt).toLocaleString(lang === "en" ? "en-GB" : "id-ID", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}
+                  </div>
+                  <span style={{ color: "var(--t3)", fontSize: 12 }}>{isOpen ? "▲" : "▼"}</span>
+                </div>
+                {isOpen && (
+                  <div style={{ padding: "0 18px 16px 18px", position: "relative", zIndex: 1 }}>
+                    {log.action === "UPDATE" && changes.length > 0 ? (
+                      <div style={{ borderRadius: 10, border: "1px solid var(--border2)", overflow: "hidden" }}>
+                        <div style={{ display: "grid", gridTemplateColumns: "120px 1fr 1fr", padding: "8px 12px", background: "var(--bg2)", fontSize: 11, fontWeight: 700, color: "var(--t3)", textTransform: "uppercase" }}>
+                          <div>{lang === "en" ? "Field" : "Field"}</div>
+                          <div>{lang === "en" ? "Before" : "Sebelum"}</div>
+                          <div>{lang === "en" ? "After" : "Sesudah"}</div>
+                        </div>
+                        {changes.map((c) => (
+                          <div key={c.field} style={{ display: "grid", gridTemplateColumns: "120px 1fr 1fr", padding: "8px 12px", borderTop: "1px solid var(--border)", fontSize: 12.5 }}>
+                            <div style={{ fontWeight: 700, color: "var(--t2)" }}>{c.field}</div>
+                            <div style={{ color: "var(--red)" }}>{fmtVal(c.from)}</div>
+                            <div style={{ color: "var(--green)" }}>{fmtVal(c.to)}</div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : log.action === "INSERT" ? (
+                      <div style={{ fontSize: 12, color: "var(--t2)", fontFamily: "var(--mono)", background: "var(--bg2)", borderRadius: 10, padding: 12 }}>
+                        {JSON.stringify(log.newData, null, 2)}
+                      </div>
+                    ) : (
+                      <div style={{ fontSize: 12, color: "var(--t2)", fontFamily: "var(--mono)", background: "var(--bg2)", borderRadius: 10, padding: 12 }}>
+                        {JSON.stringify(log.oldData, null, 2)}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })
+        )}
+      </div>
+    </div>
+  );
+}
+
 function ClaimsTab() {
   const { lang, t } = useLang();
   const isMobileClaims = useIsMobile(768);
@@ -2562,6 +2738,7 @@ function ClaimsTab() {
   const [saving, setSaving] = useState(false);
   const [driverUserIds, setDriverUserIds] = useState<string[]>([]);
   const [exportingRecap, setExportingRecap] = useState(false);
+  const [viewMode, setViewMode] = useState<"list" | "weekly">("list");
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -2600,7 +2777,49 @@ function ClaimsTab() {
   const animatedClaimsCount = useCountUp(filtered.length);
   const animatedTotalFiltered = useCountUp(totalFiltered);
   const animatedActiveDriversClaims = useCountUp(uniqueDriversFiltered);
-  
+
+  const weeklyRecap = useMemo(() => {
+    const weekMap = new Map<string, Map<string, { Gasoline: number; Toll: number; Parking: number; Other: number }>>();
+    filtered.forEach((c) => {
+      const wk = weekOfMonth(c.periodDate);
+      const weekKey = `${c.periodDate.slice(0, 7)}-W${wk}`;
+      if (!weekMap.has(weekKey)) weekMap.set(weekKey, new Map());
+      const driverMap = weekMap.get(weekKey)!;
+      const name = c.driverName || "-";
+      if (!driverMap.has(name)) driverMap.set(name, { Gasoline: 0, Toll: 0, Parking: 0, Other: 0 });
+      const bucket = driverMap.get(name)!;
+      c.items.forEach((item) => {
+        const cat = item.type === "Gasoline" ? "Gasoline" : item.type === "Toll" ? "Toll" : item.type === "Parking" ? "Parking" : "Other";
+        bucket[cat] += item.total;
+      });
+    });
+    const weekKeys = [...weekMap.keys()].sort();
+    const rows: { weekLabel: string; driver: string; gasoline: number; toll: number; parking: number; other: number; total: number }[] = [];
+    weekKeys.forEach((wk) => {
+      const driverMap = weekMap.get(wk)!;
+      const weekNum = wk.split("-W")[1];
+      [...driverMap.entries()].sort((a, b) => a[0].localeCompare(b[0])).forEach(([driver, vals]) => {
+        rows.push({
+          weekLabel: weekNum,
+          driver,
+          gasoline: vals.Gasoline,
+          toll: vals.Toll,
+          parking: vals.Parking,
+          other: vals.Other,
+          total: vals.Gasoline + vals.Toll + vals.Parking + vals.Other,
+        });
+      });
+    });
+    const grandTotal = {
+      gasoline: rows.reduce((s, r) => s + r.gasoline, 0),
+      toll: rows.reduce((s, r) => s + r.toll, 0),
+      parking: rows.reduce((s, r) => s + r.parking, 0),
+      other: rows.reduce((s, r) => s + r.other, 0),
+      total: rows.reduce((s, r) => s + r.total, 0),
+    };
+    return { rows, grandTotal };
+  }, [filtered]);
+
   function openAdd() {
     setFormDriverId("");
     setSubmissionDate(todayStr());
@@ -2789,7 +3008,69 @@ function ClaimsTab() {
         </div>
       </div>
 
-      <div className="neonCard" style={{ padding: 0, overflow: "hidden", marginBottom: 18 }}>
+      <div style={{ display: "flex", gap: 8, marginBottom: 14 }}>
+        <button
+          onClick={() => setViewMode("list")}
+          style={{ padding: "7px 16px", borderRadius: "var(--pill)", border: "1px solid var(--border2)", cursor: "pointer", fontSize: 12.5, fontWeight: 700, background: viewMode === "list" ? "linear-gradient(135deg, var(--brand), var(--brand2))" : "transparent", color: viewMode === "list" ? "#fff" : "var(--t2)" }}
+        >
+          {lang === "en" ? "List" : "Daftar"}
+        </button>
+        <button
+          onClick={() => setViewMode("weekly")}
+          style={{ padding: "7px 16px", borderRadius: "var(--pill)", border: "1px solid var(--border2)", cursor: "pointer", fontSize: 12.5, fontWeight: 700, background: viewMode === "weekly" ? "linear-gradient(135deg, var(--brand), var(--brand2))" : "transparent", color: viewMode === "weekly" ? "#fff" : "var(--t2)" }}
+        >
+          {lang === "en" ? "Weekly Recap" : "Rekap Mingguan"}
+        </button>
+      </div>
+
+      {viewMode === "weekly" && (
+        <div className="neonCard" style={{ padding: 0, overflow: "hidden", marginBottom: 18 }}>
+          {weeklyRecap.rows.length === 0 ? (
+            <div style={{ textAlign: "center", padding: 40, color: "var(--t3)" }}>{t.actionNoDataYet}</div>
+          ) : (
+            <div style={{ overflowX: "auto", position: "relative", zIndex: 1 }}>
+              <table className="tableCompact" style={{ minWidth: 640, width: "100%" }}>
+                <thead>
+                  <tr>
+                    <th>{lang === "en" ? "Week" : "Minggu"}</th>
+                    <th>{lang === "en" ? "Driver Name" : "Nama Driver"}</th>
+                    <th style={{ textAlign: "right" }}>Gasoline</th>
+                    <th style={{ textAlign: "right" }}>Toll</th>
+                    <th style={{ textAlign: "right" }}>Parking</th>
+                    <th style={{ textAlign: "right" }}>Other</th>
+                    <th style={{ textAlign: "right" }}>Total</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {weeklyRecap.rows.map((r, i) => (
+                    <tr key={i}>
+                      <td>{r.weekLabel}</td>
+                      <td style={{ fontWeight: 700 }}>{r.driver}</td>
+                      <td style={{ textAlign: "right", fontFamily: "var(--mono)" }}>Rp {fmtRp(r.gasoline)}</td>
+                      <td style={{ textAlign: "right", fontFamily: "var(--mono)" }}>Rp {fmtRp(r.toll)}</td>
+                      <td style={{ textAlign: "right", fontFamily: "var(--mono)" }}>Rp {fmtRp(r.parking)}</td>
+                      <td style={{ textAlign: "right", fontFamily: "var(--mono)" }}>Rp {fmtRp(r.other)}</td>
+                      <td style={{ textAlign: "right", fontFamily: "var(--mono)", fontWeight: 800, color: "var(--t1)" }}>Rp {fmtRp(r.total)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+                <tfoot>
+                  <tr style={{ borderTop: "2px solid var(--border2)" }}>
+                    <td colSpan={2} style={{ fontWeight: 800, color: "var(--t1)", padding: "10px" }}>{lang === "en" ? "Grand Total" : "Grand Total"}</td>
+                    <td style={{ textAlign: "right", fontFamily: "var(--mono)", fontWeight: 800 }}>Rp {fmtRp(weeklyRecap.grandTotal.gasoline)}</td>
+                    <td style={{ textAlign: "right", fontFamily: "var(--mono)", fontWeight: 800 }}>Rp {fmtRp(weeklyRecap.grandTotal.toll)}</td>
+                    <td style={{ textAlign: "right", fontFamily: "var(--mono)", fontWeight: 800 }}>Rp {fmtRp(weeklyRecap.grandTotal.parking)}</td>
+                    <td style={{ textAlign: "right", fontFamily: "var(--mono)", fontWeight: 800 }}>Rp {fmtRp(weeklyRecap.grandTotal.other)}</td>
+                    <td style={{ textAlign: "right", fontFamily: "var(--mono)", fontWeight: 800, color: "var(--brand)" }}>Rp {fmtRp(weeklyRecap.grandTotal.total)}</td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
+
+      <div className="neonCard" style={{ padding: 0, overflow: "hidden", marginBottom: 18, display: viewMode === "list" ? "block" : "none" }}>
         <div style={{ display: "flex", flexWrap: "wrap" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 14, padding: "18px 24px", position: "relative", zIndex: 1 }}>
             <div className="hexBadge blue small">
@@ -2829,7 +3110,7 @@ function ClaimsTab() {
 
       {error && <div style={{ padding: 12, borderRadius: 10, background: "var(--red-soft)", color: "var(--red)", marginBottom: 14, fontSize: 13 }}>{error}</div>}
 
-      <div className="statPop" style={{ ...cardStyle, overflow: "hidden" }}>
+      <div className="statPop" style={{ ...cardStyle, overflow: "hidden", display: viewMode === "list" ? "block" : "none" }}>
         {!loading && filtered.length > 0 && !isMobileClaims && (
           <div style={{ display: "grid", gridTemplateColumns: "140px 110px 1fr 1fr 120px 40px", gap: 14, padding: "12px 18px", background: "var(--navy)" }}>
             <div style={{ fontSize: 12.5, fontWeight: 700, color: "rgba(255,255,255,0.85)", textTransform: "uppercase", letterSpacing: "0.07em" }}>{lang === "en" ? "Claim Period" : "Periode Klaim"}</div>

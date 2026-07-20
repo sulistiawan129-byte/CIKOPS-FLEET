@@ -219,6 +219,68 @@ export async function createTask(input: CreateTaskInput): Promise<void> {
   if (error) throw error;
 }
 
+export interface CreateTaskBatchInput {
+  driverId: string;
+  vehicleId: string;
+  jenisPekerjaan: string;
+  tujuan: string;
+  requestor: string;
+  departement: string;
+  perihal: string;
+  plant: Plant;
+  dateFrom: string;
+  dateTo: string;
+}
+
+export async function createTaskBatch(input: CreateTaskBatchInput): Promise<{ createdCount: number; batchId: string }> {
+  const { data, error } = await supabase.rpc("create_task_batch", {
+    p_driver_id: input.driverId,
+    p_vehicle_id: input.vehicleId,
+    p_jenis_pekerjaan: input.jenisPekerjaan,
+    p_tujuan: input.tujuan,
+    p_requestor: input.requestor,
+    p_departement: input.departement,
+    p_perihal: input.perihal,
+    p_plant: input.plant,
+    p_date_from: input.dateFrom,
+    p_date_to: input.dateTo,
+  });
+  if (error) throw error;
+  const row = data?.[0];
+  return { createdCount: row?.created_count ?? 0, batchId: row?.batch_id ?? "" };
+}
+
+export async function sendTaskBatchEmail(input: {
+  requestorEmail: string;
+  requestor: string;
+  driverName: string;
+  vehicleLabel: string;
+  jenisPekerjaan: string;
+  tujuan: string;
+  departement: string;
+  perihal?: string;
+  dateFrom: string;
+  dateTo: string;
+  dayCount: number;
+}): Promise<void> {
+  let managerEmails: string[] = [];
+  try {
+    const raw = await getAppSetting("manager_email");
+    managerEmails = raw ? raw.split(",").map((e) => e.trim()).filter(Boolean) : [];
+  } catch (e) {
+    console.warn("Failed to read manager_email:", e instanceof Error ? e.message : e);
+  }
+  const recipients = [input.requestorEmail, ...managerEmails].filter(Boolean);
+  if (recipients.length === 0) return;
+  try {
+    await supabase.functions.invoke("send-task-email", {
+      body: { toEmail: recipients, ...input },
+    });
+  } catch (e) {
+    console.warn("Task batch email failed:", e instanceof Error ? e.message : e);
+  }
+}
+
 export async function updateTaskStatus(
   taskId: string,
   status: TaskStatus
