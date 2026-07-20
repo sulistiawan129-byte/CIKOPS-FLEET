@@ -133,8 +133,6 @@ function driverTemplate(p: ClaimEmailPayload): { subject: string; html: string }
         </thead>
         <tbody>${categorySummaryRows(p.items)}</tbody>
       </table>
-        <tbody>${itemsTableRows(p.items)}</tbody>
-      </table>
       <div style="display:flex;justify-content:space-between;align-items:center;background:#fff8e8;border:1px solid #d8a94e;border-radius:10px;padding:12px 16px;margin-bottom:20px;">
         <span style="font-size:12px;font-weight:700;color:#5a6485;">TOTAL</span>
         <span style="font-size:18px;font-weight:800;color:#0f9c8f;">Rp ${fmtRp(p.total)}</span>
