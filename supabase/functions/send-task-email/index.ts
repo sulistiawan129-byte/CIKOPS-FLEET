@@ -68,7 +68,7 @@ function template(p: TaskBatchEmailPayload): { subject: string; html: string } {
       </table>
       <div style="background:#f7fbfe;border-radius:12px;padding:14px 16px;margin-bottom:16px;">
         <div style="font-size:11px;font-weight:700;color:#3d6ff2;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:6px;">${id ? "Periode Penugasan" : "Assignment Period"}</div>
-        <div style="font-size:14px;color:#0d1328;font-weight:700;">${fmtDate(p.dateFrom, p.lang ?? "id")} — ${fmtDate(p.dateTo, p.lang ?? "id")}</div>
+        <div style="font-size:14px;color:#0d1328;font-weight:700;">${fmtDate(p.dateFrom, p.lang ?? "id")} s/d ${fmtDate(p.dateTo, p.lang ?? "id")}</div>
         <div style="font-size:12px;color:#5a6485;margin-top:2px;">${p.dayCount} ${id ? "hari" : "days"}</div>
       </div>
       ${p.perihal ? `<p style="font-size:12.5px;color:#5a6485;font-style:italic;margin-bottom:16px;">${id ? "Catatan" : "Note"}: ${p.perihal}</p>` : ""}
