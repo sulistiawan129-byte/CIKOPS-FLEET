@@ -86,12 +86,12 @@ function template(p: TaskBatchEmailPayload): { subject: string; html: string } {
     </div>
     <div style="background:#fff;border-radius:0 0 16px 16px;padding:24px;">
       <p style="font-size:14px;color:#0d1328;line-height:1.6;">
-        ${id ? `Halo <strong>${requestor}</strong>,` : `Hi <strong>${requestor}</strong>,`}
+        ${id ? `Yth. <strong>${p.requestor}</strong>,` : `Dear <strong>${p.requestor}</strong>,`}
       </p>
-      <p style="font-size:14px;color:#2d375a;line-height:1.6;">
+     <p style="font-size:14px;color:#2d375a;line-height:1.6;">
         ${id
-          ? "Penugasan driver untuk rentang beberapa hari sudah dibuat di sistem. Berikut rinciannya:"
-          : "A multi-day driver assignment has been created in the system. Here are the details:"}
+          ? "Bersama ini kami sampaikan bahwa penugasan driver untuk beberapa hari ke depan telah berhasil dibuat dan tercatat dalam sistem. Berikut rincian penugasannya:"
+          : "We are pleased to inform you that a multi-day driver assignment has been successfully created and recorded in the system. Please find the assignment details below:"}
       </p>
       <table style="width:100%;border-collapse:collapse;margin:16px 0;font-size:13px;">
         <tr><td style="padding:6px 0;color:#5a6485;width:150px;">${id ? "Driver" : "Driver"}</td><td style="padding:6px 0;color:#0d1328;font-weight:700;">${driverName}</td></tr>
@@ -106,12 +106,12 @@ function template(p: TaskBatchEmailPayload): { subject: string; html: string } {
         <div style="font-size:12px;color:#5a6485;margin-top:2px;">${dayCount} ${id ? "hari" : "days"}</div>
       </div>
       ${perihal ? `<p style="font-size:12.5px;color:#5a6485;font-style:italic;margin-bottom:16px;">${id ? "Catatan" : "Note"}: ${perihal}</p>` : ""}
-      <p style="font-size:13px;color:#5a6485;line-height:1.6;">
+     <p style="font-size:13px;color:#5a6485;line-height:1.6;">
         ${id
-          ? "Tugas harian akan otomatis muncul di sistem untuk setiap tanggal dalam rentang ini."
-          : "A daily task will automatically appear in the system for each date within this range."}
+          ? "Tugas harian akan otomatis tersedia di sistem untuk setiap tanggal dalam periode penugasan tersebut. Mohon informasi ini dapat digunakan sebagaimana mestinya."
+          : "A daily task entry will automatically be available in the system for each date within the assignment period. Please use this information accordingly."}
       </p>
-      <p style="font-size:11px;color:#9ba3be;margin-top:20px;">${id ? "Email otomatis dari" : "Automated email from"} CIKOPS-FM System</p>
+     <p style="font-size:11px;color:#9ba3be;margin-top:20px;">${id ? "Email ini dibuat secara otomatis oleh sistem" : "This email was generated automatically by"} CIKOPS-FM System${id ? " dan tidak memerlukan balasan." : "."}</p>
     </div>
   </div>`;
 
