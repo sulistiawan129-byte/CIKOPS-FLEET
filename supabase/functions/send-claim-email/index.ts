@@ -97,8 +97,8 @@ function driverTemplate(p: ClaimEmailPayload): { subject: string; html: string }
   const note = p.note ? escapeHtml(p.note) : "";
 
   const subject = id
-    ? `Klaim Anda Telah Diterima — ${fmtDate(p.periodDate, "id")}`
-    : `Your Claim Has Been Received — ${fmtDate(p.periodDate, "en")}`;
+    ? `Klaim Anda Telah Diterima - ${fmtDate(p.periodDate, "id")}`
+    : `Your Claim Has Been Received - ${fmtDate(p.periodDate, "en")}`;
 
   const html = `
   <div style="font-family:-apple-system,'Segoe UI',Roboto,Arial,sans-serif;max-width:520px;margin:0 auto;background:#f3f8fd;padding:24px;">
@@ -152,8 +152,8 @@ function managerTemplate(p: ClaimEmailPayload): { subject: string; html: string 
   const note = p.note ? escapeHtml(p.note) : "";
 
   const subject = id
-    ? `[Notifikasi Klaim] ${driverName} — ${fmtDate(p.periodDate, "id")}`
-    : `[Claim Notification] ${driverName} — ${fmtDate(p.periodDate, "en")}`;
+    ? `[Notifikasi Klaim] ${driverName} - ${fmtDate(p.periodDate, "id")}`
+    : `[Claim Notification] ${driverName} - ${fmtDate(p.periodDate, "en")}`;
 
   const html = `
   <div style="font-family:Georgia,'Times New Roman',serif;max-width:560px;margin:0 auto;background:#ffffff;padding:0;border:1px solid #d1d5e6;">
