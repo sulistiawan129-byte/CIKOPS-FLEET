@@ -10,6 +10,8 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 interface TaskBatchEmailPayload {
   toEmail: string | string[];
   requestor: string;
@@ -23,6 +25,27 @@ interface TaskBatchEmailPayload {
   dateTo: string;
   dayCount: number;
   lang?: "id" | "en";
+}
+
+/** Escape untuk mencegah HTML/markup injection dari field yang diisi user
+ * (requestor, driverName, tujuan, perihal, dll) sebelum disisipkan ke email HTML. */
+function escapeHtml(value: unknown): string {
+  return String(value ?? "").replace(/[&<>"']/g, (ch) => {
+    switch (ch) {
+      case "&":
+        return "&amp;";
+      case "<":
+        return "&lt;";
+      case ">":
+        return "&gt;";
+      case '"':
+        return "&quot;";
+      case "'":
+        return "&#39;";
+      default:
+        return ch;
+    }
+  });
 }
 
 function fmtDate(d: string, lang: "id" | "en"): string {
@@ -40,9 +63,20 @@ function fmtDate(d: string, lang: "id" | "en"): string {
 
 function template(p: TaskBatchEmailPayload): { subject: string; html: string } {
   const id = (p.lang ?? "id") === "id";
+
+  // Escape semua field yang berasal dari input user sebelum dipakai di HTML.
+  const requestor = escapeHtml(p.requestor);
+  const driverName = escapeHtml(p.driverName);
+  const vehicleLabel = escapeHtml(p.vehicleLabel);
+  const jenisPekerjaan = escapeHtml(p.jenisPekerjaan);
+  const tujuan = escapeHtml(p.tujuan);
+  const departement = escapeHtml(p.departement) || "-";
+  const perihal = p.perihal ? escapeHtml(p.perihal) : "";
+  const dayCount = Number.isFinite(p.dayCount) ? p.dayCount : 0;
+
   const subject = id
-    ? `Penugasan Driver Rentang Tanggal - ${p.driverName} (${p.dayCount} hari)`
-    : `Multi-Day Driver Assignment - ${p.driverName} (${p.dayCount} days)`;
+    ? `Penugasan Driver Rentang Tanggal - ${driverName} (${dayCount} hari)`
+    : `Multi-Day Driver Assignment - ${driverName} (${dayCount} days)`;
 
   const html = `
   <div style="font-family:-apple-system,'Segoe UI',Roboto,Arial,sans-serif;max-width:520px;margin:0 auto;background:#f3f8fd;padding:24px;">
@@ -52,7 +86,7 @@ function template(p: TaskBatchEmailPayload): { subject: string; html: string } {
     </div>
     <div style="background:#fff;border-radius:0 0 16px 16px;padding:24px;">
       <p style="font-size:14px;color:#0d1328;line-height:1.6;">
-        ${id ? `Halo <strong>${p.requestor}</strong>,` : `Hi <strong>${p.requestor}</strong>,`}
+        ${id ? `Halo <strong>${requestor}</strong>,` : `Hi <strong>${requestor}</strong>,`}
       </p>
       <p style="font-size:14px;color:#2d375a;line-height:1.6;">
         ${id
@@ -60,18 +94,18 @@ function template(p: TaskBatchEmailPayload): { subject: string; html: string } {
           : "A multi-day driver assignment has been created in the system. Here are the details:"}
       </p>
       <table style="width:100%;border-collapse:collapse;margin:16px 0;font-size:13px;">
-        <tr><td style="padding:6px 0;color:#5a6485;width:150px;">${id ? "Driver" : "Driver"}</td><td style="padding:6px 0;color:#0d1328;font-weight:700;">${p.driverName}</td></tr>
-        <tr><td style="padding:6px 0;color:#5a6485;">${id ? "Kendaraan" : "Vehicle"}</td><td style="padding:6px 0;color:#0d1328;">${p.vehicleLabel}</td></tr>
-        <tr><td style="padding:6px 0;color:#5a6485;">${id ? "Jenis Pekerjaan" : "Job Type"}</td><td style="padding:6px 0;color:#0d1328;">${p.jenisPekerjaan}</td></tr>
-        <tr><td style="padding:6px 0;color:#5a6485;">${id ? "Tujuan" : "Destination"}</td><td style="padding:6px 0;color:#0d1328;">${p.tujuan}</td></tr>
-        <tr><td style="padding:6px 0;color:#5a6485;">${id ? "Departemen" : "Department"}</td><td style="padding:6px 0;color:#0d1328;">${p.departement || "-"}</td></tr>
+        <tr><td style="padding:6px 0;color:#5a6485;width:150px;">${id ? "Driver" : "Driver"}</td><td style="padding:6px 0;color:#0d1328;font-weight:700;">${driverName}</td></tr>
+        <tr><td style="padding:6px 0;color:#5a6485;">${id ? "Kendaraan" : "Vehicle"}</td><td style="padding:6px 0;color:#0d1328;">${vehicleLabel}</td></tr>
+        <tr><td style="padding:6px 0;color:#5a6485;">${id ? "Jenis Pekerjaan" : "Job Type"}</td><td style="padding:6px 0;color:#0d1328;">${jenisPekerjaan}</td></tr>
+        <tr><td style="padding:6px 0;color:#5a6485;">${id ? "Tujuan" : "Destination"}</td><td style="padding:6px 0;color:#0d1328;">${tujuan}</td></tr>
+        <tr><td style="padding:6px 0;color:#5a6485;">${id ? "Departemen" : "Department"}</td><td style="padding:6px 0;color:#0d1328;">${departement}</td></tr>
       </table>
       <div style="background:#f7fbfe;border-radius:12px;padding:14px 16px;margin-bottom:16px;">
         <div style="font-size:11px;font-weight:700;color:#3d6ff2;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:6px;">${id ? "Periode Penugasan" : "Assignment Period"}</div>
         <div style="font-size:14px;color:#0d1328;font-weight:700;">${fmtDate(p.dateFrom, p.lang ?? "id")} s/d ${fmtDate(p.dateTo, p.lang ?? "id")}</div>
-        <div style="font-size:12px;color:#5a6485;margin-top:2px;">${p.dayCount} ${id ? "hari" : "days"}</div>
+        <div style="font-size:12px;color:#5a6485;margin-top:2px;">${dayCount} ${id ? "hari" : "days"}</div>
       </div>
-      ${p.perihal ? `<p style="font-size:12.5px;color:#5a6485;font-style:italic;margin-bottom:16px;">${id ? "Catatan" : "Note"}: ${p.perihal}</p>` : ""}
+      ${perihal ? `<p style="font-size:12.5px;color:#5a6485;font-style:italic;margin-bottom:16px;">${id ? "Catatan" : "Note"}: ${perihal}</p>` : ""}
       <p style="font-size:13px;color:#5a6485;line-height:1.6;">
         ${id
           ? "Tugas harian akan otomatis muncul di sistem untuk setiap tanggal dalam rentang ini."
@@ -88,6 +122,12 @@ serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
   }
+  if (req.method !== "POST") {
+    return new Response(JSON.stringify({ error: "Method not allowed. Use POST." }), {
+      status: 405,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
   try {
     if (!GMAIL_USER || !GMAIL_APP_PASSWORD) {
       return new Response(
@@ -95,16 +135,31 @@ serve(async (req) => {
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
-    const payload: TaskBatchEmailPayload = await req.json();
-    const recipients = (Array.isArray(payload.toEmail) ? payload.toEmail : [payload.toEmail])
-      .map((e) => e.trim())
-      .filter(Boolean);
-    if (recipients.length === 0 || !payload.driverName || !payload.dateFrom || !payload.dateTo) {
-      return new Response(JSON.stringify({ error: "Missing required fields." }), {
+
+    let payload: TaskBatchEmailPayload;
+    try {
+      payload = await req.json();
+    } catch {
+      return new Response(JSON.stringify({ error: "Invalid JSON body." }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+
+    const recipients = (Array.isArray(payload.toEmail) ? payload.toEmail : [payload.toEmail])
+      .map((e) => (typeof e === "string" ? e.trim() : ""))
+      .filter((e) => EMAIL_RE.test(e));
+
+    if (recipients.length === 0 || !payload.driverName || !payload.dateFrom || !payload.dateTo) {
+      return new Response(
+        JSON.stringify({ error: "Missing required fields or no valid recipient email." }),
+        {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
+    }
+
     const { subject, html } = template(payload);
     const client = new SMTPClient({
       connection: {
@@ -118,7 +173,15 @@ serve(async (req) => {
       from: `${FROM_NAME} <${GMAIL_USER}>`,
       to: recipients,
       subject,
-      content: "Email ini memerlukan HTML untuk ditampilkan dengan benar.",
+      // Sengaja TIDAK mengisi `content` (plain-text) bersamaan dengan `html`.
+      // Kalau keduanya diisi, denomailer membungkus pesan sebagai
+      // multipart/mixed > multipart/alternative walau tidak ada attachment
+      // sama sekali. Sebagian mail client korporat (Exchange/Microsoft 365)
+      // gagal mem-parsing struktur itu karena tidak ada parameter
+      // name/filename yang seharusnya menyertai multipart/mixed, dan jatuh
+      // ke fallback menampilkan raw MIME source (bug yang kita alami).
+      // Dengan hanya mengisi `html`, hasilnya jadi single-part text/html
+      // biasa yang jauh lebih kompatibel di semua client.
       html,
     });
     await client.close();
