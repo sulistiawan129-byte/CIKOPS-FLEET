@@ -849,16 +849,16 @@ export async function deleteGasStation(id: string): Promise<void> {
 export interface MyProfile {
   fullName: string | null;
   role: string;
-  plantScope: Plant | null; // null = lihat semua plant (admin/GA global)
+  plantScope: Plant | null;
   accessScope: "full" | "tasks_only";
-  allowedTabs: string[] | null; // null = akses semua tab; array = HANYA tab-tab itu
+  allowedTabs: string[] | null;
+  isMasterAdmin: boolean;
 }
-
 export async function getMyProfile(userId: string): Promise<MyProfile | null> {
   try {
     const { data, error } = await supabase
       .from("profiles")
-      .select("full_name, role, plant_scope, access_scope, allowed_tabs")
+      .select("full_name, role, plant_scope, access_scope, allowed_tabs, is_master_admin")
       .eq("id", userId)
       .maybeSingle();
     if (error || !data) return null;
@@ -867,7 +867,8 @@ export async function getMyProfile(userId: string): Promise<MyProfile | null> {
       role: data.role,
       plantScope: (data.plant_scope as Plant | null) ?? null,
       accessScope: (data.access_scope as "full" | "tasks_only") ?? "full",
-      allowedTabs: (data.allowed_tabs as string[] | null) ?? null,
+    allowedTabs: (data.allowed_tabs as string[] | null) ?? null,
+      isMasterAdmin: Boolean(data.is_master_admin),
     };
   } catch {
     return null;
@@ -877,8 +878,46 @@ export async function getMyProfile(userId: string): Promise<MyProfile | null> {
 /** Helper — dipakai di sidebar & tempat lain buat cek apakah profil ini
  *  boleh lihat tab tertentu. `allowedTabs === null` artinya akses penuh. */
 export function canAccessTab(profile: MyProfile | null, tab: string): boolean {
-  if (!profile) return true; // masih loading — jangan sembunyikan dulu, biar tidak flash-hidden
+  if (!profile) return true;
+  if (tab === "activitylog") return profile.isMasterAdmin === true;
   return profile.allowedTabs === null || profile.allowedTabs.includes(tab);
+}
+
+export interface ActivityLogEntry {
+  id: string;
+  actorName: string;
+  actorRole: string;
+  actorPlant: string | null;
+  action: "INSERT" | "UPDATE" | "DELETE";
+  tableName: string;
+  recordId: string | null;
+  oldData: Record<string, unknown> | null;
+  newData: Record<string, unknown> | null;
+  createdAt: string;
+}
+
+export async function getActivityLog(filters?: { tableName?: string; days?: number }): Promise<ActivityLogEntry[]> {
+  let query = supabase.from("activity_log").select("*").order("created_at", { ascending: false }).limit(500);
+  if (filters?.tableName) query = query.eq("table_name", filters.tableName);
+  if (filters?.days) {
+    const since = new Date();
+    since.setDate(since.getDate() - filters.days);
+    query = query.gte("created_at", since.toISOString());
+  }
+  const { data, error } = await query;
+  if (error) throw error;
+  return (data ?? []).map((r) => ({
+    id: r.id,
+    actorName: r.actor_name,
+    actorRole: r.actor_role,
+    actorPlant: r.actor_plant,
+    action: r.action,
+    tableName: r.table_name,
+    recordId: r.record_id,
+    oldData: r.old_data,
+    newData: r.new_data,
+    createdAt: r.created_at,
+  }));
 }
 /* ════════════════════════════════════════════════════════════
    MASTER DATA — Drivers, Employees, Job Types.

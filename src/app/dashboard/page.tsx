@@ -12,6 +12,8 @@ import {
   type ActivityLogEntry,
   cancelTaskByAdmin,
   createTask,
+  createTaskBatch,
+  sendTaskBatchEmail,
   deleteTask,
   getDrivers,
   type MyProfile,
@@ -1449,6 +1451,9 @@ function CreateTaskModal({
   const [formError, setFormError] = useState("");
   const [busy, setBusy] = useState(false);
   const [waMessage, setWaMessage] = useState<string | null>(null);
+  const [dateMode, setDateMode] = useState<"single" | "range">("single");
+  const [tanggalTo, setTanggalTo] = useState(todayStr());
+  const [requestorEmail, setRequestorEmail] = useState("");
 
   const filteredDrivers = drivers.filter((d) => !d.plant || d.plant === plant);
   const filteredVehicles = vehicles.filter((v) => !v.plant || v.plant === plant);
@@ -1459,7 +1464,7 @@ function CreateTaskModal({
     if (emp?.departement) setDepartement(emp.departement);
   }
 
-  async function handleSubmit(e: React.FormEvent) {
+ async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setFormError("");
 
@@ -1467,35 +1472,86 @@ function CreateTaskModal({
       setFormError("Lengkapi semua field wajib (bertanda *)");
       return;
     }
+    if (dateMode === "range") {
+      if (tanggalTo < tanggal) {
+        setFormError("Tanggal selesai tidak boleh sebelum tanggal mulai");
+        return;
+      }
+      if (!requestorEmail) {
+        setFormError("Email Requestor wajib diisi untuk penugasan rentang tanggal");
+        return;
+      }
+    }
 
     setBusy(true);
     try {
-      await createTask({
-        tanggal,
-        driver_id: driverId,
-        vehicle_id: vehicleId,
-        jenis_pekerjaan: jenisPekerjaan,
-        tujuan,
-        requestor,
-        departement,
-        perihal,
-        plant,
-      });
       const driverName = drivers.find((d) => d.id === driverId)?.nama || "-";
       const vehicle = vehicles.find((v) => v.id === vehicleId);
       const vehicleLabel = vehicle ? `${vehicle.nopol}${vehicle.jenis ? ` (${vehicle.jenis})` : ""}` : "-";
-      setWaMessage(
-        buildTaskWhatsAppMessage({
-          tanggal,
-          driverName,
-          vehicleLabel,
+
+      if (dateMode === "range") {
+        const { createdCount } = await createTaskBatch({
+          driverId,
+          vehicleId,
           jenisPekerjaan,
           tujuan,
           requestor,
           departement,
           perihal,
-        })
-      );
+          plant,
+          dateFrom: tanggal,
+          dateTo: tanggalTo,
+        });
+        sendTaskBatchEmail({
+          requestorEmail,
+          requestor,
+          driverName,
+          vehicleLabel,
+          jenisPekerjaan,
+          tujuan,
+          departement,
+          perihal,
+          dateFrom: tanggal,
+          dateTo: tanggalTo,
+          dayCount: createdCount,
+        }).catch((e) => console.warn("Task batch email failed:", e));
+        setWaMessage(
+          buildTaskWhatsAppMessage({
+            tanggal: `${tanggal} s/d ${tanggalTo}`,
+            driverName,
+            vehicleLabel,
+            jenisPekerjaan,
+            tujuan,
+            requestor,
+            departement,
+            perihal,
+          })
+        );
+      } else {
+        await createTask({
+          tanggal,
+          driver_id: driverId,
+          vehicle_id: vehicleId,
+          jenis_pekerjaan: jenisPekerjaan,
+          tujuan,
+          requestor,
+          departement,
+          perihal,
+          plant,
+        });
+        setWaMessage(
+          buildTaskWhatsAppMessage({
+            tanggal,
+            driverName,
+            vehicleLabel,
+            jenisPekerjaan,
+            tujuan,
+            requestor,
+            departement,
+            perihal,
+          })
+        );
+      }
     } catch (err) {
       onError(err instanceof Error ? err.message : "Gagal membuat tugas");
     } finally {
@@ -1626,12 +1682,45 @@ function CreateTaskModal({
                   )}
                 </div>
 
-                <div className={styles.formField}>
+               <div className={`${styles.formField} ${styles.formFieldFull}`}>
                   <label className={styles.formLabel}>Tanggal *</label>
-                  <input type="date" className={`${styles.formInput} premiumInput`} value={tanggal} onChange={(e) => setTanggal(e.target.value)} />
+                  <div style={{ display: "flex", padding: 3, borderRadius: 10, background: "var(--bg2)", border: "1px solid var(--border2)", width: "fit-content", marginBottom: 10 }}>
+                    {(["single", "range"] as const).map((m) => (
+                      <button
+                        key={m}
+                        type="button"
+                        onClick={() => setDateMode(m)}
+                        style={{
+                          padding: "7px 16px", borderRadius: 8, border: "none", cursor: "pointer", fontWeight: 700, fontSize: 12.5,
+                          background: dateMode === m ? "var(--surface)" : "transparent",
+                          color: dateMode === m ? "var(--brand)" : "var(--t3)",
+                          boxShadow: dateMode === m ? "var(--shadow-sm)" : "none",
+                        }}
+                      >
+                        {m === "single" ? "1 Hari" : "Rentang Tanggal"}
+                      </button>
+                    ))}
+                  </div>
+                  <div style={{ display: "grid", gridTemplateColumns: dateMode === "range" ? "1fr 1fr" : "1fr", gap: 12 }}>
+                    <input type="date" className={`${styles.formInput} premiumInput`} value={tanggal} onChange={(e) => setTanggal(e.target.value)} />
+                    {dateMode === "range" && (
+                      <input type="date" className={`${styles.formInput} premiumInput`} value={tanggalTo} onChange={(e) => setTanggalTo(e.target.value)} min={tanggal} />
+                    )}
+                  </div>
+                  {dateMode === "range" && (
+                    <div style={{ marginTop: 12 }}>
+                      <label className={styles.formLabel}>Email Requestor * <span style={{ fontWeight: 400, color: "var(--t3)" }}>(buat notifikasi otomatis)</span></label>
+                      <input
+                        type="email"
+                        className={`${styles.formInput} premiumInput`}
+                        placeholder="nama@perusahaan.com"
+                        value={requestorEmail}
+                        onChange={(e) => setRequestorEmail(e.target.value)}
+                      />
+                    </div>
+                  )}
                 </div>
               </div>
-
               <SectionEyebrow label="Driver & Kendaraan" color="var(--gold2)" />
               <div className={styles.formGrid}>
                 <div className={styles.formField}>
