@@ -41,8 +41,8 @@ function fmtDate(d: string, lang: "id" | "en"): string {
 function template(p: TaskBatchEmailPayload): { subject: string; html: string } {
   const id = (p.lang ?? "id") === "id";
   const subject = id
-    ? `Penugasan Driver Rentang Tanggal — ${p.driverName} (${p.dayCount} hari)`
-    : `Multi-Day Driver Assignment — ${p.driverName} (${p.dayCount} days)`;
+    ? `Penugasan Driver Rentang Tanggal - ${p.driverName} (${p.dayCount} hari)`
+    : `Multi-Day Driver Assignment - ${p.driverName} (${p.dayCount} days)`;
 
   const html = `
   <div style="font-family:-apple-system,'Segoe UI',Roboto,Arial,sans-serif;max-width:520px;margin:0 auto;background:#f3f8fd;padding:24px;">
