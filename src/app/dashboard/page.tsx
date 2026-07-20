@@ -12,6 +12,8 @@ import {
   type ActivityLogEntry,
   cancelTaskByAdmin,
   createTask,
+  createTaskBatch,
+  sendTaskBatchEmail,
   deleteTask,
   getDrivers,
   type MyProfile,
