@@ -160,7 +160,7 @@ serve(async (req) => {
       );
     }
 
-  const { subject, html } = template(payload);
+    const { subject, html } = template(payload);
     const client = new SMTPClient({
       connection: {
         hostname: "smtp.gmail.com",
@@ -169,19 +169,50 @@ serve(async (req) => {
         auth: { username: GMAIL_USER, password: GMAIL_APP_PASSWORD },
       },
     });
-    // Kirim satu-satu per penerima (bukan 1 email ke banyak alamat sekaligus) —
-    // denomailer bermasalah membentuk MIME multipart yang benar kalau "to"
-    // diisi lebih dari 1 alamat dalam satu panggilan .send().
-    for (const recipient of recipients) {
-      await client.send({
-        from: `${FROM_NAME} <${GMAIL_USER}>`,
-        to: [recipient],
-        subject,
-        content: "Email ini memerlukan HTML untuk ditampilkan dengan benar.",
-        html,
-      });
+    // Kirim satu email per penerima, BUKAN satu panggilan dengan array berisi
+    // banyak alamat sekaligus. Waktu `to` diisi array 2+ alamat, denomailer
+    // pernah teramati menghasilkan header `To:` yang dipisah titik-koma
+    // (mis. "<a@x.com>; <b@y.com>") padahal RFC 5322 mewajibkan pemisah
+    // koma untuk daftar alamat biasa. Header yang tidak standar ini bisa
+    // membuat mail gateway yang strict (mis. Exchange/Microsoft 365) gagal
+    // mem-parsing seluruh pesan dan jatuh ke fallback menampilkan raw MIME
+    // source — persis bug yang terjadi saat dikirim ke 2 penerima sekaligus.
+    // Mengirim satu-per-satu juga sekalian menghindari penerima A melihat
+    // alamat email penerima B di header To.
+    const failed: string[] = [];
+    for (const to of recipients) {
+      try {
+        await client.send({
+          from: `${FROM_NAME} <${GMAIL_USER}>`,
+          to,
+          subject,
+          html,
+        });
+      } catch (sendErr) {
+        console.error(`Gagal kirim ke ${to}:`, sendErr);
+        failed.push(to);
+      }
     }
     await client.close();
-    return new Response(JSON.stringify({ success: true, recipients }), {
+
+    if (failed.length === recipients.length) {
+      return new Response(
+        JSON.stringify({ error: "Gagal mengirim ke semua penerima.", failed }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+    return new Response(
+      JSON.stringify({
+        success: true,
+        recipients: recipients.filter((r) => !failed.includes(r)),
+        failed,
+      }),
+      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+  } catch (err) {
+    return new Response(JSON.stringify({ error: String(err) }), {
+      status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
+  }
+});
