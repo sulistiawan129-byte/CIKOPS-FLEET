@@ -14,7 +14,8 @@ import {
   createTask,
   createTaskBatch,
   sendTaskBatchEmail,
-  deleteTask,
+ deleteTask,
+  deleteTaskBatch,
   getDrivers,
   type MyProfile,
   getAllDriversFull,
@@ -403,7 +404,28 @@ const [masterDataInitialSub, setMasterDataInitialSub] = useState<"drivers" | "em
   }
 
   async function handleDelete(task: TaskDetail) {
-    if (!confirm(`Hapus tugas ke "${task.tujuan}"?`)) return;
+    const isBatch = !!task.batch_id && task.batch_total_days > 1;
+
+    if (isBatch) {
+      const deleteAll = confirm(
+        `Tugas ini bagian dari penugasan rentang tanggal (${task.batch_total_days} hari total).\n\nKlik OK untuk HAPUS SELURUH ${task.batch_total_days} hari sekaligus, atau Cancel untuk pilihan lain.`
+      );
+      if (deleteAll) {
+        try {
+          const count = await deleteTaskBatch(task.batch_id!);
+          showToast(`${count} tugas (seluruh penugasan) dihapus`);
+          loadTasks();
+        } catch (e) {
+          showToast(e instanceof Error ? e.message : "Gagal menghapus seluruh penugasan", true);
+        }
+        return;
+      }
+      const deleteOne = confirm(`Hapus tugas hari ini saja ("${task.tujuan}")?`);
+      if (!deleteOne) return;
+    } else {
+      if (!confirm(`Hapus tugas ke "${task.tujuan}"?`)) return;
+    }
+
     try {
       await deleteTask(task.id);
       showToast("Tugas dihapus");
