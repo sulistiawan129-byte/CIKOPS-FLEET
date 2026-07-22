@@ -507,7 +507,8 @@ useEffect(() => {
             <div className={styles.brandSub}>Driver Operations</div>
           </div>
 
-          <div className={styles.sectionLabel}>{t.masukDenganAkun}</div>
+          <div className={styles.loginWelcome}>{t.loginWelcome}</div>
+          <div className={styles.loginWelcomeSub}>{t.masukDenganAkun}</div>
 
           <form className={styles.loginCard} onSubmit={submitLogin}>
             <label className={styles.loginLabel} htmlFor="driver-email">Email</label>
