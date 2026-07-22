@@ -497,7 +497,7 @@ useEffect(() => {
               onClick={toggleTheme}
               aria-label={t.gantiTema}
             >
-              {theme === "dark" ? "\u2600\ufe0f" : "\ud83c\udf19"}
+              {theme === "dark" ? "☀️" : "🌙"}
             </button>
           </div>
 
@@ -533,7 +533,7 @@ useEffect(() => {
                 className={styles.loginInput}
                 type={loginShowPassword ? "text" : "password"}
                 autoComplete="current-password"
-                placeholder="\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022"
+                placeholder="••••••••"
                 value={loginPassword}
                 onChange={(e) => { setLoginPassword(e.target.value); setLoginError(null); }}
                 disabled={loginBusy}
@@ -545,7 +545,7 @@ useEffect(() => {
                 aria-label={loginShowPassword ? t.sembunyikanPassword : t.lihatPassword}
                 tabIndex={-1}
               >
-                {loginShowPassword ? "\ud83d\ude48" : "\ud83d\udc41\ufe0f"}
+                {loginShowPassword ? "🙈" : "👁️"}
               </button>
             </div>
 
@@ -1143,7 +1143,7 @@ function ProfileTab({
     <div className={styles.profileWrap}>
       <div className={styles.profileHero}>
         <div className={styles.profileAvatar}>
-          {driver.avatar_emoji || "\ud83e\uddd1\u200d\u2708\ufe0f"}
+          {driver.avatar_emoji || "🧑‍✈️"}
         </div>
         <div className={styles.profileName}>{driver.nama}</div>
         <div className={styles.profileRoleLabel}>DRIVER</div>
@@ -1152,13 +1152,13 @@ function ProfileTab({
       <div className={styles.profileSection}>
         <div className={styles.profileSectionHeader}>{t.informasi}</div>
         <div className={styles.profileRow}>
-          <span className={styles.profileRowIco}>\ud83d\udcf1</span>
+          <span className={styles.profileRowIco}>📱</span>
           <span className={styles.profileRowLabel}>{t.noHp}</span>
           <span className={styles.profileRowVal}>{driver.no_hp || "-"}</span>
         </div>
         {driver.email && (
           <div className={styles.profileRow}>
-            <span className={styles.profileRowIco}>\u2709\ufe0f</span>
+            <span className={styles.profileRowIco}>✉️</span>
             <span className={styles.profileRowLabel}>Email</span>
             <span className={styles.profileRowVal} style={{ fontSize: 13.5, wordBreak: "break-all" }}>{driver.email}</span>
           </div>
@@ -1168,7 +1168,7 @@ function ProfileTab({
       <div className={styles.profileSection}>
         <div className={styles.profileSectionHeader}>{t.keamanan}</div>
         <div className={styles.profileRow}>
-          <span className={styles.profileRowIco}>\ud83d\udd12</span>
+          <span className={styles.profileRowIco}>🔒</span>
           <span className={styles.profileRowLabel}>Password</span>
           <button className={styles.pinRowBtn} onClick={onChangePassword}>
             {t.ubahPassword}
@@ -1178,7 +1178,7 @@ function ProfileTab({
 
       <div className={styles.profileSection}>
         <div className={styles.profileRow}>
-          <span className={styles.profileRowIco}>\ud83d\udeaa</span>
+          <span className={styles.profileRowIco}>🚪</span>
           <span className={styles.profileRowLabel}>{t.keluarDariAkun}</span>
           <button className={styles.pinRowBtn} onClick={onLogout}>
             {t.keluar}
