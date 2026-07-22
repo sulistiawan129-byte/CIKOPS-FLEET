@@ -1890,6 +1890,34 @@ function daysUntil(dateStr: string | null | undefined): number {
   return Math.ceil((new Date(dateStr).getTime() - Date.now()) / 86400000);
 }
 
+/** Adds months to a date string, returns ISO date string (YYYY-MM-DD). */
+function addMonths(dateStr: string, months: number): string {
+  const d = new Date(dateStr);
+  d.setMonth(d.getMonth() + months);
+  return d.toISOString().slice(0, 10);
+}
+
+/**
+ * Ketentuan next date:
+ *   KIR     → +6 bulan dari tanggal KIR terakhir
+ *   STNK    → +12 bulan dari tanggal STNK terakhir
+ *   Service → +3 bulan dari tanggal service terakhir (reminder awal),
+ *             hard-deadline +6 bulan
+ */
+function nextDocDate(type: "KIR" | "STNK" | "Service", lastDate: string | null | undefined): {
+  next: string | null;
+  nextEarly: string | null; // hanya untuk Service (3-bulan reminder)
+} {
+  if (!lastDate) return { next: null, nextEarly: null };
+  if (type === "KIR")     return { next: addMonths(lastDate, 6),  nextEarly: null };
+  if (type === "STNK")    return { next: addMonths(lastDate, 12), nextEarly: null };
+  // Service: reminder mulai 3 bulan, batas akhir 6 bulan
+  return {
+    next: addMonths(lastDate, 6),
+    nextEarly: addMonths(lastDate, 3),
+  };
+}
+
 function urgencyColor(days: number): string {
   if (days <= 7) return "var(--red)";
   if (days <= 30) return "var(--orange)";
@@ -2031,7 +2059,12 @@ function OverviewTab({ setActiveTab, myProfile }: { setActiveTab: (t: DashboardT
   // so the hero KPI numbers can animate with a count-up effect on load.
   const docBucketsPre = { urgent: 0, mid: 0, safe: 0, noData: 0 };
   vehicles.forEach((v) => {
-    [v.kir_date, v.service_date, v.stnk_date].forEach((d) => {
+    const docNextDates: (string | null)[] = [
+      nextDocDate("KIR",     v.kir_date).next,
+      nextDocDate("Service", v.service_date).nextEarly ?? nextDocDate("Service", v.service_date).next,
+      nextDocDate("STNK",    v.stnk_date).next,
+    ];
+    docNextDates.forEach((d) => {
       if (!d) {
         docBucketsPre.noData++;
         return;
@@ -5863,11 +5896,6 @@ function VehiclesTab({ myProfile }: { myProfile: MyProfile | null }) {
           }}
         >
           {vehicles.map((v) => {
-            const docs: [string, string | null | undefined][] = [
-              ["KIR", v.kir_date],
-              [lang === "en" ? "Service" : "Service", v.service_date],
-              ["STNK", v.stnk_date],
-            ];
             return (
               <div key={v.id} className="statPop" style={{ ...cardStyle, padding: 16, position: "relative" }}>
                 <div
@@ -5935,14 +5963,49 @@ function VehiclesTab({ myProfile }: { myProfile: MyProfile | null }) {
                 </div>
 
                 <div style={{ borderTop: "1px solid var(--border)", paddingTop: 10, marginBottom: 12 }}>
-                  {docs.map(([label, date]) => {
-                    const d = daysUntil(date);
+                  {([ ["KIR", v.kir_date], ["Service", v.service_date], ["STNK", v.stnk_date] ] as [string, string | null | undefined][]).map(([label, lastDate]) => {
+                    const docType = label as "KIR" | "STNK" | "Service";
+                    const { next, nextEarly } = nextDocDate(docType, lastDate);
+                    // Hari menuju next date (pakai nextEarly dulu kalau ada — Service 3 bulan)
+                    const daysToNext = daysUntil(next);
+                    const daysToEarly = nextEarly ? daysUntil(nextEarly) : null;
+                    // Warna: pakai countdown yang paling dekat
+                    const effectiveDays = daysToEarly !== null && daysToEarly <= 0
+                      ? daysToNext   // early sudah lewat → pakai countdown ke batas akhir
+                      : daysToEarly !== null
+                      ? daysToEarly  // Service dalam window 3-6 bulan → warnai dari early
+                      : daysToNext;
+                    const fmtDate = (ds: string) =>
+                      new Date(ds).toLocaleDateString(lang === "en" ? "en-GB" : "id-ID", { day: "numeric", month: "short", year: "numeric" });
+                    const intervalLabel = docType === "KIR" ? "(6 bln)" : docType === "STNK" ? "(1 thn)" : "(3–6 bln)";
                     return (
-                      <div key={label} style={{ display: "flex", justifyContent: "space-between", fontSize: 13, marginBottom: 4 }}>
-                        <span style={{ color: "var(--t3)" }}>{label}</span>
-                        <span style={{ color: urgencyColor(d), fontWeight: 700 }}>
-                          {date ? (d <= 0 ? (lang === "en" ? "Expired" : "Lewat") : `${d}h`) : "-"}
-                        </span>
+                      <div key={label} style={{ marginBottom: 8 }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 12 }}>
+                          <span style={{ color: "var(--t3)", fontWeight: 600 }}>{label} <span style={{ fontSize: 10, fontWeight: 400 }}>{intervalLabel}</span></span>
+                          {next ? (
+                            <span style={{ fontSize: 11, fontWeight: 700, padding: "2px 8px", borderRadius: 8, background: `${urgencyColor(effectiveDays)}18`, color: urgencyColor(effectiveDays) }}>
+                              {daysToNext <= 0 ? (lang === "en" ? "Overdue" : "Lewat") : `${daysToNext}h`}
+                            </span>
+                          ) : (
+                            <span style={{ fontSize: 11, color: "var(--t3)" }}>—</span>
+                          )}
+                        </div>
+                        <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, marginTop: 2 }}>
+                          <span style={{ color: "var(--t3)" }}>
+                            {lang === "en" ? "Last:" : "Terakhir:"} {lastDate ? fmtDate(lastDate) : "—"}
+                          </span>
+                          <span style={{ color: next ? urgencyColor(effectiveDays) : "var(--t3)", fontWeight: next ? 600 : 400 }}>
+                            {next
+                              ? `${lang === "en" ? "Due:" : "Jatuh:"} ${fmtDate(next)}`
+                              : (lang === "en" ? "Not set" : "Belum diisi")}
+                          </span>
+                        </div>
+                        {/* Service: tampilkan juga reminder 3 bulan kalau belum lewat */}
+                        {nextEarly && daysToEarly !== null && daysToEarly > 0 && (
+                          <div style={{ fontSize: 10.5, color: "var(--orange)", marginTop: 2, textAlign: "right" }}>
+                            ⚡ {lang === "en" ? "Early reminder:" : "Reminder awal:"} {fmtDate(nextEarly)} ({daysToEarly}h)
+                          </div>
+                        )}
                       </div>
                     );
                   })}
@@ -6414,7 +6477,8 @@ function DriversMasterPanel({ cardStyle, myProfile = null }: { cardStyle: CSSPro
             : `${res.created ? "Akun dibuat" : "Password direset"} — password sementara sudah dikirim ke ${pinTarget.email}.`,
         });
       } else {
-        setCredResult({ ok: false, msg: res.error || (lang === "en" ? "Failed." : "Gagal."), tempPassword: res.tempPassword });
+        const errMsg = res.error || (lang === "en" ? "Unknown error — check Edge Function logs." : "Error tidak diketahui — cek log Edge Function di Supabase.");
+        setCredResult({ ok: false, msg: errMsg, tempPassword: res.tempPassword });
       }
     } catch (e) {
       setCredResult({ ok: false, msg: e instanceof Error ? e.message : (lang === "en" ? "Failed." : "Gagal.") });
