@@ -75,6 +75,7 @@ import {
 import type { Claim, ClaimItem, Overtime, Plant, Kantong, DriverTier, GasStation, FuelEntry, CanteenReport } from "@/lib/types";
 import { computeCanteenKPI } from "@/lib/types";
 import { exportTandaTerima } from "@/lib/tandaTerima";
+import { exportWeeklyRecapToExcel, exportWeeklyRecapToPdf } from "@/lib/weeklyRecapExport";
 import {
   buildFleetReportData,
   buildInsights,
@@ -2849,6 +2850,7 @@ function ClaimsTab() {
   const [saving, setSaving] = useState(false);
   const [driverUserIds, setDriverUserIds] = useState<string[]>([]);
   const [exportingRecap, setExportingRecap] = useState(false);
+  const [exportingWeeklyRecap, setExportingWeeklyRecap] = useState<"excel" | "pdf" | null>(null);
   const [viewMode, setViewMode] = useState<"list" | "weekly">("list");
 
   const load = useCallback(async () => {
@@ -3021,6 +3023,29 @@ function ClaimsTab() {
     }
   }
 
+  function weeklyRecapPeriodLabel(): string {
+    if (periodMode === "week") return `${weekRangeOf(filterDate, lang).label} ${filterDate.slice(0, 4)}`;
+    if (periodMode === "date") return filterDate;
+    return lang === "en" ? "All Time" : "Semua Periode";
+  }
+
+  async function handleExportWeeklyRecap(format: "excel" | "pdf") {
+    if (exportingWeeklyRecap) return;
+    setExportingWeeklyRecap(format);
+    try {
+      const label = weeklyRecapPeriodLabel();
+      if (format === "excel") {
+        await exportWeeklyRecapToExcel(weeklyRecap.rows, weeklyRecap.grandTotal, label);
+      } else {
+        await exportWeeklyRecapToPdf(weeklyRecap.rows, weeklyRecap.grandTotal, label);
+      }
+    } catch (e) {
+      alert(e instanceof Error ? e.message : "Gagal membuat file rekap");
+    } finally {
+      setExportingWeeklyRecap(null);
+    }
+  }
+
   const cardStyle: CSSProperties = { borderRadius: "var(--r2)" };
   const inputStyle: CSSProperties = {
     width: "100%",
@@ -3136,6 +3161,24 @@ function ClaimsTab() {
 
       {viewMode === "weekly" && (
         <div className="neonCard" style={{ padding: 0, overflow: "hidden", marginBottom: 18 }}>
+          <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, padding: "14px 18px 0" }}>
+            <button
+              onClick={() => handleExportWeeklyRecap("excel")}
+              disabled={exportingWeeklyRecap !== null || weeklyRecap.rows.length === 0}
+              style={{ padding: "8px 15px", borderRadius: "var(--pill)", border: "1px solid var(--green)", background: "var(--green-soft)", color: "var(--green)", fontWeight: 700, fontSize: 12.5, cursor: "pointer" }}
+              title={lang === "en" ? "Download this recap as Excel (.xlsx)" : "Unduh rekap ini sebagai Excel (.xlsx)"}
+            >
+              ⬇ {exportingWeeklyRecap === "excel" ? "..." : (lang === "en" ? "Download Excel" : "Download Excel")}
+            </button>
+            <button
+              onClick={() => handleExportWeeklyRecap("pdf")}
+              disabled={exportingWeeklyRecap !== null || weeklyRecap.rows.length === 0}
+              style={{ padding: "8px 15px", borderRadius: "var(--pill)", border: "1px solid var(--red)", background: "var(--red-soft)", color: "var(--red)", fontWeight: 700, fontSize: 12.5, cursor: "pointer" }}
+              title={lang === "en" ? "Download this recap as PDF" : "Unduh rekap ini sebagai PDF"}
+            >
+              ⬇ {exportingWeeklyRecap === "pdf" ? "..." : "Download PDF"}
+            </button>
+          </div>
           {weeklyRecap.rows.length === 0 ? (
             <div style={{ textAlign: "center", padding: 40, color: "var(--t3)" }}>{t.actionNoDataYet}</div>
           ) : (
