@@ -1938,7 +1938,7 @@ function OverviewTab({ setActiveTab, myProfile }: { setActiveTab: (t: DashboardT
   const [kantongPrb, setKantongPrb] = useState<Kantong | null>(null);
   const [tiers, setTiers] = useState<DriverTier[]>([]);
   const [gasStations, setGasStations] = useState<GasStation[]>([]);
-  const [todayTasks, setTodayTasks] = useState<TaskDetail[]>([]);
+  const [tasksLast30d, setTasksLast30d] = useState<TaskDetail[]>([]);
   const [canteenThisMonth, setCanteenThisMonth] = useState<CanteenReport[]>([]);
   const [lockerEntries, setLockerEntries] = useState<{ number: string; pin: string; status: string }[]>([]);
   const [clockNow, setClockNow] = useState(new Date());
@@ -1953,6 +1953,8 @@ function OverviewTab({ setActiveTab, myProfile }: { setActiveTab: (t: DashboardT
       setLoading(true);
       const now = new Date();
       const monthStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+      const from30d = new Date(now);
+      from30d.setDate(from30d.getDate() - 29);
       try {
         const [v, c, ot, d, kCik, kPrb, t, g, tt, canteen, lockers] = await Promise.all([
           getAllVehiclesFull(),
@@ -1963,7 +1965,7 @@ function OverviewTab({ setActiveTab, myProfile }: { setActiveTab: (t: DashboardT
           getCurrentKantong("PRB"),
           getDriverTiers(),
           getGasStations(),
-          getTasksByDate(todayStr()),
+          getTasksByRange(toLocalISODate(from30d), todayStr()),
           getCanteenReportsForMonth(monthStr).catch(() => []),
           getLockerStatusGrid().catch(() => []),
         ]);
@@ -1975,7 +1977,7 @@ function OverviewTab({ setActiveTab, myProfile }: { setActiveTab: (t: DashboardT
         setKantongPrb(kPrb);
         setTiers(t);
         setGasStations(g);
-        setTodayTasks(tt);
+        setTasksLast30d(tt);
         setCanteenThisMonth(canteen);
         setLockerEntries(lockers);
       } catch {
@@ -2023,6 +2025,7 @@ function OverviewTab({ setActiveTab, myProfile }: { setActiveTab: (t: DashboardT
   if (loading) return <div style={{ padding: 60, textAlign: "center", color: "var(--t3)" }}>{lang === "en" ? "Loading overview..." : "Memuat ringkasan..."}</div>;
 
   const now = new Date();
+  const todayTasks = tasksLast30d.filter((t) => t.tanggal === todayStr());
   const hour = now.getHours();
   const greeting =
     hour < 11 ? (lang === "en" ? "Good Morning" : "Selamat Pagi") : hour < 15 ? (lang === "en" ? "Good Afternoon" : "Selamat Siang") : hour < 18 ? (lang === "en" ? "Good Evening" : "Selamat Sore") : (lang === "en" ? "Good Evening" : "Selamat Malam");
@@ -2083,27 +2086,86 @@ function OverviewTab({ setActiveTab, myProfile }: { setActiveTab: (t: DashboardT
   const RL = 38, CIRCL = 2 * Math.PI * RL;
   const lockerUsedPct = lockerTotal > 0 ? (lockerUsed / lockerTotal) * 100 : 0;
 
-  // ── Claims trend, last 30 days ──
-  const dayBuckets: { date: Date; total: number }[] = Array.from({ length: 30 }, (_, i) => {
+  // ── Overall activity, last 30 days — three different systems (Claims,
+  // Tasks, Overtime) plotted on the SAME calendar so the chart tells the
+  // story of the whole operation, not just claims. Each keeps its own
+  // natural unit (Rp / count / hours) rather than forcing them onto one
+  // shared axis, which would be misleading. ──
+  const days30: Date[] = Array.from({ length: 30 }, (_, i) => {
     const d = new Date(now);
     d.setDate(d.getDate() - (29 - i));
     d.setHours(0, 0, 0, 0);
-    return { date: d, total: 0 };
+    return d;
   });
+  const dayIndexOf = (d: Date) => days30.findIndex((x) => x.getTime() === d.getTime());
+
+  const claimsDaily = days30.map(() => 0);
   claims.forEach((c) => {
     const cd = new Date(c.periodDate);
     cd.setHours(0, 0, 0, 0);
-    const bucket = dayBuckets.find((b) => b.date.getTime() === cd.getTime());
-    if (bucket) bucket.total += c.total;
+    const idx = dayIndexOf(cd);
+    if (idx >= 0) claimsDaily[idx] += c.total;
   });
-  const chartW = 640, chartH = 160, chartPad = 30;
-  const maxVal = Math.max(...dayBuckets.map((b) => b.total), 1);
-  const points = dayBuckets.map((b, i) => {
-    const x = chartPad + (i / (dayBuckets.length - 1)) * (chartW - chartPad * 2);
-    const y = chartH - chartPad - (b.total / maxVal) * (chartH - chartPad * 2 - 10);
-    return `${x.toFixed(1)},${y.toFixed(1)}`;
-  }).join(" ");
-  const areaPoints = `${chartPad},${chartH - chartPad} ${points} ${chartW - chartPad},${chartH - chartPad}`;
+
+  const tasksDaily = days30.map(() => 0);
+  tasksLast30d.forEach((tk) => {
+    const td = new Date(tk.tanggal);
+    td.setHours(0, 0, 0, 0);
+    const idx = dayIndexOf(td);
+    if (idx >= 0) tasksDaily[idx] += 1;
+  });
+
+  const overtimeDaily = days30.map(() => 0);
+  overtimes.forEach((o) => {
+    if (!o.createdAt) return;
+    const od = new Date(o.createdAt);
+    od.setHours(0, 0, 0, 0);
+    const idx = dayIndexOf(od);
+    if (idx >= 0) overtimeDaily[idx] += o.hours;
+  });
+
+  const fmtShortDate = (d: Date) => d.toLocaleDateString(lang === "en" ? "en-GB" : "id-ID", { day: "numeric", month: "short" });
+  const fmtRpCompact = (n: number): string => {
+    if (n <= 0) return "0";
+    if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(n >= 10_000_000 ? 0 : 1).replace(/\.0$/, "")}jt`;
+    if (n >= 1_000) return `${Math.round(n / 1_000)}rb`;
+    return String(Math.round(n));
+  };
+
+  interface ActivitySeries {
+    key: string;
+    label: string;
+    color: string;
+    values: number[];
+    fmtAxis: (n: number) => string;
+    fmtInsight: (n: number) => string;
+  }
+  const activitySeries: ActivitySeries[] = [
+    {
+      key: "claims",
+      label: lang === "en" ? "Claims" : "Klaim",
+      color: "var(--brand)",
+      values: claimsDaily,
+      fmtAxis: (n) => `Rp ${fmtRpCompact(n)}`,
+      fmtInsight: (n) => `Rp ${fmtRp(n)}`,
+    },
+    {
+      key: "tasks",
+      label: lang === "en" ? "Tasks" : "Tugas",
+      color: "var(--green)",
+      values: tasksDaily,
+      fmtAxis: (n) => String(Math.round(n)),
+      fmtInsight: (n) => `${Math.round(n)} ${lang === "en" ? "tasks" : "tugas"}`,
+    },
+    {
+      key: "overtime",
+      label: "Overtime",
+      color: "var(--gold2)",
+      values: overtimeDaily,
+      fmtAxis: (n) => String(Math.round(n)),
+      fmtInsight: (n) => `${fmtRp(n)} ${lang === "en" ? "hrs" : "jam"}`,
+    },
+  ];
 
   // ── Vehicle status donut ──
   const donutTotal = vehicles.length || 1;
@@ -2555,31 +2617,69 @@ function OverviewTab({ setActiveTab, myProfile }: { setActiveTab: (t: DashboardT
       {/* ── Charts row ── */}
       <div style={{ display: "grid", gridTemplateColumns: "1.6fr 1fr", gap: 16, marginBottom: 22 }}>
         <div className="statPop" style={{ ...cardStyle, padding: 20 }}>
-          <div style={{ fontSize: 14.5, fontWeight: 800, color: "var(--t1)", marginBottom: 16 }}>
-            {lang === "en" ? "Claim Activity — Last 30 Days" : "Aktivitas Klaim — 30 Hari Terakhir"}
+          <div style={{ fontSize: 14.5, fontWeight: 800, color: "var(--t1)", marginBottom: 4 }}>
+            {lang === "en" ? "Activity Overview — Last 30 Days" : "Ringkasan Aktivitas — 30 Hari Terakhir"}
           </div>
-          <svg viewBox={`0 0 ${chartW} ${chartH}`} width="100%" height={chartH}>
-            <defs>
-              <linearGradient id="areaGrad" x1="0%" y1="0%" x2="0%" y2="100%">
-                <stop offset="0%" stopColor="var(--brand)" stopOpacity="0.28" />
-                <stop offset="100%" stopColor="var(--brand)" stopOpacity="0" />
-              </linearGradient>
-            </defs>
-            {[0.25, 0.5, 0.75].map((f) => (
-              <line key={f} x1={chartPad} x2={chartW - chartPad} y1={chartPad + f * (chartH - chartPad * 2 - 10)} y2={chartPad + f * (chartH - chartPad * 2 - 10)} stroke="var(--border)" strokeWidth={1} />
-            ))}
-            <polygon points={areaPoints} fill="url(#areaGrad)" />
-            <polyline points={points} fill="none" stroke="var(--brand)" strokeWidth={2.5} strokeLinejoin="round" strokeLinecap="round" />
-            {[0, 7, 14, 21, 29].map((idx) => {
-              const b = dayBuckets[idx];
-              const x = chartPad + (idx / (dayBuckets.length - 1)) * (chartW - chartPad * 2);
+          <div style={{ fontSize: 12, color: "var(--t3)", marginBottom: 14 }}>
+            {lang === "en" ? "Claims, tasks, and overtime on the same calendar." : "Klaim, tugas, dan overtime dalam kalender yang sama."}
+          </div>
+
+          {(() => {
+            const miniW = 600, miniH = 58, padL = 46, padR = 6, padTop = 8, padBottom = 6;
+            const plotW = miniW - padL - padR;
+            const plotHm = miniH - padTop - padBottom;
+            return activitySeries.map((s, sIdx) => {
+              const maxV = Math.max(...s.values, 1);
+              const xAt = (i: number) => padL + (i / (s.values.length - 1)) * plotW;
+              const yAt = (v: number) => miniH - padBottom - (v / maxV) * plotHm;
+              const linePts = s.values.map((v, i) => `${xAt(i).toFixed(1)},${yAt(v).toFixed(1)}`).join(" ");
+              const areaPts = `${xAt(0).toFixed(1)},${miniH - padBottom} ${linePts} ${xAt(s.values.length - 1).toFixed(1)},${miniH - padBottom}`;
+              const total = s.values.reduce((a, v) => a + v, 0);
+              const activeDays = s.values.filter((v) => v > 0).length;
+              const peakIdx = s.values.reduce((best, v, i) => (v > s.values[best] ? i : best), 0);
+              const isLast = sIdx === activitySeries.length - 1;
               return (
-                <text key={idx} x={x} y={chartH - 8} textAnchor="middle" fontSize={10.5} fill="var(--t3)">
-                  {b.date.getDate()}/{b.date.getMonth() + 1}
-                </text>
+                <div key={s.key} style={{ marginBottom: isLast ? 0 : 16 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", fontSize: 12, marginBottom: 4 }}>
+                    <span style={{ display: "flex", alignItems: "center", gap: 6, fontWeight: 700, color: "var(--t2)" }}>
+                      <span style={{ width: 8, height: 8, borderRadius: 2, background: s.color, flexShrink: 0 }} />
+                      {s.label}
+                    </span>
+                    <span style={{ color: "var(--t3)" }}>
+                      {total === 0
+                        ? (lang === "en" ? "No activity" : "Belum ada aktivitas")
+                        : `${lang === "en" ? "Peak" : "Puncak"} ${fmtShortDate(days30[peakIdx])} · ${s.fmtInsight(s.values[peakIdx])} · ${activeDays} ${lang === "en" ? "active days" : "hari aktif"}`}
+                    </span>
+                  </div>
+                  <svg viewBox={`0 0 ${miniW} ${miniH}`} width="100%" height={miniH}>
+                    <defs>
+                      <linearGradient id={`miniGrad-${s.key}`} x1="0%" y1="0%" x2="0%" y2="100%">
+                        <stop offset="0%" stopColor={s.color} stopOpacity="0.32" />
+                        <stop offset="100%" stopColor={s.color} stopOpacity="0.02" />
+                      </linearGradient>
+                    </defs>
+                    <line x1={padL} x2={miniW - padR} y1={miniH - padBottom} y2={miniH - padBottom} stroke="var(--border)" strokeWidth={1} />
+                    <text x={padL - 6} y={padTop + 4} textAnchor="end" fontSize={9} fill="var(--t3)">{s.fmtAxis(maxV)}</text>
+                    <text x={padL - 6} y={miniH - padBottom} textAnchor="end" fontSize={9} fill="var(--t3)">0</text>
+                    <polygon points={areaPts} fill={`url(#miniGrad-${s.key})`} />
+                    <polyline points={linePts} fill="none" stroke={s.color} strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" />
+                    {total > 0 && <circle cx={xAt(peakIdx)} cy={yAt(s.values[peakIdx])} r={2.5} fill="var(--surface)" stroke={s.color} strokeWidth={1.5} />}
+                    {s.values.map((v, i) => (
+                      <g key={i}>
+                        <title>{fmtShortDate(days30[i])}: {s.fmtInsight(v)}</title>
+                        <rect x={xAt(i) - plotW / s.values.length / 2} y={0} width={plotW / s.values.length} height={miniH} fill="transparent" />
+                      </g>
+                    ))}
+                    {isLast && [0, 7, 14, 21, 29].map((idx) => (
+                      <text key={idx} x={xAt(idx)} y={miniH + 12} textAnchor="middle" fontSize={9.5} fill="var(--t3)">
+                        {fmtShortDate(days30[idx])}
+                      </text>
+                    ))}
+                  </svg>
+                </div>
               );
-            })}
-          </svg>
+            });
+          })()}
         </div>
 
         <div className="statPop" style={{ ...cardStyle, overflow: "hidden" }}>
