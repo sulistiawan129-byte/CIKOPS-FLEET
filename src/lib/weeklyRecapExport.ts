@@ -1,18 +1,25 @@
-/** Export utilities for the Claims "Weekly Recap" table (per-driver,
- *  per-week breakdown by category: Gasoline / Toll / Parking / Other).
- *  Values here are always the already-computed totals per category
- *  (e.g. "100000+10000" → 110000) — never the raw addition expression.
+/** Export utilities for the Claims "Weekly Recap" table.
  *
- *  Both Excel and PDF share the same header format used by Finance's
- *  official recap documents:
+ *  Structure per section (one section per Driver User split, same list
+ *  used by "Export Tanda Terima"):
+ *
  *    PT. FRISIAN FLAG INDONESIA
  *    REKAPITULASI BIAYA OPERASIONAL KENDARAAN {year}
- *    [Section title]                          Total Claim   Rp X
+ *    [TANDA TERIMA / TANDA TERIMA — DRIVER USER]   Total Claim   Rp X
+ *    Periode : ...
  *
- *  A claim may be split into two sections — one for the configured
- *  "Driver User" list (separate budgeting, same list used by the
- *  existing "Export Tanda Terima" feature), and one combined section
- *  for every other driver. */
+ *    Minggu | Driver | Gasoline | Toll | Parking | Other | Total
+ *    ... rows ...                                  Grand Total
+ *
+ *    RINCIAN CLAIM
+ *    Gasoline | Toll | Parking | Others | Total
+ *    ... one row per claim LINE ITEM (one physical "lembar"/sheet of
+ *        stapled receipts) — never merged with another item of the same
+ *        category, and always the item's final total, never the raw
+ *        addition expression (e.g. "100000+10000" → shown as 110000). ...
+ */
+
+import type { RincianRow } from "./claimRecap";
 
 export interface WeeklyRecapRow {
   weekLabel: string;
@@ -37,6 +44,7 @@ export interface WeeklyRecapSection {
   title: string;
   rows: WeeklyRecapRow[];
   grandTotal: WeeklyRecapGrandTotal;
+  rincianRows: RincianRow[];
 }
 
 const COMPANY_NAME = "PT. FRISIAN FLAG INDONESIA";
@@ -57,9 +65,11 @@ function fmtRp(n: number): string {
    EXCEL EXPORT (.xlsx) — via ExcelJS (supports real cell styling)
 ════════════════════════════════════════════════════════════ */
 
-const HEADER_FILL = "FFD9E2F3"; // light blue-gray, matches the reference doc
+const HEADER_FILL = "FFD9E2F3";
 const TABLE_HEAD_FILL = "FF2E5BFF";
-const BORDER_COLOR = "FF1F2937";
+const TOTAL_FILL = "FFF2F4F8";
+const BORDER_THIN = { style: "thin" as const, color: { argb: "FFDDDDDD" } };
+const BORDER_DARK = { style: "thin" as const, color: { argb: "FF1F2937" } };
 
 export async function exportWeeklyRecapToExcel(
   sections: WeeklyRecapSection[],
@@ -70,116 +80,164 @@ export async function exportWeeklyRecapToExcel(
   wb.creator = "CIKOPS Fleet OS";
   wb.created = new Date();
 
-  const colWidths = [10, 24, 15, 15, 15, 15, 16];
-  const numCols = colWidths.length;
+  const numCols = 7; // Minggu, Driver, Gasoline, Toll, Parking, Other, Total
 
   sections.forEach((section, idx) => {
-    if (section.rows.length === 0 && sections.length > 1) return; // skip empty split section
+    if (section.rows.length === 0 && sections.length > 1) return;
 
     const sheetName = (idx === 0 && sections.length > 1 ? "Driver User" : sections.length > 1 ? "Lainnya" : "Weekly Recap").slice(0, 31);
     const ws = wb.addWorksheet(sheetName);
-    ws.columns = colWidths.map((w) => ({ width: w }));
+    ws.columns = [{ width: 10 }, { width: 24 }, { width: 15 }, { width: 15 }, { width: 15 }, { width: 15 }, { width: 16 }];
 
-    // Row 1 — Company name
-    ws.mergeCells(1, 1, 1, numCols);
-    const r1 = ws.getCell(1, 1);
-    r1.value = COMPANY_NAME;
-    r1.font = { bold: true, size: 13 };
-    r1.alignment = { horizontal: "center", vertical: "middle" };
-    r1.fill = { type: "pattern", pattern: "solid", fgColor: { argb: HEADER_FILL } };
-    ws.getRow(1).height = 22;
+    let r = 1;
+    let cell = ws.getCell(r, 1);
+    ws.mergeCells(r, 1, r, numCols);
+    cell.value = COMPANY_NAME;
+    cell.font = { bold: true, size: 13 };
+    cell.alignment = { horizontal: "center", vertical: "middle" };
+    cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: HEADER_FILL } };
+    ws.getRow(r).height = 22;
+    r++;
 
-    // Row 2 — Document title
-    ws.mergeCells(2, 1, 2, numCols);
-    const r2 = ws.getCell(2, 1);
-    r2.value = recapDocTitle();
-    r2.font = { bold: true, size: 11 };
-    r2.alignment = { horizontal: "center", vertical: "middle" };
-    r2.fill = { type: "pattern", pattern: "solid", fgColor: { argb: HEADER_FILL } };
-    ws.getRow(2).height = 20;
+    cell = ws.getCell(r, 1);
+    ws.mergeCells(r, 1, r, numCols);
+    cell.value = recapDocTitle();
+    cell.font = { bold: true, size: 11 };
+    cell.alignment = { horizontal: "center", vertical: "middle" };
+    cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: HEADER_FILL } };
+    ws.getRow(r).height = 20;
+    r++;
 
-    // Row 3 — Section title (left) + Total Claim (right)
-    ws.mergeCells(3, 1, 3, numCols - 2);
-    const r3title = ws.getCell(3, 1);
-    r3title.value = section.title;
-    r3title.font = { bold: true, size: 11 };
-    r3title.alignment = { horizontal: "left", vertical: "middle" };
+    ws.mergeCells(r, 1, r, numCols - 2);
+    cell = ws.getCell(r, 1);
+    cell.value = section.title;
+    cell.font = { bold: true, size: 11 };
+    cell.alignment = { horizontal: "left", vertical: "middle" };
+    const labelCell = ws.getCell(r, numCols - 1);
+    labelCell.value = "Total Claim";
+    labelCell.font = { bold: true, size: 10.5 };
+    labelCell.alignment = { horizontal: "right", vertical: "middle" };
+    const valueCell = ws.getCell(r, numCols);
+    valueCell.value = `Rp ${fmtRp(section.grandTotal.total)}`;
+    valueCell.font = { bold: true, size: 11 };
+    valueCell.alignment = { horizontal: "right", vertical: "middle" };
+    ws.getRow(r).height = 20;
+    r++;
 
-    const r3label = ws.getCell(3, numCols - 1);
-    r3label.value = "Total Claim";
-    r3label.font = { bold: true, size: 10.5 };
-    r3label.alignment = { horizontal: "right", vertical: "middle" };
+    ws.mergeCells(r, 1, r, numCols);
+    cell = ws.getCell(r, 1);
+    cell.value = `Periode: ${periodLabel}`;
+    cell.font = { italic: true, size: 9.5, color: { argb: "FF555555" } };
+    r++;
 
-    const r3value = ws.getCell(3, numCols);
-    r3value.value = `Rp ${fmtRp(section.grandTotal.total)}`;
-    r3value.font = { bold: true, size: 11 };
-    r3value.alignment = { horizontal: "right", vertical: "middle" };
-    ws.getRow(3).height = 20;
+    r++; // spacer
 
-    // Row 4 — Periode
-    ws.mergeCells(4, 1, 4, numCols);
-    const r4 = ws.getCell(4, 1);
-    r4.value = `Periode: ${periodLabel}`;
-    r4.font = { italic: true, size: 9.5, color: { argb: "FF555555" } };
-    r4.alignment = { horizontal: "left", vertical: "middle" };
-
-    ws.addRow([]); // row 5 spacer
-
-    // Row 6 — table header
-    const headerRow = ws.addRow(["Minggu", "Driver", "Gasoline", "Toll", "Parking", "Other", "Total"]);
-    headerRow.eachCell((cell) => {
-      cell.font = { bold: true, color: { argb: "FFFFFFFF" } };
-      cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: TABLE_HEAD_FILL } };
-      cell.alignment = { horizontal: "center", vertical: "middle" };
-      cell.border = {
-        top: { style: "thin", color: { argb: BORDER_COLOR } },
-        bottom: { style: "thin", color: { argb: BORDER_COLOR } },
-        left: { style: "thin", color: { argb: BORDER_COLOR } },
-        right: { style: "thin", color: { argb: BORDER_COLOR } },
-      };
+    const headerRow = ws.getRow(r);
+    ["Minggu", "Driver", "Gasoline", "Toll", "Parking", "Other", "Total"].forEach((h, i) => {
+      const c = headerRow.getCell(i + 1);
+      c.value = h;
+      c.font = { bold: true, color: { argb: "FFFFFFFF" } };
+      c.fill = { type: "pattern", pattern: "solid", fgColor: { argb: TABLE_HEAD_FILL } };
+      c.alignment = { horizontal: "center", vertical: "middle" };
+      c.border = { top: BORDER_DARK, bottom: BORDER_DARK, left: BORDER_DARK, right: BORDER_DARK };
     });
+    headerRow.commit();
+    r++;
 
-    // Data rows
-    section.rows.forEach((r) => {
-      const row = ws.addRow([r.weekLabel, r.driver, r.gasoline, r.toll, r.parking, r.other, r.total]);
-      row.eachCell((cell, colNumber) => {
-        cell.border = {
-          top: { style: "thin", color: { argb: "FFDDDDDD" } },
-          bottom: { style: "thin", color: { argb: "FFDDDDDD" } },
-          left: { style: "thin", color: { argb: "FFDDDDDD" } },
-          right: { style: "thin", color: { argb: "FFDDDDDD" } },
-        };
-        if (colNumber >= 3) {
-          cell.numFmt = "#,##0";
-          cell.alignment = { horizontal: "right" };
+    if (section.rows.length > 0) {
+      section.rows.forEach((row) => {
+        const wr = ws.getRow(r);
+        const vals = [row.weekLabel, row.driver, row.gasoline, row.toll, row.parking, row.other, row.total];
+        vals.forEach((v, ci) => {
+          const c = wr.getCell(ci + 1);
+          c.value = v as string | number;
+          c.border = { top: BORDER_THIN, bottom: BORDER_THIN, left: BORDER_THIN, right: BORDER_THIN };
+          if (ci >= 2) {
+            c.numFmt = "#,##0";
+            c.alignment = { horizontal: "right" };
+          }
+        });
+        wr.commit();
+        r++;
+      });
+    } else {
+      ws.getRow(r).getCell(1).value = "Tidak ada data klaim pada periode/kelompok ini";
+      r++;
+    }
+
+    {
+      const wr = ws.getRow(r);
+      const vals = ["", "Grand Total", section.grandTotal.gasoline, section.grandTotal.toll, section.grandTotal.parking, section.grandTotal.other, section.grandTotal.total];
+      vals.forEach((v, ci) => {
+        const c = wr.getCell(ci + 1);
+        c.value = v as string | number;
+        c.font = { bold: true };
+        c.fill = { type: "pattern", pattern: "solid", fgColor: { argb: TOTAL_FILL } };
+        c.border = { top: { style: "double", color: { argb: "FF1F2937" } } };
+        if (ci >= 2) {
+          c.numFmt = "#,##0";
+          c.alignment = { horizontal: "right" };
         }
       });
-    });
+      wr.commit();
+      r++;
+    }
 
-    // Grand total row
-    const totalRow = ws.addRow([
-      "",
-      "Grand Total",
-      section.grandTotal.gasoline,
-      section.grandTotal.toll,
-      section.grandTotal.parking,
-      section.grandTotal.other,
-      section.grandTotal.total,
-    ]);
-    totalRow.eachCell((cell, colNumber) => {
-      cell.font = { bold: true };
-      cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFF2F4F8" } };
-      cell.border = {
-        top: { style: "double", color: { argb: BORDER_COLOR } },
-      };
-      if (colNumber >= 3) {
-        cell.numFmt = "#,##0";
-        cell.alignment = { horizontal: "right" };
-      }
-    });
+    r++; // spacer
+    r++; // spacer
 
-    if (section.rows.length === 0) {
-      ws.addRow(["-", "Tidak ada data klaim pada periode/kelompok ini", "", "", "", "", ""]);
+    // ── RINCIAN CLAIM — one row per claim line item (per "lembar") ──
+    {
+      const headingCell = ws.getCell(r, 1);
+      headingCell.value = "RINCIAN CLAIM";
+      headingCell.font = { bold: true, size: 11 };
+      r++;
+    }
+    {
+      const wr = ws.getRow(r);
+      ["Gasoline", "Toll", "Parking", "Others", "Total"].forEach((h, i) => {
+        const c = wr.getCell(i + 1);
+        c.value = h;
+        c.font = { bold: true, color: { argb: "FFFFFFFF" } };
+        c.fill = { type: "pattern", pattern: "solid", fgColor: { argb: TABLE_HEAD_FILL } };
+        c.alignment = { horizontal: "center", vertical: "middle" };
+        c.border = { top: BORDER_DARK, bottom: BORDER_DARK, left: BORDER_DARK, right: BORDER_DARK };
+      });
+      wr.commit();
+      r++;
+    }
+
+    if (section.rincianRows.length > 0) {
+      section.rincianRows.forEach((rr) => {
+        const wr = ws.getRow(r);
+        const vals = [rr.gasoline || "", rr.toll || "", rr.parking || "", rr.others || "", rr.total];
+        vals.forEach((v, ci) => {
+          const c = wr.getCell(ci + 1);
+          c.value = v as number;
+          c.numFmt = "#,##0";
+          c.alignment = { horizontal: "right" };
+          c.border = { top: BORDER_THIN, bottom: BORDER_THIN, left: BORDER_THIN, right: BORDER_THIN };
+        });
+        wr.commit();
+        r++;
+      });
+    } else {
+      ws.getRow(r).getCell(1).value = "Tidak ada rincian";
+      r++;
+    }
+
+    {
+      const wr = ws.getRow(r);
+      const vals = [section.grandTotal.gasoline, section.grandTotal.toll, section.grandTotal.parking, section.grandTotal.other, section.grandTotal.total];
+      vals.forEach((v, ci) => {
+        const c = wr.getCell(ci + 1);
+        c.value = v;
+        c.font = { bold: true };
+        c.numFmt = "#,##0";
+        c.alignment = { horizontal: "right" };
+        c.border = { top: { style: "double", color: { argb: "FF1F2937" } } };
+      });
+      wr.commit();
     }
   });
 
@@ -223,7 +281,6 @@ export async function exportWeeklyRecapToPdf(
   visibleSections.forEach((section, idx) => {
     if (idx > 0) doc.addPage();
 
-    // Header block — company name + doc title, shaded background
     doc.setFillColor(...COLOR_HEADER_BG);
     doc.rect(marginX, 30, pageWidth - marginX * 2, 46, "F");
     doc.setTextColor(...COLOR_NAVY);
@@ -233,22 +290,21 @@ export async function exportWeeklyRecapToPdf(
     doc.setFontSize(10.5);
     doc.text(recapDocTitle(), pageWidth / 2, 65, { align: "center" });
 
-    // Section title (left) + Total Claim (right)
-    const rowY = 92;
+    const titleY = 92;
     doc.setFont("helvetica", "bold");
     doc.setFontSize(10.5);
     doc.setTextColor(20, 26, 50);
-    doc.text(section.title, marginX, rowY);
+    doc.text(section.title, marginX, titleY);
     doc.setFontSize(9.5);
-    doc.text("Total Claim", pageWidth - marginX - 100, rowY, { align: "right" });
+    doc.text("Total Claim", pageWidth - marginX - 100, titleY, { align: "right" });
     doc.setFontSize(11);
     doc.setTextColor(...COLOR_BRAND);
-    doc.text(`Rp ${fmtRp(section.grandTotal.total)}`, pageWidth - marginX, rowY, { align: "right" });
+    doc.text(`Rp ${fmtRp(section.grandTotal.total)}`, pageWidth - marginX, titleY, { align: "right" });
 
     doc.setFont("helvetica", "italic");
     doc.setFontSize(8.5);
     doc.setTextColor(...COLOR_GRAY);
-    doc.text(`Periode: ${periodLabel}`, marginX, rowY + 14);
+    doc.text(`Periode: ${periodLabel}`, marginX, titleY + 14);
 
     const bodyRows = section.rows.map((r) => [
       r.weekLabel,
@@ -261,44 +317,60 @@ export async function exportWeeklyRecapToPdf(
     ]);
 
     autoTable(doc, {
-      startY: rowY + 24,
+      startY: titleY + 24,
       margin: { left: marginX, right: marginX },
       head: [["Minggu", "Driver", "Gasoline", "Toll", "Parking", "Other", "Total"]],
-      body:
-        bodyRows.length > 0
-          ? bodyRows
-          : [["-", "Tidak ada data klaim pada periode/kelompok ini", "", "", "", "", ""]],
-      foot: [
-        [
-          "",
-          "Grand Total",
-          `Rp ${fmtRp(section.grandTotal.gasoline)}`,
-          `Rp ${fmtRp(section.grandTotal.toll)}`,
-          `Rp ${fmtRp(section.grandTotal.parking)}`,
-          `Rp ${fmtRp(section.grandTotal.other)}`,
-          `Rp ${fmtRp(section.grandTotal.total)}`,
-        ],
-      ],
+      body: bodyRows.length > 0 ? bodyRows : [["-", "Tidak ada data klaim pada periode/kelompok ini", "", "", "", "", ""]],
+      foot: [[
+        "", "Grand Total",
+        `Rp ${fmtRp(section.grandTotal.gasoline)}`,
+        `Rp ${fmtRp(section.grandTotal.toll)}`,
+        `Rp ${fmtRp(section.grandTotal.parking)}`,
+        `Rp ${fmtRp(section.grandTotal.other)}`,
+        `Rp ${fmtRp(section.grandTotal.total)}`,
+      ]],
       theme: "grid",
-      headStyles: {
-        fillColor: COLOR_BRAND,
-        textColor: [255, 255, 255],
-        fontStyle: "bold",
-        fontSize: 9,
-        halign: "right",
-      },
-      footStyles: {
-        fillColor: COLOR_NAVY,
-        textColor: [255, 255, 255],
-        fontStyle: "bold",
-        fontSize: 9,
-        halign: "right",
-      },
+      headStyles: { fillColor: COLOR_BRAND, textColor: [255, 255, 255], fontStyle: "bold", fontSize: 9, halign: "right" },
+      footStyles: { fillColor: COLOR_NAVY, textColor: [255, 255, 255], fontStyle: "bold", fontSize: 9, halign: "right" },
       bodyStyles: { fontSize: 8.5, textColor: [20, 26, 50], halign: "right" },
-      columnStyles: {
-        0: { halign: "left" },
-        1: { halign: "left" },
-      },
+      columnStyles: { 0: { halign: "left" }, 1: { halign: "left" } },
+      alternateRowStyles: { fillColor: COLOR_LIGHT_BG },
+    });
+
+    // @ts-expect-error jspdf-autotable augments doc with lastAutoTable at runtime
+    const afterMainY = doc.lastAutoTable.finalY as number;
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(9.5);
+    doc.setTextColor(20, 26, 50);
+    doc.text("RINCIAN CLAIM", marginX, afterMainY + 20);
+
+    const rincianBody =
+      section.rincianRows.length > 0
+        ? section.rincianRows.map((r) => [
+            r.gasoline ? `Rp ${fmtRp(r.gasoline)}` : "",
+            r.toll ? `Rp ${fmtRp(r.toll)}` : "",
+            r.parking ? `Rp ${fmtRp(r.parking)}` : "",
+            r.others ? `Rp ${fmtRp(r.others)}` : "",
+            `Rp ${fmtRp(r.total)}`,
+          ])
+        : [["-", "", "", "", ""]];
+
+    autoTable(doc, {
+      startY: afterMainY + 28,
+      margin: { left: marginX, right: marginX },
+      head: [["Gasoline", "Toll", "Parking", "Others", "Total"]],
+      body: rincianBody,
+      foot: [[
+        `Rp ${fmtRp(section.grandTotal.gasoline)}`,
+        `Rp ${fmtRp(section.grandTotal.toll)}`,
+        `Rp ${fmtRp(section.grandTotal.parking)}`,
+        `Rp ${fmtRp(section.grandTotal.other)}`,
+        `Rp ${fmtRp(section.grandTotal.total)}`,
+      ]],
+      theme: "grid",
+      headStyles: { fillColor: COLOR_BRAND, textColor: [255, 255, 255], fontStyle: "bold", fontSize: 8.5, halign: "right" },
+      footStyles: { fillColor: COLOR_NAVY, textColor: [255, 255, 255], fontStyle: "bold", fontSize: 8.5, halign: "right" },
+      bodyStyles: { fontSize: 8, textColor: [20, 26, 50], halign: "right" },
       alternateRowStyles: { fillColor: COLOR_LIGHT_BG },
     });
   });
@@ -311,7 +383,7 @@ export async function exportWeeklyRecapToPdf(
     doc.setFontSize(7.5);
     doc.setTextColor(...COLOR_GRAY);
     doc.text(
-      "CIKOPS Fleet OS — Rekap dibuat otomatis dari data sistem. Nominal per kategori adalah total penjumlahan (bukan rincian per struk).",
+      "CIKOPS Fleet OS — Rekap dibuat otomatis dari data sistem. Nominal per lembar adalah total penjumlahan (bukan deret angkanya).",
       marginX,
       pageHeight - 16
     );
