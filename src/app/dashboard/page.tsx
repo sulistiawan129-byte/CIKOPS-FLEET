@@ -2826,6 +2826,55 @@ function ActivityLogTab() {
   );
 }
 
+/** Groups claims into per-week, per-driver totals by category (Gasoline/
+ *  Toll/Parking/Other). Shared by the on-screen Weekly Recap table and by
+ *  the Excel/PDF export (which calls this twice — once for the "Driver
+ *  User" list, once for everyone else — to produce two separate tables). */
+function computeWeeklyRecap(claims: Claim[]): {
+  rows: { weekLabel: string; driver: string; gasoline: number; toll: number; parking: number; other: number; total: number }[];
+  grandTotal: { gasoline: number; toll: number; parking: number; other: number; total: number };
+} {
+  const weekMap = new Map<string, Map<string, { Gasoline: number; Toll: number; Parking: number; Other: number }>>();
+  claims.forEach((c) => {
+    const wk = weekOfMonth(c.periodDate);
+    const weekKey = `${c.periodDate.slice(0, 7)}-W${wk}`;
+    if (!weekMap.has(weekKey)) weekMap.set(weekKey, new Map());
+    const driverMap = weekMap.get(weekKey)!;
+    const name = c.driverName || "-";
+    if (!driverMap.has(name)) driverMap.set(name, { Gasoline: 0, Toll: 0, Parking: 0, Other: 0 });
+    const bucket = driverMap.get(name)!;
+    c.items.forEach((item) => {
+      const cat = item.type === "Gasoline" ? "Gasoline" : item.type === "Toll" ? "Toll" : item.type === "Parking" ? "Parking" : "Other";
+      bucket[cat] += item.total;
+    });
+  });
+  const weekKeys = [...weekMap.keys()].sort();
+  const rows: { weekLabel: string; driver: string; gasoline: number; toll: number; parking: number; other: number; total: number }[] = [];
+  weekKeys.forEach((wk) => {
+    const driverMap = weekMap.get(wk)!;
+    const weekNum = wk.split("-W")[1];
+    [...driverMap.entries()].sort((a, b) => a[0].localeCompare(b[0])).forEach(([driver, vals]) => {
+      rows.push({
+        weekLabel: weekNum,
+        driver,
+        gasoline: vals.Gasoline,
+        toll: vals.Toll,
+        parking: vals.Parking,
+        other: vals.Other,
+        total: vals.Gasoline + vals.Toll + vals.Parking + vals.Other,
+      });
+    });
+  });
+  const grandTotal = {
+    gasoline: rows.reduce((s, r) => s + r.gasoline, 0),
+    toll: rows.reduce((s, r) => s + r.toll, 0),
+    parking: rows.reduce((s, r) => s + r.parking, 0),
+    other: rows.reduce((s, r) => s + r.other, 0),
+    total: rows.reduce((s, r) => s + r.total, 0),
+  };
+  return { rows, grandTotal };
+}
+
 function ClaimsTab() {
   const { lang, t } = useLang();
   const isMobileClaims = useIsMobile(768);
@@ -2891,47 +2940,20 @@ function ClaimsTab() {
   const animatedTotalFiltered = useCountUp(totalFiltered);
   const animatedActiveDriversClaims = useCountUp(uniqueDriversFiltered);
 
-  const weeklyRecap = useMemo(() => {
-    const weekMap = new Map<string, Map<string, { Gasoline: number; Toll: number; Parking: number; Other: number }>>();
-    filtered.forEach((c) => {
-      const wk = weekOfMonth(c.periodDate);
-      const weekKey = `${c.periodDate.slice(0, 7)}-W${wk}`;
-      if (!weekMap.has(weekKey)) weekMap.set(weekKey, new Map());
-      const driverMap = weekMap.get(weekKey)!;
-      const name = c.driverName || "-";
-      if (!driverMap.has(name)) driverMap.set(name, { Gasoline: 0, Toll: 0, Parking: 0, Other: 0 });
-      const bucket = driverMap.get(name)!;
-      c.items.forEach((item) => {
-        const cat = item.type === "Gasoline" ? "Gasoline" : item.type === "Toll" ? "Toll" : item.type === "Parking" ? "Parking" : "Other";
-        bucket[cat] += item.total;
-      });
-    });
-    const weekKeys = [...weekMap.keys()].sort();
-    const rows: { weekLabel: string; driver: string; gasoline: number; toll: number; parking: number; other: number; total: number }[] = [];
-    weekKeys.forEach((wk) => {
-      const driverMap = weekMap.get(wk)!;
-      const weekNum = wk.split("-W")[1];
-      [...driverMap.entries()].sort((a, b) => a[0].localeCompare(b[0])).forEach(([driver, vals]) => {
-        rows.push({
-          weekLabel: weekNum,
-          driver,
-          gasoline: vals.Gasoline,
-          toll: vals.Toll,
-          parking: vals.Parking,
-          other: vals.Other,
-          total: vals.Gasoline + vals.Toll + vals.Parking + vals.Other,
-        });
-      });
-    });
-    const grandTotal = {
-      gasoline: rows.reduce((s, r) => s + r.gasoline, 0),
-      toll: rows.reduce((s, r) => s + r.toll, 0),
-      parking: rows.reduce((s, r) => s + r.parking, 0),
-      other: rows.reduce((s, r) => s + r.other, 0),
-      total: rows.reduce((s, r) => s + r.total, 0),
+  const weeklyRecap = useMemo(() => computeWeeklyRecap(filtered), [filtered]);
+
+  // Split for the Excel/PDF export only — drivers checked as "Driver User"
+  // (same list used by "Export Tanda Terima") get their own separate table;
+  // everyone else goes into the combined table. On-screen view above stays
+  // as one combined table (unchanged).
+  const weeklyRecapSplit = useMemo(() => {
+    const userClaims = filtered.filter((c) => driverUserIds.includes(c.driver_id));
+    const otherClaims = filtered.filter((c) => !driverUserIds.includes(c.driver_id));
+    return {
+      driverUser: computeWeeklyRecap(userClaims),
+      others: computeWeeklyRecap(otherClaims),
     };
-    return { rows, grandTotal };
-  }, [filtered]);
+  }, [filtered, driverUserIds]);
 
   function openAdd() {
     setFormDriverId("");
@@ -3034,10 +3056,18 @@ function ClaimsTab() {
     setExportingWeeklyRecap(format);
     try {
       const label = weeklyRecapPeriodLabel();
+      const hasDriverUserSplit = driverUserIds.length > 0 && weeklyRecapSplit.driverUser.rows.length > 0;
+      const sections = hasDriverUserSplit
+        ? [
+            { title: "TANDA TERIMA — DRIVER USER", rows: weeklyRecapSplit.driverUser.rows, grandTotal: weeklyRecapSplit.driverUser.grandTotal },
+            { title: "TANDA TERIMA", rows: weeklyRecapSplit.others.rows, grandTotal: weeklyRecapSplit.others.grandTotal },
+          ]
+        : [{ title: "TANDA TERIMA", rows: weeklyRecap.rows, grandTotal: weeklyRecap.grandTotal }];
+
       if (format === "excel") {
-        await exportWeeklyRecapToExcel(weeklyRecap.rows, weeklyRecap.grandTotal, label);
+        await exportWeeklyRecapToExcel(sections, label);
       } else {
-        await exportWeeklyRecapToPdf(weeklyRecap.rows, weeklyRecap.grandTotal, label);
+        await exportWeeklyRecapToPdf(sections, label);
       }
     } catch (e) {
       alert(e instanceof Error ? e.message : "Gagal membuat file rekap");
