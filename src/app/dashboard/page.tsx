@@ -75,6 +75,7 @@ import {
 import type { Claim, ClaimItem, Overtime, Plant, Kantong, DriverTier, GasStation, FuelEntry, CanteenReport } from "@/lib/types";
 import { computeCanteenKPI } from "@/lib/types";
 import { exportTandaTerima } from "@/lib/tandaTerima";
+import { buildRincianRows } from "@/lib/claimRecap";
 import { exportWeeklyRecapToExcel, exportWeeklyRecapToPdf } from "@/lib/weeklyRecapExport";
 import {
   buildFleetReportData,
@@ -2942,19 +2943,6 @@ function ClaimsTab() {
 
   const weeklyRecap = useMemo(() => computeWeeklyRecap(filtered), [filtered]);
 
-  // Split for the Excel/PDF export only — drivers checked as "Driver User"
-  // (same list used by "Export Tanda Terima") get their own separate table;
-  // everyone else goes into the combined table. On-screen view above stays
-  // as one combined table (unchanged).
-  const weeklyRecapSplit = useMemo(() => {
-    const userClaims = filtered.filter((c) => driverUserIds.includes(c.driver_id));
-    const otherClaims = filtered.filter((c) => !driverUserIds.includes(c.driver_id));
-    return {
-      driverUser: computeWeeklyRecap(userClaims),
-      others: computeWeeklyRecap(otherClaims),
-    };
-  }, [filtered, driverUserIds]);
-
   function openAdd() {
     setFormDriverId("");
     setSubmissionDate(todayStr());
@@ -3056,13 +3044,17 @@ function ClaimsTab() {
     setExportingWeeklyRecap(format);
     try {
       const label = weeklyRecapPeriodLabel();
-      const hasDriverUserSplit = driverUserIds.length > 0 && weeklyRecapSplit.driverUser.rows.length > 0;
+
+      const userClaims = filtered.filter((c) => driverUserIds.includes(c.driver_id));
+      const otherClaims = filtered.filter((c) => !driverUserIds.includes(c.driver_id));
+      const hasDriverUserSplit = driverUserIds.length > 0 && userClaims.length > 0;
+
       const sections = hasDriverUserSplit
         ? [
-            { title: "TANDA TERIMA — DRIVER USER", rows: weeklyRecapSplit.driverUser.rows, grandTotal: weeklyRecapSplit.driverUser.grandTotal },
-            { title: "TANDA TERIMA", rows: weeklyRecapSplit.others.rows, grandTotal: weeklyRecapSplit.others.grandTotal },
+            { ...computeWeeklyRecap(userClaims), title: "TANDA TERIMA — DRIVER USER", rincianRows: buildRincianRows(userClaims) },
+            { ...computeWeeklyRecap(otherClaims), title: "TANDA TERIMA", rincianRows: buildRincianRows(otherClaims) },
           ]
-        : [{ title: "TANDA TERIMA", rows: weeklyRecap.rows, grandTotal: weeklyRecap.grandTotal }];
+        : [{ ...weeklyRecap, title: "TANDA TERIMA", rincianRows: buildRincianRows(filtered) }];
 
       if (format === "excel") {
         await exportWeeklyRecapToExcel(sections, label);
