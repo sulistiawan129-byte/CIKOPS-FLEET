@@ -495,6 +495,35 @@ function mapClaimRow(row: ClaimRow): Claim {
   };
 }
 
+/** Claims for a single driver — used by the driver app's Claim tab. */
+export async function getClaimsByDriver(driverId: string): Promise<Claim[]> {
+  const { data, error } = await supabase
+    .from("claims")
+    .select(`
+      id, driver_id, period_date, submission_date, items, total, status, note, submitted_at, plant,
+      drivers ( nama, email )
+    `)
+    .eq("driver_id", driverId)
+    .order("submission_date", { ascending: false });
+  if (error) throw error;
+  return (data as unknown as ClaimRow[] ?? []).map(mapClaimRow);
+}
+
+/** Realtime subscription: fires whenever a claim row changes for a
+ *  specific driver. Used by the driver app to push a notification when
+ *  the admin submits a new claim on their behalf. */
+export function subscribeToDriverClaims(driverId: string, onChange: () => void) {
+  const channel = supabase
+    .channel(`driver-claims-${driverId}`)
+    .on(
+      "postgres_changes",
+      { event: "INSERT", schema: "public", table: "claims", filter: `driver_id=eq.${driverId}` },
+      () => { onChange(); }
+    )
+    .subscribe();
+  return () => { supabase.removeChannel(channel); };
+}
+
 export async function getClaims(): Promise<Claim[]> {
   const { data, error } = await supabase
     .from("claims")

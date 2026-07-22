@@ -28,6 +28,7 @@ export interface Dict {
   keluar: string;
   hariIni: string;
   riwayat: string;
+  klaim: string;
   profil: string;
   statBaru: string;
   statProses: string;
@@ -200,6 +201,7 @@ export const DICT: Record<Lang, Dict> = {
     keluar: "Keluar",
     hariIni: "Hari Ini",
     riwayat: "Riwayat",
+    klaim: "Klaim",
     profil: "Profil",
     statBaru: "Baru",
     statProses: "Proses",
@@ -360,6 +362,7 @@ export const DICT: Record<Lang, Dict> = {
     keluar: "Log Out",
     hariIni: "Today",
     riwayat: "History",
+    klaim: "Claims",
     profil: "Profile",
     statBaru: "New",
     statProses: "Ongoing",
