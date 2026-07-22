@@ -14,6 +14,7 @@ import {
   createTask,
   createTaskBatch,
   sendTaskBatchEmail,
+  sendPushToDriver,
  deleteTask,
   deleteTaskBatch,
   getDrivers,
@@ -1578,6 +1579,12 @@ function CreateTaskModal({
           dateTo: tanggalTo,
           dayCount: createdCount,
         }).catch((e) => console.warn("Task batch email failed:", e));
+        sendPushToDriver(
+          [driverId],
+          "Ada Tugas Baru 🚗",
+          `${tujuan} · ${jenisPekerjaan} · ${tanggal} s/d ${tanggalTo}`,
+          { type: "task" }
+        ).catch(() => {});
         setWaMessage(
           buildTaskWhatsAppMessage({
             tanggal: `${tanggal} s/d ${tanggalTo}`,
@@ -1602,6 +1609,12 @@ function CreateTaskModal({
           perihal,
           plant,
         });
+        sendPushToDriver(
+          [driverId],
+          "Ada Tugas Baru 🚗",
+          `${tujuan} · ${jenisPekerjaan} · ${tanggal}`,
+          { type: "task" }
+        ).catch(() => {});
         setWaMessage(
           buildTaskWhatsAppMessage({
             tanggal,
@@ -3191,6 +3204,15 @@ function ClaimsTab() {
           if (res.manager && !res.manager.ok) console.warn("Manager claim email failed:", res.manager.error);
         })
         .catch((e) => console.warn("Claim email notification failed:", e));
+      // Push notification ke driver (fire-and-forget)
+      sendPushToDriver(
+        [formDriverId],
+        lang === "en" ? "New Claim Submitted 💰" : "Ada Klaim Baru 💰",
+        lang === "en"
+          ? `Period: ${periodDate} · Total: Rp ${new Intl.NumberFormat("id-ID").format(grandTotal)}`
+          : `Periode: ${periodDate} · Total: Rp ${new Intl.NumberFormat("id-ID").format(grandTotal)}`,
+        { type: "claim" }
+      ).catch(() => {});
     } catch (e) {
       alert(e instanceof Error ? e.message : "Gagal menyimpan klaim");
     } finally {
