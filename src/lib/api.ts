@@ -69,18 +69,16 @@ export async function getJobTypes(): Promise<JobType[]> {
 ════════════════════════════════════════════════════════════ */
 
 async function resolveDriverByEmail(email: string): Promise<Driver | null> {
-  // ilike is used for case-insensitive matching, but % and _ are
-  // wildcards in ilike patterns — and _ is common in emails — so they
-  // must be escaped or "budi_s@x.com" would also match "budixs@x.com".
-  const escaped = email.replace(/[\\%_]/g, (m) => `\\${m}`);
-  const { data, error } = await supabase
-    .from("drivers")
-    .select("id, nama, no_hp, avatar_emoji, aktif, tier_id, email, plant")
-    .ilike("email", escaped)
-    .eq("aktif", true)
-    .limit(1);
+  // Lewat RPC security definer (migrasi 010), bukan select langsung ke
+  // tabel — aturan RLS di tabel drivers sempat menyaring hasil query
+  // untuk sesi login driver (0 baris tanpa error), pola yang sama
+  // dengan kenapa sistem PIN lama juga pakai RPC (verify_driver_pin).
+  const { data, error } = await supabase.rpc("get_driver_by_email", {
+    p_email: email,
+  });
   if (error) throw error;
-  return data && data.length > 0 ? data[0] : null;
+  if (!data || data.length === 0) return null;
+  return data[0] as Driver;
 }
 
 /** Sign in via Supabase Auth, then resolve the matching active driver
