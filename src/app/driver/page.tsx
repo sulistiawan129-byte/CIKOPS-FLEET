@@ -10,18 +10,20 @@ import {
   driverGetSession,
   driverSignIn,
   driverSignOut,
+  getClaimsByDriver,
   getDriverHistory,
   getDriverTasksToday,
+  subscribeToDriverClaims,
   subscribeToTasks,
 } from "@/lib/api";
-import type { Driver, TaskDetail } from "@/lib/types";
+import type { Claim, Driver, TaskDetail } from "@/lib/types";
 import { computeStats } from "@/lib/types";
 import { useLang, useTheme } from "@/lib/providers";
 import type { Dict } from "@/lib/dictionary";
 import { todayLocalISODate } from "@/lib/dateUtils";
 
 type Screen = "splash" | "login" | "app";
-type Tab = "today" | "history" | "profile";
+type Tab = "today" | "history" | "claims" | "profile";
 
 export default function DriverPanelPage() {
   const { theme, toggleTheme } = useTheme();
@@ -56,6 +58,11 @@ export default function DriverPanelPage() {
   const [historyTasks, setHistoryTasks] = useState<TaskDetail[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [historyApplied, setHistoryApplied] = useState(false);
+
+  const [claims, setClaims] = useState<Claim[]>([]);
+  const [claimsLoading, setClaimsLoading] = useState(false);
+  const [newClaimCount, setNewClaimCount] = useState(0);
+  const [expandedClaimId, setExpandedClaimId] = useState<string | null>(null);
 
   const [pwModalOpen, setPwModalOpen] = useState(false);
   const [pwModalNew, setPwModalNew] = useState("");
@@ -333,7 +340,35 @@ useEffect(() => {
     setTodayTasks([]);
     setHistoryTasks([]);
     setHistoryApplied(false);
+    setClaims([]);
+    setNewClaimCount(0);
   }
+
+  const loadClaims = useCallback(async (driverId: string) => {
+    setClaimsLoading(true);
+    try {
+      const data = await getClaimsByDriver(driverId);
+      setClaims(data);
+    } catch {
+      // best-effort
+    } finally {
+      setClaimsLoading(false);
+    }
+  }, []);
+
+  // Realtime subscription for new claims — badge + sound + auto-switch
+  useEffect(() => {
+    if (screen !== "app" || !loggedDriver) return;
+    loadClaims(loggedDriver.id);
+    const unsubscribe = subscribeToDriverClaims(loggedDriver.id, () => {
+      loadClaims(loggedDriver.id);
+      setNewClaimCount((c) => c + 1);
+      playNotificationSound();
+      showToast(lang === "en" ? "💰 New claim submitted for you" : "💰 Ada klaim baru untukmu");
+    });
+    return unsubscribe;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [screen, loggedDriver?.id]);
 
   async function handleAccept(task: TaskDetail) {
     if (!loggedDriver) return;
@@ -654,6 +689,15 @@ useEffect(() => {
             <span className={styles.tabIcon}>🕘</span> {t.riwayat}
           </button>
           <button
+            className={`${styles.tab} ${tab === "claims" ? styles.tabActive : ""}`}
+            onClick={() => { setTab("claims"); setNewClaimCount(0); }}
+          >
+            <span className={styles.tabIcon}>🧾</span> {t.klaim}
+            {newClaimCount > 0 && (
+              <span className={styles.tabCount}>{newClaimCount}</span>
+            )}
+          </button>
+          <button
             className={`${styles.tab} ${tab === "profile" ? styles.tabActive : ""}`}
             onClick={() => setTab("profile")}
           >
@@ -691,6 +735,16 @@ useEffect(() => {
               />
             )}
 
+            {tab === "claims" && (
+              <ClaimsTab
+                claims={claims}
+                loading={claimsLoading}
+                expandedId={expandedClaimId}
+                setExpandedId={setExpandedClaimId}
+                lang={lang}
+              />
+            )}
+
             {tab === "profile" && (
               <ProfileTab
                 driver={loggedDriver}
@@ -724,6 +778,18 @@ useEffect(() => {
           >
             <span className={styles.bnavIcon}>🕘</span>
             {t.riwayat}
+          </button>
+          <button
+            className={`${styles.bnavItem} ${
+              tab === "claims" ? styles.bnavItemActive : ""
+            }`}
+            onClick={() => { setTab("claims"); setNewClaimCount(0); }}
+          >
+            <span className={styles.bnavIcon}>🧾</span>
+            {t.klaim}
+            {newClaimCount > 0 && (
+              <span className={styles.bnavBadge}>{newClaimCount}</span>
+            )}
           </button>
           <button
             className={`${styles.bnavItem} ${
@@ -1126,6 +1192,169 @@ function HistoryTab({
           <TaskCard key={task.id} task={task} busy={false} onAccept={() => {}} onComplete={() => {}} />
         ))}
     </>
+  );
+}
+
+function ClaimsTab({
+  claims,
+  loading,
+  expandedId,
+  setExpandedId,
+  lang,
+}: {
+  claims: Claim[];
+  loading: boolean;
+  expandedId: string | null;
+  setExpandedId: (id: string | null) => void;
+  lang: string;
+}) {
+  const { t } = useLang();
+
+  const fmtRpLocal = (n: number) =>
+    new Intl.NumberFormat("id-ID").format(Math.round(n || 0));
+
+  const fmtDate = (ds: string) =>
+    new Date(ds).toLocaleDateString(lang === "en" ? "en-GB" : "id-ID", {
+      day: "numeric", month: "short", year: "numeric",
+    });
+
+  const statusColor: Record<string, string> = {
+    submitted: "var(--brand)",
+    approved: "var(--green)",
+    rejected: "var(--red)",
+    paid: "#2dd4bf",
+  };
+  const statusLabel: Record<string, string> = {
+    submitted: lang === "en" ? "Submitted" : "Diajukan",
+    approved: lang === "en" ? "Approved" : "Disetujui",
+    rejected: lang === "en" ? "Rejected" : "Ditolak",
+    paid: lang === "en" ? "Paid" : "Dibayar",
+  };
+
+  if (loading) {
+    return (
+      <div className={styles.loadingWrap}>
+        <div className={styles.spinner} />
+        <div className={styles.loadingTxt}>{lang === "en" ? "Loading claims..." : "Memuat klaim..."}</div>
+      </div>
+    );
+  }
+
+  if (claims.length === 0) {
+    return (
+      <div style={{ textAlign: "center", padding: "48px 20px", color: "var(--t3)" }}>
+        <div style={{ fontSize: 40, marginBottom: 12 }}>🧾</div>
+        <div style={{ fontWeight: 700, fontSize: 15, color: "var(--t2)", marginBottom: 6 }}>
+          {lang === "en" ? "No claims yet" : "Belum ada klaim"}
+        </div>
+        <div style={{ fontSize: 13 }}>
+          {lang === "en"
+            ? "Claims submitted by the GA admin will appear here."
+            : "Klaim yang diajukan oleh admin GA akan muncul di sini."}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className={styles.taskList} style={{ padding: "10px 12px" }}>
+      {claims.map((c) => {
+        const isOpen = expandedId === c.id;
+        const color = statusColor[c.status] || "var(--t3)";
+        return (
+          <div
+            key={c.id}
+            className={styles.taskCard}
+            style={{ marginBottom: 10, cursor: "pointer" }}
+            onClick={() => setExpandedId(isOpen ? null : c.id)}
+          >
+            {/* Header baris */}
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 6 }}>
+              <div>
+                <div style={{ fontFamily: "var(--mono)", fontSize: 12, color: "var(--t3)", marginBottom: 2 }}>
+                  {lang === "en" ? "Period" : "Periode"}: {fmtDate(c.periodDate)}
+                </div>
+                <div style={{ fontSize: 20, fontWeight: 800, fontFamily: "var(--mono)", color: "var(--t1)" }}>
+                  Rp {fmtRpLocal(c.total)}
+                </div>
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 5 }}>
+                <span style={{
+                  fontSize: 11, fontWeight: 700, padding: "3px 10px",
+                  borderRadius: "var(--pill)",
+                  background: `${color}18`, color,
+                }}>
+                  {statusLabel[c.status] || c.status}
+                </span>
+                <span style={{ fontSize: 10.5, color: "var(--t3)" }}>
+                  {fmtDate(c.submissionDate)}
+                </span>
+              </div>
+            </div>
+
+            {/* Preview kategori — maks 3 */}
+            <div style={{ display: "flex", gap: 5, flexWrap: "wrap", marginBottom: isOpen ? 10 : 0 }}>
+              {c.items.slice(0, 3).map((item, i) => (
+                <span key={i} style={{ fontSize: 10.5, padding: "2px 8px", borderRadius: 6, background: "var(--bg2)", color: "var(--t2)" }}>
+                  {item.type}
+                </span>
+              ))}
+              {c.items.length > 3 && (
+                <span style={{ fontSize: 10.5, padding: "2px 8px", borderRadius: 6, background: "var(--bg2)", color: "var(--t3)" }}>
+                  +{c.items.length - 3}
+                </span>
+              )}
+            </div>
+
+            {/* Detail (accordion) */}
+            {isOpen && (
+              <div style={{ borderTop: "1px solid var(--border)", paddingTop: 10, marginTop: 2 }}>
+                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+                  <thead>
+                    <tr>
+                      <td style={{ color: "var(--t3)", fontSize: 11, paddingBottom: 5, fontWeight: 700 }}>
+                        {lang === "en" ? "Type" : "Jenis"}
+                      </td>
+                      <td style={{ color: "var(--t3)", fontSize: 11, paddingBottom: 5, fontWeight: 700, textAlign: "right" }}>
+                        {lang === "en" ? "Amount" : "Jumlah"}
+                      </td>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {c.items.map((item, i) => (
+                      <tr key={i}>
+                        <td style={{ paddingBottom: 4, color: "var(--t2)" }}>{item.type}</td>
+                        <td style={{ paddingBottom: 4, fontFamily: "var(--mono)", fontWeight: 700, textAlign: "right", color: "var(--t1)" }}>
+                          Rp {fmtRpLocal(item.total)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                  <tfoot>
+                    <tr style={{ borderTop: "1px solid var(--border)" }}>
+                      <td style={{ paddingTop: 6, fontWeight: 800, color: "var(--t1)", fontSize: 14 }}>Total</td>
+                      <td style={{ paddingTop: 6, fontFamily: "var(--mono)", fontWeight: 800, textAlign: "right", color: "var(--brand)", fontSize: 14 }}>
+                        Rp {fmtRpLocal(c.total)}
+                      </td>
+                    </tr>
+                  </tfoot>
+                </table>
+                {c.note && (
+                  <div style={{ marginTop: 8, fontSize: 12, color: "var(--t3)", background: "var(--bg2)", borderRadius: 8, padding: "8px 10px" }}>
+                    📝 {c.note}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Expand hint */}
+            <div style={{ textAlign: "right", fontSize: 11, color: "var(--t3)", marginTop: 4 }}>
+              {isOpen ? "▲ " : "▼ "}{lang === "en" ? (isOpen ? "less" : "details") : (isOpen ? "tutup" : "detail")}
+            </div>
+          </div>
+        );
+      })}
+    </div>
   );
 }
 
