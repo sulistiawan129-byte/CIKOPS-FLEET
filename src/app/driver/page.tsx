@@ -1195,6 +1195,30 @@ function HistoryTab({
   );
 }
 
+// ── Week-range helper (ported from dashboard) ──
+function claimWeekLabel(dateStr: string, driverName: string, lang: string): string {
+  const d = new Date(dateStr);
+  const day = d.getDay();
+  const diffToMonday = day === 0 ? -6 : 1 - day;
+  const monday = new Date(d);
+  monday.setDate(d.getDate() + diffToMonday);
+  // "Week 3 July 2026" — based on which week-of-month the Monday falls in
+  const weekNum = Math.ceil(monday.getDate() / 7);
+  const monthYear = monday.toLocaleDateString(lang === "en" ? "en-GB" : "id-ID", {
+    month: "long", year: "numeric",
+  });
+  return `Claim Week ${weekNum} ${monthYear} – ${driverName}`;
+}
+
+function claimWeekKey(dateStr: string): string {
+  const d = new Date(dateStr);
+  const day = d.getDay();
+  const diffToMonday = day === 0 ? -6 : 1 - day;
+  const monday = new Date(d);
+  monday.setDate(d.getDate() + diffToMonday);
+  return monday.toISOString().slice(0, 10); // "YYYY-MM-DD" of the Monday
+}
+
 function ClaimsTab({
   claims,
   loading,
@@ -1208,7 +1232,7 @@ function ClaimsTab({
   setExpandedId: (id: string | null) => void;
   lang: string;
 }) {
-  const { t } = useLang();
+  const [weekFilter, setWeekFilter] = useState<string>("all");
 
   const fmtRpLocal = (n: number) =>
     new Intl.NumberFormat("id-ID").format(Math.round(n || 0));
@@ -1231,6 +1255,30 @@ function ClaimsTab({
     paid: lang === "en" ? "Paid" : "Dibayar",
   };
 
+  // Collect unique weeks for the filter dropdown
+  const weeks = useMemo<{ key: string; label: string }[]>(() => {
+    const seen = new Set<string>();
+    const result: { key: string; label: string }[] = [];
+    for (const c of claims) {
+      const key = claimWeekKey(c.periodDate);
+      if (!seen.has(key)) {
+        seen.add(key);
+        const monday = new Date(key);
+        const weekNum = Math.ceil(monday.getDate() / 7);
+        const monthYear = monday.toLocaleDateString(lang === "en" ? "en-GB" : "id-ID", {
+          month: "long", year: "numeric",
+        });
+        result.push({ key, label: `Week ${weekNum} ${monthYear}` });
+      }
+    }
+    return result;
+  }, [claims, lang]);
+
+  const filtered = useMemo(() =>
+    weekFilter === "all" ? claims : claims.filter((c) => claimWeekKey(c.periodDate) === weekFilter),
+    [claims, weekFilter]
+  );
+
   if (loading) {
     return (
       <div className={styles.loadingWrap}>
@@ -1242,118 +1290,166 @@ function ClaimsTab({
 
   if (claims.length === 0) {
     return (
-      <div style={{ textAlign: "center", padding: "48px 20px", color: "var(--t3)" }}>
-        <div style={{ fontSize: 40, marginBottom: 12 }}>🧾</div>
+      <div style={{ textAlign: "center", padding: "52px 24px", color: "var(--t3)" }}>
+        <div style={{ fontSize: 38, marginBottom: 12 }}>🧾</div>
         <div style={{ fontWeight: 700, fontSize: 15, color: "var(--t2)", marginBottom: 6 }}>
           {lang === "en" ? "No claims yet" : "Belum ada klaim"}
         </div>
         <div style={{ fontSize: 13 }}>
           {lang === "en"
             ? "Claims submitted by the GA admin will appear here."
-            : "Klaim yang diajukan oleh admin GA akan muncul di sini."}
+            : "Klaim yang diajukan admin GA akan muncul di sini."}
         </div>
       </div>
     );
   }
 
   return (
-    <div className={styles.taskList} style={{ padding: "10px 12px" }}>
-      {claims.map((c) => {
-        const isOpen = expandedId === c.id;
-        const color = statusColor[c.status] || "var(--t3)";
-        return (
-          <div
-            key={c.id}
-            className={styles.taskCard}
-            style={{ marginBottom: 10, cursor: "pointer" }}
-            onClick={() => setExpandedId(isOpen ? null : c.id)}
+    <div>
+      {/* ── Week filter ── */}
+      {weeks.length > 1 && (
+        <div style={{ padding: "10px 14px 4px", overflowX: "auto", display: "flex", gap: 7, WebkitOverflowScrolling: "touch" }}>
+          <button
+            onClick={() => setWeekFilter("all")}
+            style={{
+              flexShrink: 0, padding: "6px 14px", borderRadius: 6, border: "1.5px solid",
+              borderColor: weekFilter === "all" ? "var(--brand)" : "var(--border2)",
+              background: weekFilter === "all" ? "var(--brand)" : "var(--surface2)",
+              color: weekFilter === "all" ? "#fff" : "var(--t2)",
+              fontWeight: 700, fontSize: 12.5, cursor: "pointer",
+            }}
           >
-            {/* Header baris */}
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 6 }}>
-              <div>
-                <div style={{ fontFamily: "var(--mono)", fontSize: 12, color: "var(--t3)", marginBottom: 2 }}>
-                  {lang === "en" ? "Period" : "Periode"}: {fmtDate(c.periodDate)}
-                </div>
-                <div style={{ fontSize: 20, fontWeight: 800, fontFamily: "var(--mono)", color: "var(--t1)" }}>
-                  Rp {fmtRpLocal(c.total)}
-                </div>
-              </div>
-              <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 5 }}>
+            {lang === "en" ? "All" : "Semua"}
+          </button>
+          {weeks.map((w) => (
+            <button
+              key={w.key}
+              onClick={() => setWeekFilter(w.key)}
+              style={{
+                flexShrink: 0, padding: "6px 14px", borderRadius: 6, border: "1.5px solid",
+                borderColor: weekFilter === w.key ? "var(--brand)" : "var(--border2)",
+                background: weekFilter === w.key ? "var(--brand)" : "var(--surface2)",
+                color: weekFilter === w.key ? "#fff" : "var(--t2)",
+                fontWeight: 700, fontSize: 12.5, cursor: "pointer",
+              }}
+            >
+              {w.label}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* ── Claim rows ── */}
+      <div style={{ padding: "8px 0" }}>
+        {filtered.length === 0 && (
+          <div style={{ textAlign: "center", padding: "32px 24px", color: "var(--t3)", fontSize: 13 }}>
+            {lang === "en" ? "No claims in this week." : "Tidak ada klaim di minggu ini."}
+          </div>
+        )}
+        {filtered.map((c) => {
+          const isOpen = expandedId === c.id;
+          const color = statusColor[c.status] || "var(--t3)";
+          const title = claimWeekLabel(c.periodDate, c.driverName || "–", lang);
+          return (
+            <div key={c.id}>
+              {/* ── Notification row (flat, no border-radius) ── */}
+              <button
+                onClick={() => setExpandedId(isOpen ? null : c.id)}
+                style={{
+                  display: "flex", alignItems: "center", gap: 12,
+                  width: "100%", padding: "13px 16px",
+                  background: isOpen ? "var(--bg2)" : "transparent",
+                  border: "none", borderBottom: "1px solid var(--border)",
+                  cursor: "pointer", textAlign: "left",
+                }}
+              >
+                {/* Status dot */}
                 <span style={{
-                  fontSize: 11, fontWeight: 700, padding: "3px 10px",
-                  borderRadius: "var(--pill)",
-                  background: `${color}18`, color,
+                  width: 9, height: 9, borderRadius: "50%",
+                  background: color, flexShrink: 0, marginTop: 2,
+                }} />
+                {/* Title + date */}
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 13.5, fontWeight: 700, color: "var(--t1)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    {title}
+                  </div>
+                  <div style={{ fontSize: 11.5, color: "var(--t3)", marginTop: 2 }}>
+                    {fmtDate(c.submissionDate)} · <span style={{ color }}>{statusLabel[c.status] || c.status}</span>
+                  </div>
+                </div>
+                {/* Total + chevron */}
+                <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 3, flexShrink: 0 }}>
+                  <span style={{ fontFamily: "var(--mono)", fontWeight: 800, fontSize: 13.5, color: "var(--t1)" }}>
+                    Rp {fmtRpLocal(c.total)}
+                  </span>
+                  <span style={{ fontSize: 11, color: "var(--t3)" }}>{isOpen ? "▲" : "▼"}</span>
+                </div>
+              </button>
+
+              {/* ── Drill-down detail (accordion) ── */}
+              {isOpen && (
+                <div style={{
+                  background: "var(--bg2)",
+                  borderBottom: "2px solid var(--brand)",
+                  padding: "14px 16px",
                 }}>
-                  {statusLabel[c.status] || c.status}
-                </span>
-                <span style={{ fontSize: 10.5, color: "var(--t3)" }}>
-                  {fmtDate(c.submissionDate)}
-                </span>
-              </div>
-            </div>
-
-            {/* Preview kategori — maks 3 */}
-            <div style={{ display: "flex", gap: 5, flexWrap: "wrap", marginBottom: isOpen ? 10 : 0 }}>
-              {c.items.slice(0, 3).map((item, i) => (
-                <span key={i} style={{ fontSize: 10.5, padding: "2px 8px", borderRadius: 6, background: "var(--bg2)", color: "var(--t2)" }}>
-                  {item.type}
-                </span>
-              ))}
-              {c.items.length > 3 && (
-                <span style={{ fontSize: 10.5, padding: "2px 8px", borderRadius: 6, background: "var(--bg2)", color: "var(--t3)" }}>
-                  +{c.items.length - 3}
-                </span>
-              )}
-            </div>
-
-            {/* Detail (accordion) */}
-            {isOpen && (
-              <div style={{ borderTop: "1px solid var(--border)", paddingTop: 10, marginTop: 2 }}>
-                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
-                  <thead>
-                    <tr>
-                      <td style={{ color: "var(--t3)", fontSize: 11, paddingBottom: 5, fontWeight: 700 }}>
-                        {lang === "en" ? "Type" : "Jenis"}
-                      </td>
-                      <td style={{ color: "var(--t3)", fontSize: 11, paddingBottom: 5, fontWeight: 700, textAlign: "right" }}>
-                        {lang === "en" ? "Amount" : "Jumlah"}
-                      </td>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {c.items.map((item, i) => (
-                      <tr key={i}>
-                        <td style={{ paddingBottom: 4, color: "var(--t2)" }}>{item.type}</td>
-                        <td style={{ paddingBottom: 4, fontFamily: "var(--mono)", fontWeight: 700, textAlign: "right", color: "var(--t1)" }}>
-                          Rp {fmtRpLocal(item.total)}
+                  {/* Item table */}
+                  <table style={{ width: "100%", borderCollapse: "collapse", marginBottom: 10 }}>
+                    <thead>
+                      <tr style={{ borderBottom: "1px solid var(--border)" }}>
+                        <th style={{ textAlign: "left", fontSize: 11, fontWeight: 700, color: "var(--t3)", paddingBottom: 6 }}>
+                          {lang === "en" ? "Type" : "Jenis"}
+                        </th>
+                        <th style={{ textAlign: "right", fontSize: 11, fontWeight: 700, color: "var(--t3)", paddingBottom: 6 }}>
+                          {lang === "en" ? "Amount" : "Jumlah"}
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {c.items.map((item, i) => (
+                        <tr key={i} style={{ borderBottom: "1px solid var(--border)" }}>
+                          <td style={{ padding: "7px 0", fontSize: 13.5, color: "var(--t2)" }}>{item.type}</td>
+                          <td style={{ padding: "7px 0", fontFamily: "var(--mono)", fontSize: 13.5, fontWeight: 700, textAlign: "right", color: "var(--t1)" }}>
+                            Rp {fmtRpLocal(item.total)}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                    <tfoot>
+                      <tr>
+                        <td style={{ paddingTop: 8, fontSize: 14, fontWeight: 800, color: "var(--t1)" }}>Total</td>
+                        <td style={{ paddingTop: 8, fontFamily: "var(--mono)", fontSize: 14, fontWeight: 800, textAlign: "right", color: "var(--brand)" }}>
+                          Rp {fmtRpLocal(c.total)}
                         </td>
                       </tr>
-                    ))}
-                  </tbody>
-                  <tfoot>
-                    <tr style={{ borderTop: "1px solid var(--border)" }}>
-                      <td style={{ paddingTop: 6, fontWeight: 800, color: "var(--t1)", fontSize: 14 }}>Total</td>
-                      <td style={{ paddingTop: 6, fontFamily: "var(--mono)", fontWeight: 800, textAlign: "right", color: "var(--brand)", fontSize: 14 }}>
-                        Rp {fmtRpLocal(c.total)}
-                      </td>
-                    </tr>
-                  </tfoot>
-                </table>
-                {c.note && (
-                  <div style={{ marginTop: 8, fontSize: 12, color: "var(--t3)", background: "var(--bg2)", borderRadius: 8, padding: "8px 10px" }}>
-                    📝 {c.note}
-                  </div>
-                )}
-              </div>
-            )}
+                    </tfoot>
+                  </table>
 
-            {/* Expand hint */}
-            <div style={{ textAlign: "right", fontSize: 11, color: "var(--t3)", marginTop: 4 }}>
-              {isOpen ? "▲ " : "▼ "}{lang === "en" ? (isOpen ? "less" : "details") : (isOpen ? "tutup" : "detail")}
+                  {/* Periode & catatan */}
+                  <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: c.note ? 8 : 0 }}>
+                    <span style={{ fontSize: 11.5, color: "var(--t3)" }}>
+                      {lang === "en" ? "Period:" : "Periode:"} {fmtDate(c.periodDate)}
+                    </span>
+                    <span style={{ fontSize: 11.5, color: "var(--t3)" }}>·</span>
+                    <span style={{ fontSize: 11.5, color: "var(--t3)" }}>
+                      {lang === "en" ? "Submitted:" : "Diajukan:"} {fmtDate(c.submissionDate)}
+                    </span>
+                  </div>
+                  {c.note && (
+                    <div style={{
+                      fontSize: 12.5, color: "var(--t2)", background: "var(--surface)",
+                      borderRadius: 8, padding: "8px 11px",
+                      borderLeft: "3px solid var(--brand)",
+                    }}>
+                      📝 {c.note}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
-          </div>
-        );
-      })}
+          );
+        })}
+      </div>
     </div>
   );
 }
