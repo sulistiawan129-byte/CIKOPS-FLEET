@@ -496,17 +496,34 @@ function mapClaimRow(row: ClaimRow): Claim {
 }
 
 /** Claims for a single driver — used by the driver app's Claim tab. */
+/** Claims for a single driver — uses a security-definer RPC (migration 011)
+ *  so RLS on the claims+drivers join cannot block the driver's own data,
+ *  same pattern as get_driver_by_email (migration 010). */
 export async function getClaimsByDriver(driverId: string): Promise<Claim[]> {
-  const { data, error } = await supabase
-    .from("claims")
-    .select(`
-      id, driver_id, period_date, submission_date, items, total, status, note, submitted_at, plant,
-      drivers ( nama, email )
-    `)
-    .eq("driver_id", driverId)
-    .order("submission_date", { ascending: false });
+  const { data, error } = await supabase.rpc("get_claims_by_driver", {
+    p_driver_id: driverId,
+  });
   if (error) throw error;
-  return (data as unknown as ClaimRow[] ?? []).map(mapClaimRow);
+  if (!data || data.length === 0) return [];
+  // RPC returns flat rows — map to Claim shape
+  return (data as {
+    id: string; driver_id: string; driver_name: string; driver_email: string;
+    period_date: string; submission_date: string; items: ClaimItem[];
+    total: number; status: string; note: string; submitted_at: string; plant: string;
+  }[]).map((r) => ({
+    id: r.id,
+    driver_id: r.driver_id,
+    driverName: r.driver_name,
+    driverEmail: r.driver_email,
+    periodDate: r.period_date,
+    submissionDate: r.submission_date,
+    items: Array.isArray(r.items) ? r.items : [],
+    total: Number(r.total) || 0,
+    status: r.status,
+    note: r.note ?? "",
+    submittedAt: r.submitted_at,
+    plant: r.plant as Plant,
+  }));
 }
 
 /** Realtime subscription: fires whenever a claim row changes for a
