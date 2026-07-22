@@ -106,38 +106,72 @@ useEffect(() => {
         ctx = new AudioCtx();
         audioCtxRef.current = ctx;
       }
-      if (ctx.state === "suspended") {
-        ctx.resume().catch(() => {});
-      }
-      const playTone = (
-        freq: number,
-        startTime: number,
-        duration: number,
-        peakGain = 0.5
-      ) => {
-        const osc = ctx!.createOscillator();
-        const gain = ctx!.createGain();
-        osc.type = "square";
-        osc.frequency.value = freq;
-        gain.gain.setValueAtTime(0.0001, startTime);
-        gain.gain.exponentialRampToValueAtTime(peakGain, startTime + 0.02);
-        gain.gain.exponentialRampToValueAtTime(0.0001, startTime + duration);
-        osc.connect(gain);
-        gain.connect(ctx!.destination);
-        osc.start(startTime);
-        osc.stop(startTime + duration);
+      // WebView Android sering suspend AudioContext di background —
+      // resume() wajib dipanggil dan kita tunggu selesai dulu.
+      const doPlay = () => {
+        const playTone = (
+          freq: number,
+          startTime: number,
+          duration: number,
+          peakGain = 0.5
+        ) => {
+          const osc = ctx!.createOscillator();
+          const gain = ctx!.createGain();
+          osc.type = "square";
+          osc.frequency.value = freq;
+          gain.gain.setValueAtTime(0.0001, startTime);
+          gain.gain.exponentialRampToValueAtTime(peakGain, startTime + 0.02);
+          gain.gain.exponentialRampToValueAtTime(0.0001, startTime + duration);
+          osc.connect(gain);
+          gain.connect(ctx!.destination);
+          osc.start(startTime);
+          osc.stop(startTime + duration);
+        };
+        const now = ctx!.currentTime;
+        [0, 0.7].forEach((offset) => {
+          playTone(988,  now + offset,        0.14, 0.55);
+          playTone(1318, now + offset + 0.16, 0.16, 0.55);
+          playTone(988,  now + offset + 0.34, 0.14, 0.55);
+        });
       };
-      const now = ctx.currentTime;
-      // Pola dering 2x ulangan, lebih nyaring & lebih panjang dari sebelumnya
-      [0, 0.7].forEach((offset) => {
-        playTone(988, now + offset, 0.14, 0.55);
-        playTone(1318, now + offset + 0.16, 0.16, 0.55);
-        playTone(988, now + offset + 0.34, 0.14, 0.55);
-      });
+      if (ctx.state === "suspended") {
+        ctx.resume().then(doPlay).catch(() => {});
+      } else {
+        doPlay();
+      }
     } catch {
-      // Web Audio tidak tersedia/diblokir — abaikan, getar & voice tetap jalan.
+      // Web Audio tidak tersedia — abaikan
     }
   }
+
+  // Warm up AudioContext on first user gesture so WebView Android
+  // allows sound without waiting for the next tap.
+  useEffect(() => {
+    function warmUp() {
+      try {
+        if (audioCtxRef.current) return;
+        const AudioCtx =
+          window.AudioContext ||
+          (window as unknown as { webkitAudioContext: typeof AudioContext })
+            .webkitAudioContext;
+        const ctx = new AudioCtx();
+        audioCtxRef.current = ctx;
+        if (ctx.state === "suspended") ctx.resume().catch(() => {});
+      } catch {}
+    }
+    document.addEventListener("touchstart", warmUp, { once: true, passive: true });
+    document.addEventListener("click", warmUp, { once: true, passive: true });
+    return () => {
+      document.removeEventListener("touchstart", warmUp);
+      document.removeEventListener("click", warmUp);
+    };
+  }, []);
+
+  // Register Service Worker untuk caching + siap push notification
+  useEffect(() => {
+    if (typeof window === "undefined" || !("serviceWorker" in navigator)) return;
+    navigator.serviceWorker.register("/sw.js").catch(() => {});
+  }, []);
 
   function speakNewTaskAnnouncement(destination?: string) {
     try {
@@ -161,6 +195,7 @@ useEffect(() => {
   }
 
   function updateAppBadge(count: number) {
+    // 1. Web Badging API (works in some WebView builds)
     try {
       const nav = navigator as Navigator & {
         setAppBadge?: (count?: number) => Promise<void>;
@@ -171,13 +206,41 @@ useEffect(() => {
       } else if (nav.clearAppBadge) {
         nav.clearAppBadge().catch(() => {});
       }
-    } catch {
-      // PWA Badge API tidak didukung browser ini — abaikan.
-    }
+    } catch {}
+
+    // 2. Tab title — selalu jalan di semua WebView
     if (typeof document !== "undefined") {
-      document.title =
-        count > 0 ? `(${count}) CIKOPS Fleet` : "CIKOPS Fleet Ops";
+      document.title = count > 0 ? `(${count}) CIKOPS Fleet` : "CIKOPS Fleet";
     }
+
+    // 3. Dynamic favicon dengan badge angka merah
+    try {
+      if (typeof document === "undefined") return;
+      const canvas = document.createElement("canvas");
+      canvas.width = 32; canvas.height = 32;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return;
+      const img = new Image();
+      img.onload = () => {
+        ctx.drawImage(img, 0, 0, 32, 32);
+        if (count > 0) {
+          ctx.beginPath();
+          ctx.arc(24, 8, 9, 0, 2 * Math.PI);
+          ctx.fillStyle = "#e5484d";
+          ctx.fill();
+          ctx.fillStyle = "#fff";
+          ctx.font = "bold 11px Arial";
+          ctx.textAlign = "center";
+          ctx.textBaseline = "middle";
+          ctx.fillText(count > 9 ? "9+" : String(count), 24, 8);
+        }
+        const link = document.querySelector<HTMLLinkElement>("link[rel~='icon']") ||
+          Object.assign(document.createElement("link"), { rel: "icon" });
+        link.href = canvas.toDataURL();
+        document.head.appendChild(link);
+      };
+      img.src = "/favicon.png";
+    } catch {}
   }
 
   function notifyNewTask(destination?: string) {
@@ -227,43 +290,49 @@ useEffect(() => {
     loadTodayTasks(loggedDriver.id);
 
     let unsubscribe = subscribeToTasks(() => {
-      loadTodayTasks(loggedDriver.id);
+      loadTodayTasks(loggedDriver!.id);
     });
 
-    function handleVisibilityOrFocus() {
+    // Reconnect WebSocket langsung saat app kembali ke foreground
+    // (WebView Android sering drop koneksi saat di-background)
+    function reconnectAndLoad() {
+      if (document.visibilityState !== "visible") return;
+      unsubscribe();
+      unsubscribe = subscribeToTasks(() => {
+        loadTodayTasks(loggedDriver!.id);
+      });
+      loadTodayTasks(loggedDriver!.id);
+    }
+
+    document.addEventListener("visibilitychange", reconnectAndLoad);
+    window.addEventListener("focus", reconnectAndLoad);
+    window.addEventListener("online", reconnectAndLoad);
+
+    // Poll setiap 15 detik sebagai jaring pengaman (turun dari 45 detik)
+    // — WebView Android terkadang tidak membangunkan WebSocket tepat waktu
+    const pollInterval = setInterval(() => {
       if (document.visibilityState === "visible") {
         loadTodayTasks(loggedDriver!.id);
+      }
+    }, 15000);
+
+    // Heartbeat reconnect setiap 20 detik supaya WebSocket tidak tidur
+    const heartbeat = setInterval(() => {
+      if (document.visibilityState === "visible") {
         unsubscribe();
         unsubscribe = subscribeToTasks(() => {
           loadTodayTasks(loggedDriver!.id);
         });
       }
-    }
-
-    function handleOnline() {
-      loadTodayTasks(loggedDriver!.id);
-      unsubscribe();
-      unsubscribe = subscribeToTasks(() => {
-        loadTodayTasks(loggedDriver!.id);
-      });
-    }
-
-    document.addEventListener("visibilitychange", handleVisibilityOrFocus);
-    window.addEventListener("focus", handleVisibilityOrFocus);
-    window.addEventListener("online", handleOnline);
-
-    const pollInterval = setInterval(() => {
-      if (document.visibilityState === "visible") {
-        loadTodayTasks(loggedDriver!.id);
-      }
-    }, 45000);
+    }, 20000);
 
     return () => {
       unsubscribe();
-      document.removeEventListener("visibilitychange", handleVisibilityOrFocus);
-      window.removeEventListener("focus", handleVisibilityOrFocus);
-      window.removeEventListener("online", handleOnline);
+      document.removeEventListener("visibilitychange", reconnectAndLoad);
+      window.removeEventListener("focus", reconnectAndLoad);
+      window.removeEventListener("online", reconnectAndLoad);
       clearInterval(pollInterval);
+      clearInterval(heartbeat);
     };
   }, [screen, loggedDriver, loadTodayTasks]);
 
