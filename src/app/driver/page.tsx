@@ -199,6 +199,51 @@ useEffect(() => {
     navigator.serviceWorker.register("/sw.js").catch(() => {});
   }, []);
 
+  // OneSignal JavaScript Bridge — daftarkan driver sebagai External User ID
+  // supaya push notification bisa dikirim ke driver yang spesifik.
+  // Hanya berjalan di dalam Median WebView (median object tersedia).
+  useEffect(() => {
+    if (screen !== "app" || !loggedDriver) return;
+    try {
+      const w = window as Window & {
+        median?: {
+          onesignal?: {
+            externalUserId?: {
+              set: (opts: { externalId: string }) => void;
+            };
+            badge?: {
+              set: (count: number) => void;
+            };
+          };
+        };
+      };
+      // Set External User ID = driver UUID (dipakai Edge Function untuk target push)
+      w.median?.onesignal?.externalUserId?.set({ externalId: loggedDriver.id });
+      // Clear badge saat app dibuka/driver login
+      w.median?.onesignal?.badge?.set(0);
+    } catch {}
+  }, [screen, loggedDriver?.id]);
+
+  // Clear badge saat driver membuka app dari background
+  useEffect(() => {
+    function clearBadgeOnFocus() {
+      try {
+        const w = window as Window & {
+          median?: { onesignal?: { badge?: { set: (n: number) => void } } };
+        };
+        w.median?.onesignal?.badge?.set(0);
+      } catch {}
+      updateAppBadge(0);
+    }
+    document.addEventListener("visibilitychange", () => {
+      if (document.visibilityState === "visible") clearBadgeOnFocus();
+    });
+    window.addEventListener("focus", clearBadgeOnFocus);
+    return () => {
+      window.removeEventListener("focus", clearBadgeOnFocus);
+    };
+  }, []);
+
   function speakNewTaskAnnouncement(destination?: string) {
     try {
       if (typeof window === "undefined" || !("speechSynthesis" in window))
