@@ -131,6 +131,30 @@ export async function driverSignOut(): Promise<void> {
   await supabase.auth.signOut();
 }
 
+/** Admin: membuat/mereset akun login driver + mengirimkan email berisi
+ *  password sementara ke driver ybs. Seluruh logika (validasi staf,
+ *  validasi driver aktif, generate password, kirim email) berjalan di
+ *  Edge Function send-driver-credentials — kunci service role tidak
+ *  pernah menyentuh browser. */
+export async function sendDriverCredentials(
+  driverEmail: string,
+  lang: "id" | "en"
+): Promise<{ ok: boolean; error?: string; tempPassword?: string; created?: boolean }> {
+  const appUrl = typeof window !== "undefined" ? `${window.location.origin}/driver` : "";
+  const { data, error } = await supabase.functions.invoke("send-driver-credentials", {
+    body: { driverEmail, appUrl, lang },
+  });
+  if (error) {
+    return { ok: false, error: error.message || "Gagal memanggil fungsi email." };
+  }
+  return (data ?? { ok: false, error: "Respons kosong dari server." }) as {
+    ok: boolean;
+    error?: string;
+    tempPassword?: string;
+    created?: boolean;
+  };
+}
+
 /** Changes the logged-in driver's password (Supabase Auth). */
 export async function changeDriverPassword(newPassword: string): Promise<void> {
   const { error } = await supabase.auth.updateUser({ password: newPassword });
