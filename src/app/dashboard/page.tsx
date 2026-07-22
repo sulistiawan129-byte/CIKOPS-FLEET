@@ -287,11 +287,14 @@ export default function DashboardPage() {
   const { session, user, loading: authLoading, signOut } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [myProfile, setMyProfile] = useState<MyProfile | null>(null);
+  const [profileChecked, setProfileChecked] = useState(false);
 
   useEffect(() => {
      if (user?.id) {
+      setProfileChecked(false);
       getMyProfile(user.id).then((p) => {
         setMyProfile(p);
+        setProfileChecked(true);
         if (p?.allowedTabs && p.allowedTabs.length > 0 && !p.allowedTabs.includes("overview")) {
           setActiveTab(p.allowedTabs[0] as DashboardTab);
         }
@@ -464,6 +467,42 @@ const [masterDataInitialSub, setMasterDataInitialSub] = useState<"drivers" | "em
 
   if (!session) {
     return <LoginScreen />;
+  }
+
+  // ── Gerbang akses staf (fail-closed) ──
+  // Punya sesi login ≠ punya akses dashboard. Akun harus punya baris di
+  // `profiles` (dibuat untuk staf/GA). Akun driver — yang sengaja tidak
+  // diberi profil oleh migrasi 008 — mentok di sini, tidak bisa melihat
+  // data admin walau berhasil login.
+  if (!profileChecked) {
+    return (
+      <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "var(--bg)", color: "var(--t3)" }}>
+        {t.actionLoading}
+      </div>
+    );
+  }
+  if (!myProfile) {
+    return (
+      <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 14, background: "var(--bg)", padding: 24, textAlign: "center" }}>
+        <div style={{ fontSize: 44 }}>🔒</div>
+        <div style={{ fontSize: 18, fontWeight: 800, color: "var(--t1)" }}>
+          {lang === "en" ? "No dashboard access" : "Tidak punya akses dashboard"}
+        </div>
+        <div style={{ fontSize: 13.5, color: "var(--t3)", maxWidth: 380, lineHeight: 1.6 }}>
+          {lang === "en"
+            ? "This account isn't registered as admin/GA staff. If you're a driver, use the driver app instead. If you believe this is a mistake, contact the master admin."
+            : "Akun ini tidak terdaftar sebagai staf admin/GA. Kalau kamu driver, silakan pakai aplikasi driver. Kalau menurutmu ini keliru, hubungi master admin."}
+        </div>
+        <div style={{ display: "flex", gap: 10, marginTop: 6 }}>
+          <a href="/driver" style={{ padding: "11px 20px", borderRadius: 12, background: "var(--brand)", color: "#fff", fontSize: 13.5, fontWeight: 700, textDecoration: "none" }}>
+            {lang === "en" ? "Open driver app" : "Buka aplikasi driver"}
+          </a>
+          <button onClick={() => signOut()} style={{ padding: "11px 20px", borderRadius: 12, background: "var(--bg2)", border: "1px solid var(--border)", color: "var(--t2)", fontSize: 13.5, fontWeight: 700, cursor: "pointer" }}>
+            {lang === "en" ? "Sign out" : "Keluar"}
+          </button>
+        </div>
+      </div>
+    );
   }
 
   return (
