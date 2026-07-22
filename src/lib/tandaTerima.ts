@@ -43,23 +43,6 @@ function summarizeByDriver(claims: Claim[]): DriverRowTotals[] {
   return [...map.values()];
 }
 
-/** Splits a claim expression like "194000+333000" into its individual
- *  numbers — the original paper form gives each underlying receipt its
- *  own row in the Rincian block, even when they were summed together
- *  as one claim line. Falls back to the item's stored total if the
- *  expression can't be cleanly split (e.g. it used *, /, or parens). */
-function splitExprToNumbers(expr: string, fallbackTotal: number): number[] {
-  const parts = expr.split("+").map((p) => p.trim()).filter(Boolean);
-  const nums = parts.map((p) => Number(p)).filter((n) => !isNaN(n) && n >= 0);
-  if (nums.length === 0 || nums.reduce((s, n) => s + n, 0) !== Math.round(fallbackTotal)) {
-    // Expression wasn't pure "+" (had */-, parens, or didn't parse cleanly)
-    // — safest fallback is one row with the item's actual computed total,
-    // rather than guessing at a split that doesn't add up.
-    return [fallbackTotal];
-  }
-  return nums;
-}
-
 function buildRecapSection(
   claims: Claim[],
   weekLabel: string,
@@ -115,11 +98,11 @@ function buildRecapSection(
   lines.push("");
 
   // ── Rincian — matrix layout matching the original paper form: same
-  // Gasoline/Toll/Parking/Others/Total columns as the main table, but
-  // each individual receipt (each "+"-separated number) gets its own
-  // row, placed in the column matching its type and left blank
-  // elsewhere. This is what lets Finance see "527.000 Toll" was really
-  // two separate receipts (194.000 + 333.000), not one lump sum. ──
+  // Gasoline/Toll/Parking/Others/Total columns as the main table. Each
+  // claim item gets exactly one row, using its already-computed total
+  // (e.g. "100000+10000" → 110000), placed in the column matching its
+  // type and left blank elsewhere. We show the final total per item,
+  // not the underlying addition breakdown. ──
   lines.push(escapeCsv("RINCIAN"));
   lines.push(["GASOLINE", "TOLL", "PARKING", "OTHERS", "TOTAL"].map(escapeCsv).join(","));
 
@@ -127,14 +110,11 @@ function buildRecapSection(
   claims.forEach((c) => {
     c.items.forEach((item) => {
       const bucket = bucketForType(item.type);
-      const numbers = splitExprToNumbers(item.expr, item.total);
-      numbers.forEach((n) => {
-        rincianRows.push({
-          gasoline: bucket === "gasoline" ? n : 0,
-          toll: bucket === "toll" ? n : 0,
-          parking: bucket === "parking" ? n : 0,
-          others: bucket === "others" ? n : 0,
-        });
+      rincianRows.push({
+        gasoline: bucket === "gasoline" ? item.total : 0,
+        toll: bucket === "toll" ? item.total : 0,
+        parking: bucket === "parking" ? item.total : 0,
+        others: bucket === "others" ? item.total : 0,
       });
     });
   });
