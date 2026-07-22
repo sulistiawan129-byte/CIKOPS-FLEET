@@ -61,34 +61,82 @@ export async function getJobTypes(): Promise<JobType[]> {
 }
 
 /* ════════════════════════════════════════════════════════════
-   AUTH (PIN) — via RPC, pin_hash tidak pernah keluar dari DB
+   AUTH (Supabase Auth) — driver login pakai email + password.
+   Akun dibuat manual oleh admin di Supabase Dashboard → Authentication
+   → Users (Invite/Add user), dengan email yang SAMA dengan kolom
+   drivers.email. Fungsi di bawah menghubungkan sesi auth ke baris
+   driver-nya.
 ════════════════════════════════════════════════════════════ */
 
-export async function verifyDriverPin(
-  driverId: string,
-  pin: string
-): Promise<Driver | null> {
-  const { data, error } = await supabase.rpc("verify_driver_pin", {
-    p_driver_id: driverId,
-    p_pin: pin,
-  });
+async function resolveDriverByEmail(email: string): Promise<Driver | null> {
+  // ilike is used for case-insensitive matching, but % and _ are
+  // wildcards in ilike patterns — and _ is common in emails — so they
+  // must be escaped or "budi_s@x.com" would also match "budixs@x.com".
+  const escaped = email.replace(/[\\%_]/g, (m) => `\\${m}`);
+  const { data, error } = await supabase
+    .from("drivers")
+    .select("id, nama, no_hp, avatar_emoji, aktif, tier_id, email, plant")
+    .ilike("email", escaped)
+    .eq("aktif", true)
+    .limit(1);
   if (error) throw error;
-  if (!data || data.length === 0) return null;
-  return { ...data[0], aktif: true } as Driver;
+  return data && data.length > 0 ? data[0] : null;
 }
 
-export async function changeDriverPin(
-  driverId: string,
-  oldPin: string,
-  newPin: string
-): Promise<boolean> {
-  const { data, error } = await supabase.rpc("set_driver_pin", {
-    p_driver_id: driverId,
-    p_old_pin: oldPin,
-    p_new_pin: newPin,
+/** Sign in via Supabase Auth, then resolve the matching active driver
+ *  row (drivers.email). If the account isn't linked to an active
+ *  driver, the session is discarded and an error is thrown so the
+ *  login screen can show a clear message. */
+export async function driverSignIn(email: string, password: string): Promise<Driver> {
+  const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+    email,
+    password,
   });
+  if (authError) {
+    // Distinguish "wrong password" from network/other failures so the
+    // login screen doesn't blame the user's credentials when they're
+    // simply offline.
+    const m = (authError.message || "").toLowerCase();
+    if (m.includes("invalid login credentials") || m.includes("invalid credentials")) {
+      throw new Error("INVALID_CREDENTIALS");
+    }
+    throw new Error(authError.message || "INVALID_CREDENTIALS");
+  }
+  const authEmail = authData.user?.email || email;
+  const driver = await resolveDriverByEmail(authEmail);
+  if (!driver) {
+    await supabase.auth.signOut();
+    throw new Error("NOT_A_DRIVER");
+  }
+  return driver;
+}
+
+/** Restores the driver for an existing Supabase Auth session (app
+ *  relaunch). Returns null when there's no session or the session's
+ *  account isn't linked to an active driver. Network failures are
+ *  RETHROWN (not returned as null) so periodic "still active?" checks
+ *  can ignore them instead of force-logging-out an offline driver.
+ *
+ *  PENTING: this check is deliberately non-destructive — it never calls
+ *  signOut(). The admin dashboard shares the same Supabase Auth session
+ *  storage in a browser, so an admin who merely OPENS /driver must not
+ *  get their dashboard session killed. Explicit sign-out only happens
+ *  from driverSignIn (user actively logging in) or driverSignOut. */
+export async function driverGetSession(): Promise<Driver | null> {
+  const { data } = await supabase.auth.getSession();
+  const email = data.session?.user?.email;
+  if (!email) return null;
+  return resolveDriverByEmail(email);
+}
+
+export async function driverSignOut(): Promise<void> {
+  await supabase.auth.signOut();
+}
+
+/** Changes the logged-in driver's password (Supabase Auth). */
+export async function changeDriverPassword(newPassword: string): Promise<void> {
+  const { error } = await supabase.auth.updateUser({ password: newPassword });
   if (error) throw error;
-  return Boolean(data);
 }
 
 /* ════════════════════════════════════════════════════════════
