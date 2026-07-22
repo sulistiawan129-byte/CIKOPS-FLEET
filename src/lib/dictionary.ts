@@ -59,6 +59,24 @@ export interface Dict {
   ubahPin: string;
   keluarDariAkun: string;
 
+  // Supabase Auth login
+  masukDenganAkun: string;
+  sedangMasuk: string;
+  loginGagal: string;
+  akunBukanDriver: string;
+  loginHintAdmin: string;
+  lihatPassword: string;
+  sembunyikanPassword: string;
+  ubahPassword: string;
+  passwordBaru: string;
+  konfirmasiPasswordBaru: string;
+  passwordMin6: string;
+  passwordTidakSama: string;
+  passwordDiubah: string;
+  gagalMengubahPassword: string;
+  menyimpan: string;
+  simpanPassword: string;
+
   // PIN change modal
   masukkanPinLama: string;
   buatPinBaru: string;
@@ -209,6 +227,23 @@ export const DICT: Record<Lang, Dict> = {
     ubahPin: "Ubah PIN",
     keluarDariAkun: "Keluar dari akun",
 
+    masukDenganAkun: "Masuk dengan akun driver kamu",
+    sedangMasuk: "Masuk...",
+    loginGagal: "Email atau password salah.",
+    akunBukanDriver: "Akun ini tidak terhubung ke driver aktif. Hubungi admin.",
+    loginHintAdmin: "Belum punya akun? Hubungi admin GA untuk dibuatkan.",
+    lihatPassword: "Lihat password",
+    sembunyikanPassword: "Sembunyikan password",
+    ubahPassword: "Ubah Password",
+    passwordBaru: "Password baru",
+    konfirmasiPasswordBaru: "Ulangi password baru",
+    passwordMin6: "Password minimal 6 karakter.",
+    passwordTidakSama: "Password tidak sama. Coba lagi.",
+    passwordDiubah: "Password berhasil diubah ✅",
+    gagalMengubahPassword: "Gagal mengubah password.",
+    menyimpan: "Menyimpan...",
+    simpanPassword: "Simpan Password",
+
     masukkanPinLama: "Masukkan PIN Lama",
     buatPinBaru: "Buat PIN Baru",
     konfirmasiPinBaru: "Konfirmasi PIN Baru",
@@ -350,6 +385,23 @@ export const DICT: Record<Lang, Dict> = {
     pinAkses: "Access PIN",
     ubahPin: "Change PIN",
     keluarDariAkun: "Sign out",
+
+    masukDenganAkun: "Sign in with your driver account",
+    sedangMasuk: "Signing in...",
+    loginGagal: "Wrong email or password.",
+    akunBukanDriver: "This account isn't linked to an active driver. Contact your admin.",
+    loginHintAdmin: "No account yet? Ask your GA admin to create one.",
+    lihatPassword: "Show password",
+    sembunyikanPassword: "Hide password",
+    ubahPassword: "Change Password",
+    passwordBaru: "New password",
+    konfirmasiPasswordBaru: "Repeat new password",
+    passwordMin6: "Password must be at least 6 characters.",
+    passwordTidakSama: "Passwords don't match. Try again.",
+    passwordDiubah: "Password changed ✅",
+    gagalMengubahPassword: "Failed to change password.",
+    menyimpan: "Saving...",
+    simpanPassword: "Save Password",
 
     masukkanPinLama: "Enter Current PIN",
     buatPinBaru: "Create New PIN",
