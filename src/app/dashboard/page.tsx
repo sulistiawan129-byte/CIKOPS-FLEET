@@ -22,6 +22,7 @@ import {
   addDriver,
   updateDriver,
   deleteDriver,
+  sendDriverCredentials,
   type DriverInput,
   getAllEmployeesFull,
   addEmployee,
@@ -6396,6 +6397,31 @@ function DriversMasterPanel({ cardStyle, myProfile = null }: { cardStyle: CSSPro
   const [confirmDelete, setConfirmDelete] = useState<Driver | null>(null);
 
   const [pinTarget, setPinTarget] = useState<Driver | null>(null);
+  const [credSending, setCredSending] = useState(false);
+  const [credResult, setCredResult] = useState<{ ok: boolean; msg: string; tempPassword?: string } | null>(null);
+
+  async function handleSendCredentials() {
+    if (!pinTarget?.email || credSending) return;
+    setCredSending(true);
+    setCredResult(null);
+    try {
+      const res = await sendDriverCredentials(pinTarget.email, lang === "en" ? "en" : "id");
+      if (res.ok) {
+        setCredResult({
+          ok: true,
+          msg: lang === "en"
+            ? `${res.created ? "Account created" : "Password reset"} — temporary password sent to ${pinTarget.email}.`
+            : `${res.created ? "Akun dibuat" : "Password direset"} — password sementara sudah dikirim ke ${pinTarget.email}.`,
+        });
+      } else {
+        setCredResult({ ok: false, msg: res.error || (lang === "en" ? "Failed." : "Gagal."), tempPassword: res.tempPassword });
+      }
+    } catch (e) {
+      setCredResult({ ok: false, msg: e instanceof Error ? e.message : (lang === "en" ? "Failed." : "Gagal.") });
+    } finally {
+      setCredSending(false);
+    }
+  }
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -6495,7 +6521,7 @@ function DriversMasterPanel({ cardStyle, myProfile = null }: { cardStyle: CSSPro
               <span style={{ fontSize: 12, fontWeight: 700, padding: "3px 10px", borderRadius: "var(--pill)", background: d.aktif ? "var(--green-soft)" : "var(--red-soft)", color: d.aktif ? "var(--green)" : "var(--red)" }}>
                 {d.aktif ? (lang === "en" ? "Active" : "Aktif") : (lang === "en" ? "Inactive" : "Nonaktif")}
               </span>
-              <button onClick={() => setPinTarget(d)} title="Reset Password" style={{ border: "1px solid var(--border2)", background: "var(--surface2)", borderRadius: 8, padding: "6px 9px", cursor: "pointer", fontSize: 12 }}>🔑</button>
+              <button onClick={() => { setPinTarget(d); setCredResult(null); }} title="Reset Password" style={{ border: "1px solid var(--border2)", background: "var(--surface2)", borderRadius: 8, padding: "6px 9px", cursor: "pointer", fontSize: 12 }}>🔑</button>
               <button onClick={() => openEdit(d)} style={{ border: "1px solid var(--border2)", background: "var(--surface2)", borderRadius: 8, padding: "6px 9px", cursor: "pointer", fontSize: 12 }}>✏️</button>
               {isAdmin && (
                 <button onClick={() => setConfirmDelete(d)} style={{ border: "1px solid var(--red)", background: "var(--red-soft)", color: "var(--red)", borderRadius: 8, padding: "6px 9px", cursor: "pointer", fontSize: 12 }}>🗑️</button>
@@ -6592,34 +6618,62 @@ function DriversMasterPanel({ cardStyle, myProfile = null }: { cardStyle: CSSPro
       )}
 
       {pinTarget && (
-        <ModalPortal onOverlayClick={() => setPinTarget(null)} maxWidth={400}>
+        <ModalPortal onOverlayClick={() => { if (!credSending) setPinTarget(null); }} maxWidth={420}>
           <div style={{ ...cardStyle, padding: 24 }}>
             <div style={{ fontSize: 28, marginBottom: 8 }}>🔑</div>
-            <div style={{ fontSize: 15, fontWeight: 800, marginBottom: 4, color: "var(--t1)" }}>{lang === "en" ? "Reset Login Password" : "Reset Password Login"}</div>
+            <div style={{ fontSize: 15, fontWeight: 800, marginBottom: 4, color: "var(--t1)" }}>{lang === "en" ? "Driver Login Access" : "Akses Login Driver"}</div>
             <div style={{ fontSize: 12, color: "var(--t3)", marginBottom: 14 }}>
               {pinTarget.nama}{pinTarget.email ? ` · ${pinTarget.email}` : ""}
             </div>
-            <div style={{ fontSize: 13, color: "var(--t2)", lineHeight: 1.65, marginBottom: 14 }}>
-              {lang === "en"
-                ? "Driver login now uses email + password (Supabase Auth), so passwords can't be reset from this app. To reset:"
-                : "Login driver sekarang pakai email + password (Supabase Auth), jadi password tidak bisa direset dari aplikasi ini. Cara reset-nya:"}
-            </div>
-            <ol style={{ fontSize: 12.5, color: "var(--t2)", lineHeight: 1.7, margin: "0 0 6px", paddingLeft: 18 }}>
-              <li>{lang === "en" ? "Open Supabase Dashboard" : "Buka Supabase Dashboard"}</li>
-              <li>{lang === "en" ? "Authentication → Users" : "Authentication → Users"}</li>
-              <li>
-                {lang === "en" ? "Find " : "Cari "}
-                <strong style={{ color: "var(--t1)" }}>{pinTarget.email || (lang === "en" ? "the driver's email" : "email driver ini")}</strong>
-              </li>
-              <li>{lang === "en" ? "Open the user → set a new password" : "Buka user-nya → isi password baru"}</li>
-            </ol>
-            {!pinTarget.email && (
-              <div style={{ fontSize: 12, color: "var(--orange)", marginBottom: 6 }}>
+
+            {!pinTarget.email ? (
+              <div style={{ fontSize: 12.5, color: "var(--orange)", lineHeight: 1.6, marginBottom: 6 }}>
                 {lang === "en" ? "⚠ This driver has no email yet — fill it in first (Edit), otherwise they can't log in at all." : "⚠ Driver ini belum punya email — isi dulu (Edit), tanpa email dia tidak bisa login sama sekali."}
               </div>
+            ) : (
+              <>
+                <div style={{ fontSize: 13, color: "var(--t2)", lineHeight: 1.65, marginBottom: 14 }}>
+                  {lang === "en"
+                    ? "One click below: creates the account (or resets the password) with a random temporary password, then emails it to the driver — including a reminder to change it via Profile → Change Password."
+                    : "Satu klik di bawah: akun dibuat (atau password-nya direset) dengan password sementara acak, lalu dikirim otomatis ke email driver — lengkap dengan saran ganti password lewat Profil → Ubah Password."}
+                </div>
+
+                {credResult && (
+                  <div style={{ fontSize: 12.5, lineHeight: 1.6, padding: "10px 13px", borderRadius: 10, marginBottom: 12, background: credResult.ok ? "rgba(34,197,94,0.1)" : "rgba(229,72,77,0.1)", border: `1px solid ${credResult.ok ? "rgba(34,197,94,0.35)" : "rgba(229,72,77,0.3)"}`, color: credResult.ok ? "var(--green)" : "var(--red)" }}>
+                    {credResult.ok ? "✅ " : "⚠ "}{credResult.msg}
+                    {credResult.tempPassword && (
+                      <div style={{ marginTop: 8, fontFamily: "var(--mono)", fontSize: 15, fontWeight: 800, color: "var(--t1)", background: "var(--bg2)", padding: "8px 12px", borderRadius: 8, letterSpacing: 1 }}>
+                        {credResult.tempPassword}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                <button
+                  onClick={handleSendCredentials}
+                  disabled={credSending}
+                  style={{ width: "100%", padding: "12px", borderRadius: 10, border: "none", background: "var(--brand)", color: "#fff", fontWeight: 700, cursor: credSending ? "default" : "pointer", opacity: credSending ? 0.65 : 1, marginBottom: 12 }}
+                >
+                  {credSending
+                    ? (lang === "en" ? "Sending..." : "Mengirim...")
+                    : (lang === "en" ? "📧 Create/Reset & Email Temp Password" : "📧 Buat/Reset Akun & Kirim Email")}
+                </button>
+
+                <details style={{ marginBottom: 4 }}>
+                  <summary style={{ fontSize: 12, color: "var(--t3)", cursor: "pointer" }}>
+                    {lang === "en" ? "Manual way (via Supabase Dashboard)" : "Cara manual (lewat Supabase Dashboard)"}
+                  </summary>
+                  <ol style={{ fontSize: 12, color: "var(--t3)", lineHeight: 1.7, margin: "8px 0 0", paddingLeft: 18 }}>
+                    <li>{lang === "en" ? "Supabase Dashboard → Authentication → Users" : "Supabase Dashboard → Authentication → Users"}</li>
+                    <li>{lang === "en" ? "Find " : "Cari "}<strong style={{ color: "var(--t2)" }}>{pinTarget.email}</strong></li>
+                    <li>{lang === "en" ? "Open the user → set a new password" : "Buka user-nya → isi password baru"}</li>
+                  </ol>
+                </details>
+              </>
             )}
-            <button onClick={() => setPinTarget(null)} style={{ width: "100%", marginTop: 12, padding: "11px", borderRadius: 10, border: "none", background: "var(--brand)", color: "#fff", fontWeight: 700, cursor: "pointer" }}>
-              {lang === "en" ? "Got it" : "Mengerti"}
+
+            <button onClick={() => setPinTarget(null)} disabled={credSending} style={{ width: "100%", marginTop: 10, padding: "11px", borderRadius: 10, border: "1px solid var(--border2)", background: "var(--surface2)", color: "var(--t2)", fontWeight: 700, cursor: credSending ? "default" : "pointer" }}>
+              {lang === "en" ? "Close" : "Tutup"}
             </button>
           </div>
         </ModalPortal>
