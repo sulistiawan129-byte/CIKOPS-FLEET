@@ -2237,6 +2237,44 @@ function OverviewTab({ setActiveTab, myProfile }: { setActiveTab: (t: DashboardT
           )}
         </div>
 
+        <div className="statPop" style={{ ...cardStyle, padding: 20 }}>
+          <div style={{ fontSize: 14.5, fontWeight: 800, color: "var(--t1)", marginBottom: 16, position: "relative", zIndex: 1 }}>
+            {lang === "en" ? "Vehicle Status" : "Distribusi Status Kendaraan"}
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 16, position: "relative", zIndex: 1 }}>
+            <svg viewBox="0 0 110 110" width={96} height={96}>
+              <circle cx={55} cy={55} r={RD} fill="none" stroke="var(--border)" strokeWidth={14} />
+              {donutSegs.map((seg, i) => {
+                const segLen = (seg.value / donutTotal) * CIRCD;
+                const el = (
+                  <circle key={i} cx={55} cy={55} r={RD} fill="none" stroke={seg.color} strokeWidth={14} strokeDasharray={`${segLen} ${CIRCD - segLen}`} strokeDashoffset={-donutOffset} transform="rotate(-90 55 55)" />
+                );
+                donutOffset += segLen;
+                return el;
+              })}
+            </svg>
+            <div style={{ display: "flex", flexDirection: "column", gap: 9 }}>
+              {donutSegs.map((seg, i) => (
+                <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 11.5 }}>
+                  <span style={{ width: 9, height: 9, borderRadius: "50%", background: seg.color, flexShrink: 0 }} />
+                  <span style={{ color: "var(--t2)" }}>{seg.label}</span>
+                  <span style={{ fontWeight: 700, color: "var(--t1)" }}>{seg.value} ({donutTotal > 0 ? Math.round((seg.value / donutTotal) * 100) : 0}%)</span>
+                </div>
+              ))}
+            </div>
+          </div>
+          <button className="neonBtn" onClick={() => setActiveTab("vehicles")} style={{ marginTop: 16, position: "relative", zIndex: 1, padding: "12px" }}>
+            {lang === "en" ? "View Vehicles" : "Lihat Kendaraan"}
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" width={16} height={16}>
+              <path d="M5 12h14M12 5l7 7-7 7" />
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <div className="sectionHeading">Finance</div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 16, marginBottom: 22 }}>
+        {/* Operational Fund — moved here so Finance is complete: Fund + Overtime + Budget */}
         <div className="neonCard">
           <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20, position: "relative", zIndex: 1 }}>
             <div className="hexBadge gold small">
@@ -2274,11 +2312,8 @@ function OverviewTab({ setActiveTab, myProfile }: { setActiveTab: (t: DashboardT
             </svg>
           </button>
         </div>
-      </div>
 
-      <div className="sectionHeading">Finance</div>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 16, marginBottom: 22 }}>
-        {/* Overtime — dikasih lebih banyak ruang (bukan 1 dari 4 kolom sempit) */}
+        {/* Overtime */}
         <div className="neonCard">
           <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16, position: "relative", zIndex: 1 }}>
             <div className="hexBadge teal small">
@@ -2312,7 +2347,7 @@ function OverviewTab({ setActiveTab, myProfile }: { setActiveTab: (t: DashboardT
           </button>
         </div>
 
-        {/* Driver Budget — dipindah ke sini biar section Finance lengkap (Fund + Overtime + Budget) */}
+        {/* Driver Budget */}
         <div className="neonCard">
           <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16, position: "relative", zIndex: 1 }}>
             <div className="hexBadge gold small">
@@ -2336,7 +2371,7 @@ function OverviewTab({ setActiveTab, myProfile }: { setActiveTab: (t: DashboardT
       {(canAccessTab(myProfile, "canteen") || canAccessTab(myProfile, "locker") || canAccessTab(myProfile, "gasstations")) && (
       <>
       <div className="sectionHeading">{lang === "en" ? "Facility" : "Fasilitas"}</div>
-      <div style={{ display: "grid", gridTemplateColumns: `repeat(${[canAccessTab(myProfile, "canteen"), canAccessTab(myProfile, "locker"), canAccessTab(myProfile, "gasstations")].filter(Boolean).length}, 1fr)`, gap: 16, marginBottom: 22 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 16, marginBottom: 22 }}>
         {canAccessTab(myProfile, "canteen") && (
         <>
         {/* Canteen */}
@@ -2539,38 +2574,6 @@ function OverviewTab({ setActiveTab, myProfile }: { setActiveTab: (t: DashboardT
           </svg>
         </div>
 
-        <div className="statPop" style={{ ...cardStyle, padding: 20 }}>
-          <div style={{ fontSize: 14.5, fontWeight: 800, color: "var(--t1)", marginBottom: 16 }}>
-            {lang === "en" ? "Vehicle Status" : "Distribusi Status Kendaraan"}
-          </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-            <svg viewBox="0 0 110 110" width={96} height={96}>
-              <circle cx={55} cy={55} r={RD} fill="none" stroke="var(--border)" strokeWidth={14} />
-              {donutSegs.map((seg, i) => {
-                const segLen = (seg.value / donutTotal) * CIRCD;
-                const el = (
-                  <circle key={i} cx={55} cy={55} r={RD} fill="none" stroke={seg.color} strokeWidth={14} strokeDasharray={`${segLen} ${CIRCD - segLen}`} strokeDashoffset={-donutOffset} transform="rotate(-90 55 55)" />
-                );
-                donutOffset += segLen;
-                return el;
-              })}
-            </svg>
-            <div style={{ display: "flex", flexDirection: "column", gap: 9 }}>
-              {donutSegs.map((seg, i) => (
-                <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 11.5 }}>
-                  <span style={{ width: 9, height: 9, borderRadius: "50%", background: seg.color, flexShrink: 0 }} />
-                  <span style={{ color: "var(--t2)" }}>{seg.label}</span>
-                  <span style={{ fontWeight: 700, color: "var(--t1)" }}>{seg.value} ({donutTotal > 0 ? Math.round((seg.value / donutTotal) * 100) : 0}%)</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div className="sectionHeading">{lang === "en" ? "Activity & Shortcuts" : "Aktivitas & Pintasan"}</div>
-      {/* ── Activity + Quick Access row ── */}
-      <div style={{ display: "grid", gridTemplateColumns: "1.6fr 1fr", gap: 16 }}>
         <div className="statPop" style={{ ...cardStyle, overflow: "hidden" }}>
           <div style={{ padding: "14px 18px", borderBottom: "1px solid var(--border)", fontWeight: 800, fontSize: 14.5, color: "var(--t1)" }}>
             {lang === "en" ? "Recent Activity" : "Aktivitas Terbaru"}
@@ -2580,39 +2583,42 @@ function OverviewTab({ setActiveTab, myProfile }: { setActiveTab: (t: DashboardT
               {lang === "en" ? "No activity yet." : "Belum ada aktivitas."}
             </div>
           ) : (
-            activity.map((a, i) => (
-              <div key={i} className="staggerItem" style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 18px", borderBottom: "1px solid var(--border)", borderLeft: `3px solid ${a.kind === "claim" ? "var(--brand)" : "var(--gold2)"}`, animationDelay: `${i * 0.05}s` }}>
-                <div style={{ width: 32, height: 32, borderRadius: 9, background: a.kind === "claim" ? "rgba(61,111,242,0.1)" : "var(--gold-soft)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 15.5, flexShrink: 0 }}>
-                  {a.kind === "claim" ? "🧾" : "⏱️"}
-                </div>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 14, fontWeight: 600, color: "var(--t1)" }}>
-                    {a.driver} <span style={{ fontWeight: 400, color: "var(--t3)" }}>{a.kind === "claim" ? (lang === "en" ? "submitted a claim" : "mengajukan claim") : (lang === "en" ? "logged overtime" : "mencatat overtime")}</span>
+            <div style={{ maxHeight: 296, overflowY: "auto" }}>
+              {activity.map((a, i) => (
+                <div key={i} className="staggerItem" style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 18px", borderBottom: "1px solid var(--border)", borderLeft: `3px solid ${a.kind === "claim" ? "var(--brand)" : "var(--gold2)"}`, animationDelay: `${i * 0.05}s` }}>
+                  <div style={{ width: 32, height: 32, borderRadius: 9, background: a.kind === "claim" ? "rgba(61,111,242,0.1)" : "var(--gold-soft)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 15.5, flexShrink: 0 }}>
+                    {a.kind === "claim" ? "🧾" : "⏱️"}
                   </div>
-                  <div style={{ fontSize: 13, color: "var(--t3)" }}>{a.meta}</div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 14, fontWeight: 600, color: "var(--t1)" }}>
+                      {a.driver} <span style={{ fontWeight: 400, color: "var(--t3)" }}>{a.kind === "claim" ? (lang === "en" ? "submitted a claim" : "mengajukan claim") : (lang === "en" ? "logged overtime" : "mencatat overtime")}</span>
+                    </div>
+                    <div style={{ fontSize: 13, color: "var(--t3)" }}>{a.meta}</div>
+                  </div>
+                  <div style={{ fontSize: 14, fontWeight: 700, color: a.kind === "claim" ? "var(--brand)" : "var(--gold2)", whiteSpace: "nowrap" }}>Rp {fmtRp(a.amount)}</div>
                 </div>
-                <div style={{ fontSize: 14, fontWeight: 700, color: a.kind === "claim" ? "var(--brand)" : "var(--gold2)", whiteSpace: "nowrap" }}>Rp {fmtRp(a.amount)}</div>
-              </div>
-            ))
+              ))}
+            </div>
           )}
         </div>
+      </div>
 
-        <div className="statPop" style={{ ...cardStyle, padding: 18 }}>
-          <div style={{ fontWeight: 800, fontSize: 14.5, color: "var(--t1)", marginBottom: 14 }}>Quick Access</div>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-            {quickAccess.map((q, i) => (
-              <button
-                key={i}
-                onClick={() => setActiveTab(q.tab)}
-                style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6, padding: "14px 8px", borderRadius: 12, border: "1px solid var(--border2)", background: "var(--bg2)", cursor: "pointer", transition: "transform 0.15s ease, box-shadow 0.15s ease" }}
-                onMouseEnter={(e) => { e.currentTarget.style.transform = "translateY(-2px)"; e.currentTarget.style.boxShadow = "var(--shadow-sm)"; }}
-                onMouseLeave={(e) => { e.currentTarget.style.transform = "translateY(0)"; e.currentTarget.style.boxShadow = "none"; }}
-              >
-                <span style={{ fontSize: 20 }}>{q.icon}</span>
-                <span style={{ fontSize: 12.5, fontWeight: 600, color: "var(--t2)", textAlign: "center" }}>{q.label}</span>
-              </button>
-            ))}
-          </div>
+      <div className="sectionHeading">{lang === "en" ? "Shortcuts" : "Pintasan"}</div>
+      {/* ── Quick Access — full width, wraps naturally regardless of count ── */}
+      <div className="statPop" style={{ ...cardStyle, padding: 18 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(110px, 1fr))", gap: 10 }}>
+          {quickAccess.map((q, i) => (
+            <button
+              key={i}
+              onClick={() => setActiveTab(q.tab)}
+              style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6, padding: "14px 8px", borderRadius: 12, border: "1px solid var(--border2)", background: "var(--bg2)", cursor: "pointer", transition: "transform 0.15s ease, box-shadow 0.15s ease" }}
+              onMouseEnter={(e) => { e.currentTarget.style.transform = "translateY(-2px)"; e.currentTarget.style.boxShadow = "var(--shadow-sm)"; }}
+              onMouseLeave={(e) => { e.currentTarget.style.transform = "translateY(0)"; e.currentTarget.style.boxShadow = "none"; }}
+            >
+              <span style={{ fontSize: 20 }}>{q.icon}</span>
+              <span style={{ fontSize: 12.5, fontWeight: 600, color: "var(--t2)", textAlign: "center" }}>{q.label}</span>
+            </button>
+          ))}
         </div>
       </div>
 
