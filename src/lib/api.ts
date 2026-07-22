@@ -351,6 +351,24 @@ export async function sendTaskBatchEmail(input: {
   }
 }
 
+/** Kirim push notification OneSignal ke satu atau lebih driver.
+ *  driverIds = array UUID dari tabel drivers (External User ID di OneSignal).
+ *  Fire-and-forget — error diabaikan supaya tidak ganggu alur utama. */
+export async function sendPushToDriver(
+  driverIds: string[],
+  title: string,
+  body: string,
+  data?: Record<string, string>
+): Promise<void> {
+  try {
+    await supabase.functions.invoke("send-push-notification", {
+      body: { driverIds, title, body, data: data ?? {} },
+    });
+  } catch (e) {
+    console.warn("Push notification failed (non-critical):", e);
+  }
+}
+
 export async function updateTaskStatus(
   taskId: string,
   status: TaskStatus
