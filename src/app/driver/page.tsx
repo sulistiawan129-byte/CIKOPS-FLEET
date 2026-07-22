@@ -95,7 +95,38 @@ useEffect(() => {
     };
   }, []);
 
+  // Preload audio element — HTML Audio works in Median WebView where
+  // Web Audio API is often blocked without user gesture workaround.
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const audio = new Audio("/notif.wav");
+    audio.preload = "auto";
+    audio.load();
+    audioRef.current = audio;
+  }, []);
+
   function playNotificationSound() {
+    // Try HTML Audio first (most reliable in Median WebView)
+    try {
+      if (audioRef.current) {
+        const a = audioRef.current;
+        a.currentTime = 0;
+        const p = a.play();
+        if (p !== undefined) {
+          p.catch(() => {
+            // Blocked — fall through to Web Audio
+            playWebAudio();
+          });
+          return;
+        }
+      }
+    } catch {}
+    playWebAudio();
+  }
+
+  function playWebAudio() {
     try {
       let ctx = audioCtxRef.current;
       if (!ctx) {
@@ -106,57 +137,52 @@ useEffect(() => {
         ctx = new AudioCtx();
         audioCtxRef.current = ctx;
       }
-      // WebView Android sering suspend AudioContext di background —
-      // resume() wajib dipanggil dan kita tunggu selesai dulu.
       const doPlay = () => {
-        const playTone = (
-          freq: number,
-          startTime: number,
-          duration: number,
-          peakGain = 0.5
-        ) => {
+        const playTone = (freq: number, start: number, dur: number, gain = 0.5) => {
           const osc = ctx!.createOscillator();
-          const gain = ctx!.createGain();
+          const g = ctx!.createGain();
           osc.type = "square";
           osc.frequency.value = freq;
-          gain.gain.setValueAtTime(0.0001, startTime);
-          gain.gain.exponentialRampToValueAtTime(peakGain, startTime + 0.02);
-          gain.gain.exponentialRampToValueAtTime(0.0001, startTime + duration);
-          osc.connect(gain);
-          gain.connect(ctx!.destination);
-          osc.start(startTime);
-          osc.stop(startTime + duration);
+          g.gain.setValueAtTime(0.0001, start);
+          g.gain.exponentialRampToValueAtTime(gain, start + 0.02);
+          g.gain.exponentialRampToValueAtTime(0.0001, start + dur);
+          osc.connect(g);
+          g.connect(ctx!.destination);
+          osc.start(start);
+          osc.stop(start + dur);
         };
         const now = ctx!.currentTime;
-        [0, 0.7].forEach((offset) => {
-          playTone(988,  now + offset,        0.14, 0.55);
-          playTone(1318, now + offset + 0.16, 0.16, 0.55);
-          playTone(988,  now + offset + 0.34, 0.14, 0.55);
+        [0, 0.7].forEach((off) => {
+          playTone(988,  now + off,        0.14, 0.55);
+          playTone(1318, now + off + 0.16, 0.16, 0.55);
+          playTone(988,  now + off + 0.34, 0.14, 0.55);
         });
       };
-      if (ctx.state === "suspended") {
-        ctx.resume().then(doPlay).catch(() => {});
-      } else {
-        doPlay();
-      }
-    } catch {
-      // Web Audio tidak tersedia — abaikan
-    }
+      if (ctx.state === "suspended") ctx.resume().then(doPlay).catch(() => {});
+      else doPlay();
+    } catch {}
   }
 
-  // Warm up AudioContext on first user gesture so WebView Android
-  // allows sound without waiting for the next tap.
+  // Warm up HTML Audio + AudioContext on first touch
   useEffect(() => {
     function warmUp() {
+      // Unlock HTML Audio
+      if (audioRef.current) {
+        const a = audioRef.current;
+        const p = a.play();
+        if (p) p.then(() => { a.pause(); a.currentTime = 0; }).catch(() => {});
+      }
+      // Unlock Web Audio
       try {
-        if (audioCtxRef.current) return;
-        const AudioCtx =
-          window.AudioContext ||
-          (window as unknown as { webkitAudioContext: typeof AudioContext })
-            .webkitAudioContext;
-        const ctx = new AudioCtx();
-        audioCtxRef.current = ctx;
-        if (ctx.state === "suspended") ctx.resume().catch(() => {});
+        if (!audioCtxRef.current) {
+          const AudioCtx =
+            window.AudioContext ||
+            (window as unknown as { webkitAudioContext: typeof AudioContext })
+              .webkitAudioContext;
+          const ctx = new AudioCtx();
+          audioCtxRef.current = ctx;
+          if (ctx.state === "suspended") ctx.resume().catch(() => {});
+        }
       } catch {}
     }
     document.addEventListener("touchstart", warmUp, { once: true, passive: true });
