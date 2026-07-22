@@ -21,7 +21,6 @@ import {
   getAllDriversFull,
   addDriver,
   updateDriver,
-  resetDriverPin,
   deleteDriver,
   type DriverInput,
   getAllEmployeesFull,
@@ -6397,8 +6396,6 @@ function DriversMasterPanel({ cardStyle, myProfile = null }: { cardStyle: CSSPro
   const [confirmDelete, setConfirmDelete] = useState<Driver | null>(null);
 
   const [pinTarget, setPinTarget] = useState<Driver | null>(null);
-  const [newPin, setNewPin] = useState("");
-  const [pinSaving, setPinSaving] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -6457,21 +6454,6 @@ function DriversMasterPanel({ cardStyle, myProfile = null }: { cardStyle: CSSPro
     }
   }
 
-  async function handleResetPin() {
-    if (!pinTarget || newPin.length < 4) return;
-    setPinSaving(true);
-    try {
-      await resetDriverPin(pinTarget.id, newPin);
-      setPinTarget(null);
-      setNewPin("");
-      alert(lang === "en" ? "PIN reset successfully" : "PIN berhasil direset");
-    } catch (e) {
-      alert(e instanceof Error ? e.message : "Gagal reset PIN");
-    } finally {
-      setPinSaving(false);
-    }
-  }
-
   const inputStyle: CSSProperties = { width: "100%", padding: "9px 12px", borderRadius: 10, border: "1px solid var(--border2)", background: "var(--bg2)", color: "var(--t1)", fontSize: 13, fontFamily: "var(--font)" };
   const labelStyle: CSSProperties = { fontSize: 13, fontWeight: 700, color: "var(--t2)", marginBottom: 5, display: "block" };
 
@@ -6513,7 +6495,7 @@ function DriversMasterPanel({ cardStyle, myProfile = null }: { cardStyle: CSSPro
               <span style={{ fontSize: 12, fontWeight: 700, padding: "3px 10px", borderRadius: "var(--pill)", background: d.aktif ? "var(--green-soft)" : "var(--red-soft)", color: d.aktif ? "var(--green)" : "var(--red)" }}>
                 {d.aktif ? (lang === "en" ? "Active" : "Aktif") : (lang === "en" ? "Inactive" : "Nonaktif")}
               </span>
-              <button onClick={() => setPinTarget(d)} title="Reset PIN" style={{ border: "1px solid var(--border2)", background: "var(--surface2)", borderRadius: 8, padding: "6px 9px", cursor: "pointer", fontSize: 12 }}>🔑</button>
+              <button onClick={() => setPinTarget(d)} title="Reset Password" style={{ border: "1px solid var(--border2)", background: "var(--surface2)", borderRadius: 8, padding: "6px 9px", cursor: "pointer", fontSize: 12 }}>🔑</button>
               <button onClick={() => openEdit(d)} style={{ border: "1px solid var(--border2)", background: "var(--surface2)", borderRadius: 8, padding: "6px 9px", cursor: "pointer", fontSize: 12 }}>✏️</button>
               {isAdmin && (
                 <button onClick={() => setConfirmDelete(d)} style={{ border: "1px solid var(--red)", background: "var(--red-soft)", color: "var(--red)", borderRadius: 8, padding: "6px 9px", cursor: "pointer", fontSize: 12 }}>🗑️</button>
@@ -6610,16 +6592,35 @@ function DriversMasterPanel({ cardStyle, myProfile = null }: { cardStyle: CSSPro
       )}
 
       {pinTarget && (
-        <ModalPortal onOverlayClick={() => setPinTarget(null)} maxWidth={360}>
+        <ModalPortal onOverlayClick={() => setPinTarget(null)} maxWidth={400}>
           <div style={{ ...cardStyle, padding: 24 }}>
             <div style={{ fontSize: 28, marginBottom: 8 }}>🔑</div>
-            <div style={{ fontSize: 15, fontWeight: 800, marginBottom: 4, color: "var(--t1)" }}>{lang === "en" ? "Reset PIN" : "Reset PIN"}</div>
-            <div style={{ fontSize: 12, color: "var(--t3)", marginBottom: 16 }}>{pinTarget.nama}</div>
-            <input className="premiumInput" style={inputStyle} type="password" inputMode="numeric" value={newPin} onChange={(e) => setNewPin(e.target.value.replace(/\D/g, ""))} placeholder={lang === "en" ? "New PIN (min. 4 digits)" : "PIN baru (min. 4 digit)"} />
-            <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
-              <button onClick={() => setPinTarget(null)} style={{ flex: 1, padding: "10px", borderRadius: 10, border: "1px solid var(--border2)", background: "var(--surface2)", color: "var(--t2)", fontWeight: 700, cursor: "pointer" }}>{t.actionCancel}</button>
-              <button className="pillBtn" onClick={handleResetPin} disabled={newPin.length < 4 || pinSaving} style={{ flex: 1, justifyContent: "center", opacity: newPin.length >= 4 && !pinSaving ? 1 : 0.5 }}>{pinSaving ? t.actionSaving : (lang === "en" ? "Reset" : "Reset")}</button>
+            <div style={{ fontSize: 15, fontWeight: 800, marginBottom: 4, color: "var(--t1)" }}>{lang === "en" ? "Reset Login Password" : "Reset Password Login"}</div>
+            <div style={{ fontSize: 12, color: "var(--t3)", marginBottom: 14 }}>
+              {pinTarget.nama}{pinTarget.email ? ` · ${pinTarget.email}` : ""}
             </div>
+            <div style={{ fontSize: 13, color: "var(--t2)", lineHeight: 1.65, marginBottom: 14 }}>
+              {lang === "en"
+                ? "Driver login now uses email + password (Supabase Auth), so passwords can't be reset from this app. To reset:"
+                : "Login driver sekarang pakai email + password (Supabase Auth), jadi password tidak bisa direset dari aplikasi ini. Cara reset-nya:"}
+            </div>
+            <ol style={{ fontSize: 12.5, color: "var(--t2)", lineHeight: 1.7, margin: "0 0 6px", paddingLeft: 18 }}>
+              <li>{lang === "en" ? "Open Supabase Dashboard" : "Buka Supabase Dashboard"}</li>
+              <li>{lang === "en" ? "Authentication → Users" : "Authentication → Users"}</li>
+              <li>
+                {lang === "en" ? "Find " : "Cari "}
+                <strong style={{ color: "var(--t1)" }}>{pinTarget.email || (lang === "en" ? "the driver's email" : "email driver ini")}</strong>
+              </li>
+              <li>{lang === "en" ? "Open the user → set a new password" : "Buka user-nya → isi password baru"}</li>
+            </ol>
+            {!pinTarget.email && (
+              <div style={{ fontSize: 12, color: "var(--orange)", marginBottom: 6 }}>
+                {lang === "en" ? "⚠ This driver has no email yet — fill it in first (Edit), otherwise they can't log in at all." : "⚠ Driver ini belum punya email — isi dulu (Edit), tanpa email dia tidak bisa login sama sekali."}
+              </div>
+            )}
+            <button onClick={() => setPinTarget(null)} style={{ width: "100%", marginTop: 12, padding: "11px", borderRadius: 10, border: "none", background: "var(--brand)", color: "#fff", fontWeight: 700, cursor: "pointer" }}>
+              {lang === "en" ? "Got it" : "Mengerti"}
+            </button>
           </div>
         </ModalPortal>
       )}
