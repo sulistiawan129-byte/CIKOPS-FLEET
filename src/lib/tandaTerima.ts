@@ -1,4 +1,5 @@
 import type { Claim } from "./types";
+import { summarizeByDriver, buildRincianRows, grandTotalOf } from "./claimRecap";
 
 function escapeCsv(value: string | number | null | undefined): string {
   const str = value === null || value === undefined ? "" : String(value);
@@ -6,41 +7,6 @@ function escapeCsv(value: string | number | null | undefined): string {
     return `"${str.replace(/"/g, '""')}"`;
   }
   return str;
-}
-
-/** Maps our free-form claim item types onto the 4 fixed columns the
- *  official Finance "Tanda Terima" recap uses. Anything that isn't
- *  Gasoline/Toll/Parking falls into "Others" — this mirrors how the
- *  paper form only ever had those 4 columns. */
-function bucketForType(type: string): "gasoline" | "toll" | "parking" | "others" {
-  const t = type.toLowerCase();
-  if (t.includes("gas") || t.includes("bensin") || t.includes("bbm")) return "gasoline";
-  if (t.includes("toll") || t.includes("tol")) return "toll";
-  if (t.includes("park")) return "parking";
-  return "others";
-}
-
-interface DriverRowTotals {
-  driverName: string;
-  gasoline: number;
-  toll: number;
-  parking: number;
-  others: number;
-  total: number;
-}
-
-function summarizeByDriver(claims: Claim[]): DriverRowTotals[] {
-  const map = new Map<string, DriverRowTotals>();
-  claims.forEach((c) => {
-    const cur = map.get(c.driver_id) || { driverName: c.driverName, gasoline: 0, toll: 0, parking: 0, others: 0, total: 0 };
-    c.items.forEach((item) => {
-      const bucket = bucketForType(item.type);
-      cur[bucket] += item.total;
-    });
-    cur.total += c.total;
-    map.set(c.driver_id, cur);
-  });
-  return [...map.values()];
 }
 
 function buildRecapSection(
@@ -51,16 +17,7 @@ function buildRecapSection(
 ): string[] {
   const lines: string[] = [];
   const rows = summarizeByDriver(claims);
-  const grand = rows.reduce(
-    (acc, r) => ({
-      gasoline: acc.gasoline + r.gasoline,
-      toll: acc.toll + r.toll,
-      parking: acc.parking + r.parking,
-      others: acc.others + r.others,
-      total: acc.total + r.total,
-    }),
-    { gasoline: 0, toll: 0, parking: 0, others: 0, total: 0 }
-  );
+  const grand = grandTotalOf(rows);
 
   lines.push(escapeCsv("REKAPITULASI BIAYA OPERASIONAL KENDARAAN " + new Date().getFullYear()));
   lines.push(escapeCsv(sectionTitle));
@@ -97,32 +54,18 @@ function buildRecapSection(
   );
   lines.push("");
 
-  // ── Rincian — matrix layout matching the original paper form: same
-  // Gasoline/Toll/Parking/Others/Total columns as the main table. Each
-  // claim item gets exactly one row, using its already-computed total
-  // (e.g. "100000+10000" → 110000), placed in the column matching its
-  // type and left blank elsewhere. We show the final total per item,
-  // not the underlying addition breakdown. ──
+  // ── Rincian — one row per claim LINE ITEM (one physical "lembar"/sheet
+  // of stapled receipts), never merged even with another item of the same
+  // category in the same claim — each was submitted as its own sheet.
+  // Each row shows that item's final total, never the raw addition
+  // expression like "100000+10000". ──
   lines.push(escapeCsv("RINCIAN"));
   lines.push(["GASOLINE", "TOLL", "PARKING", "OTHERS", "TOTAL"].map(escapeCsv).join(","));
 
-  const rincianRows: { gasoline: number; toll: number; parking: number; others: number }[] = [];
-  claims.forEach((c) => {
-    c.items.forEach((item) => {
-      const bucket = bucketForType(item.type);
-      rincianRows.push({
-        gasoline: bucket === "gasoline" ? item.total : 0,
-        toll: bucket === "toll" ? item.total : 0,
-        parking: bucket === "parking" ? item.total : 0,
-        others: bucket === "others" ? item.total : 0,
-      });
-    });
-  });
-
+  const rincianRows = buildRincianRows(claims);
   rincianRows.forEach((r) => {
-    const rowTotal = r.gasoline + r.toll + r.parking + r.others;
     lines.push(
-      [r.gasoline || "", r.toll || "", r.parking || "", r.others || "", rowTotal].map(escapeCsv).join(",")
+      [r.gasoline || "", r.toll || "", r.parking || "", r.others || "", r.total].map(escapeCsv).join(",")
     );
   });
   lines.push(
