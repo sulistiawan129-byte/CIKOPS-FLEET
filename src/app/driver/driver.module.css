@@ -374,19 +374,32 @@
   pointer-events: none;
 }
 
-/* ── Login form (email + password, Supabase Auth) ── */
-.loginCard {
-  background: #ffffff;
-  border-radius: 24px;
-  padding: 20px 18px 18px;
-  box-shadow: 0 14px 36px rgba(11, 30, 77, 0.18);
-  margin-bottom: 14px;
-  display: flex;
-  flex-direction: column;
+/* ── Login form (email + password, Supabase Auth) ──
+   Glassmorphism: field transparan langsung di atas gradient brand,
+   tanpa kartu putih — menyatu dengan layar landing. Semua gaya glass
+   di-scope di dalam .loginCard supaya .loginInput/.loginLabel yang
+   dipakai modal Ubah Password (di atas latar terang) tidak ikut berubah. */
+.loginWelcome {
+  font-size: 24px;
+  font-weight: 800;
+  color: #fff;
+  letter-spacing: -0.4px;
+  align-self: flex-start;
+  margin-bottom: 5px;
 }
 
-[data-theme="dark"] .loginCard {
-  background: var(--surface);
+.loginWelcomeSub {
+  font-size: 13.5px;
+  color: rgba(255, 255, 255, 0.72);
+  align-self: flex-start;
+  margin-bottom: 22px;
+}
+
+.loginCard {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 16px;
 }
 
 .loginLabel {
@@ -399,18 +412,22 @@
   margin: 4px 2px 7px;
 }
 
+.loginCard .loginLabel {
+  color: rgba(255, 255, 255, 0.78);
+}
+
 .loginInput {
   width: 100%;
-  padding: 14px 15px;
-  border-radius: 14px;
+  padding: 15px 16px;
+  border-radius: 15px;
   border: 1.5px solid var(--border);
   background: var(--bg2);
   font-family: var(--font);
   font-size: 15px;
   color: var(--t1);
   outline: none;
-  margin-bottom: 14px;
-  transition: border-color 0.15s, box-shadow 0.15s;
+  margin-bottom: 15px;
+  transition: border-color 0.18s, box-shadow 0.18s, background 0.18s;
 }
 
 .loginInput:focus {
@@ -422,18 +439,47 @@
   opacity: 0.6;
 }
 
+.loginCard .loginInput {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.22);
+  color: #fff;
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  caret-color: #fff;
+}
+
+.loginCard .loginInput::placeholder {
+  color: rgba(255, 255, 255, 0.42);
+}
+
+.loginCard .loginInput:focus {
+  border-color: rgba(255, 255, 255, 0.6);
+  background: rgba(255, 255, 255, 0.17);
+  box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.12);
+}
+
+/* Autofill browser (Chrome/iOS) memaksa latar putih & teks gelap —
+   timpa supaya field glass tidak "bolong" putih saat ter-autofill. */
+.loginCard .loginInput:-webkit-autofill,
+.loginCard .loginInput:-webkit-autofill:hover,
+.loginCard .loginInput:-webkit-autofill:focus {
+  -webkit-text-fill-color: #fff;
+  -webkit-box-shadow: 0 0 0 1000px rgba(28, 62, 130, 0.92) inset;
+  transition: background-color 9999s ease-out 0s;
+}
+
 .loginPasswordWrap {
   position: relative;
 }
 
 .loginPasswordWrap .loginInput {
-  padding-right: 48px;
+  padding-right: 50px;
 }
 
 .loginEyeBtn {
   position: absolute;
-  right: 6px;
-  top: 5px;
+  right: 7px;
+  top: 6px;
   width: 38px;
   height: 38px;
   border: none;
@@ -444,16 +490,23 @@
   opacity: 0.65;
 }
 
+.loginCard .loginEyeBtn {
+  opacity: 0.85;
+  filter: grayscale(1) brightness(2.2);
+}
+
 .loginError {
   font-size: 13px;
   font-weight: 600;
-  color: #e5484d;
-  background: rgba(229, 72, 77, 0.09);
-  border: 1px solid rgba(229, 72, 77, 0.25);
-  border-radius: 12px;
+  color: #ffd7d9;
+  background: rgba(229, 72, 77, 0.28);
+  border: 1px solid rgba(255, 173, 177, 0.35);
+  border-radius: 13px;
   padding: 11px 13px;
-  margin-bottom: 14px;
+  margin-bottom: 15px;
   text-align: center;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
 }
 
 .loginHint {
