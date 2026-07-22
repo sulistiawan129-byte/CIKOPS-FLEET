@@ -5,13 +5,14 @@ import styles from "./driver.module.css";
 import {
   acceptTask,
   cancelTaskByDriver,
-  changeDriverPin,
+  changeDriverPassword,
   completeTask,
+  driverGetSession,
+  driverSignIn,
+  driverSignOut,
   getDriverHistory,
   getDriverTasksToday,
-  getDrivers,
   subscribeToTasks,
-  verifyDriverPin,
 } from "@/lib/api";
 import type { Driver, TaskDetail } from "@/lib/types";
 import { computeStats } from "@/lib/types";
@@ -19,10 +20,8 @@ import { useLang, useTheme } from "@/lib/providers";
 import type { Dict } from "@/lib/dictionary";
 import { todayLocalISODate } from "@/lib/dateUtils";
 
-type Screen = "splash" | "landing" | "pin" | "app";
+type Screen = "splash" | "login" | "app";
 type Tab = "today" | "history" | "profile";
-
-const PIN_LEN = 4;
 
 export default function DriverPanelPage() {
   const { theme, toggleTheme } = useTheme();
@@ -31,16 +30,11 @@ export default function DriverPanelPage() {
   const [splashFading, setSplashFading] = useState(false);
   const [tab, setTab] = useState<Tab>("today");
 
-  const [drivers, setDrivers] = useState<Driver[]>([]);
-  const [driversLoading, setDriversLoading] = useState(true);
-  const [driversError, setDriversError] = useState<string | null>(null);
-
-  const [selectedDriver, setSelectedDriver] = useState<Driver | null>(null);
-  const [driverSearch, setDriverSearch] = useState("");
-  const [driverPlantFilter, setDriverPlantFilter] = useState<"all" | "CIK" | "PRB">("all");
-  const [pin, setPin] = useState("");
-  const [pinError, setPinError] = useState(false);
-  const [pinBusy, setPinBusy] = useState(false);
+  const [loginEmail, setLoginEmail] = useState("");
+  const [loginPassword, setLoginPassword] = useState("");
+  const [loginShowPassword, setLoginShowPassword] = useState(false);
+  const [loginError, setLoginError] = useState<string | null>(null);
+  const [loginBusy, setLoginBusy] = useState(false);
 
   const [loggedDriver, setLoggedDriver] = useState<Driver | null>(null);
 
@@ -63,77 +57,30 @@ export default function DriverPanelPage() {
   const [historyLoading, setHistoryLoading] = useState(false);
   const [historyApplied, setHistoryApplied] = useState(false);
 
-  const [pinModalOpen, setPinModalOpen] = useState(false);
-  const [pinModalStep, setPinModalStep] = useState<"old" | "new" | "confirm">(
-    "old"
-  );
-  const [pinModalOld, setPinModalOld] = useState("");
-  const [pinModalNew, setPinModalNew] = useState("");
-  const [pinModalConfirm, setPinModalConfirm] = useState("");
-  const [pinModalError, setPinModalError] = useState("");
-  const [pinModalBusy, setPinModalBusy] = useState(false);
+  const [pwModalOpen, setPwModalOpen] = useState(false);
+  const [pwModalNew, setPwModalNew] = useState("");
+  const [pwModalConfirm, setPwModalConfirm] = useState("");
+  const [pwModalError, setPwModalError] = useState("");
+  const [pwModalBusy, setPwModalBusy] = useState(false);
 
   const [toast, setToast] = useState<string | null>(null);
 
-  // ── init: load drivers ──
-
-  const loadDrivers = useCallback(async () => {
-    setDriversLoading(true);
-    setDriversError(null);
-    try {
-      const data = await getDrivers();
-      setDrivers(data);
-    } catch (e) {
-      setDriversError(e instanceof Error ? e.message : t.gagalMemuatDataDriver);
-    } finally {
-      setDriversLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    loadDrivers();
-  }, [loadDrivers]);
-
-  // ── splash screen: tampil sebentar, lalu cek session tersimpan ──
+  // ── splash screen: tampil sebentar, lalu cek sesi Supabase Auth ──
 useEffect(() => {
     const fadeTimer = setTimeout(() => setSplashFading(true), 1300);
     const nextTimer = setTimeout(async () => {
-      const savedSession = localStorage.getItem("cikops_driver_session");
-      if (savedSession) {
-        try {
-          const parsed = JSON.parse(savedSession) as Driver;
-          if (parsed && parsed.id) {
-            // Re-validate against the server instead of trusting the
-            // cached copy — getDrivers() only ever returns drivers with
-            // aktif = true, so if this driver isn't in the list anymore
-            // they were deactivated (or deleted) since last login.
-            try {
-              const freshList = await getDrivers();
-              const fresh = freshList.find((d) => d.id === parsed.id);
-              if (fresh) {
-                localStorage.setItem("cikops_driver_session", JSON.stringify(fresh));
-                setLoggedDriver(fresh);
-                setScreen("app");
-                setTab("today");
-                return;
-              }
-              // No longer active — force logout.
-              localStorage.removeItem("cikops_driver_session");
-            } catch {
-              // Network/API failure during the check — fail open with the
-              // cached session rather than locking the driver out just
-              // because they're briefly offline at app launch.
-              setLoggedDriver(parsed);
-              setScreen("app");
-              setTab("today");
-              return;
-            }
-          }
-        } catch {
-          localStorage.removeItem("cikops_driver_session");
+      try {
+        const driver = await driverGetSession();
+        if (driver) {
+          setLoggedDriver(driver);
+          setScreen("app");
+          setTab("today");
+          return;
         }
+      } catch {
+        // fall through ke layar login
       }
-      setScreen("landing");
+      setScreen("login");
     }, 1700);
     return () => {
       clearTimeout(fadeTimer);
@@ -318,11 +265,10 @@ useEffect(() => {
 
     async function recheckStillActive() {
       try {
-        const list = await getDrivers();
-        const stillActive = list.some((d) => d.id === loggedDriver!.id);
-        if (!stillActive) {
+        const fresh = await driverGetSession();
+        if (!fresh) {
           showToast(
-            lang === "en" ? "Your account was deactivated" : "Akun Anda telah dinonaktifkan"
+            lang === "en" ? "Your session has ended" : "Sesi kamu telah berakhir"
           );
           logout();
         }
@@ -348,71 +294,41 @@ useEffect(() => {
     setTimeout(() => setToast(null), 2200);
   }
 
-  function selectDriver(d: Driver) {
-    setSelectedDriver(d);
-  }
-
-  function goToPin() {
-    if (!selectedDriver) return;
-    setPin("");
-    setPinError(false);
-    setScreen("pin");
-  }
-
-  function pressDigit(digit: string) {
-    if (pin.length >= PIN_LEN || pinBusy) return;
-    const next = pin + digit;
-    setPin(next);
-    setPinError(false);
-    if (next.length === PIN_LEN) {
-      submitPin(next);
-    }
-  }
-
-  function pressBackspace() {
-    if (pinBusy) return;
-    setPin((p) => p.slice(0, -1));
-    setPinError(false);
-  }
-
-  async function submitPin(value: string) {
-    if (!selectedDriver) return;
-    setPinBusy(true);
+  async function submitLogin(e?: React.FormEvent) {
+    e?.preventDefault();
+    const email = loginEmail.trim();
+    if (!email || !loginPassword || loginBusy) return;
+    setLoginBusy(true);
+    setLoginError(null);
     try {
-      const verified = await verifyDriverPin(selectedDriver.id, value);
-      if (!verified) {
-        setPinError(true);
-        setTimeout(() => {
-          setPin("");
-        }, 400);
-        return;
-      }
-      setLoggedDriver(verified);
-      localStorage.setItem("cikops_driver_session", JSON.stringify(verified));
+      const driver = await driverSignIn(email, loginPassword);
+      setLoggedDriver(driver);
+      setLoginPassword("");
       setScreen("app");
       setTab("today");
-    } catch (e) {
-      setPinError(true);
-      setTimeout(() => setPin(""), 400);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "";
+      if (msg === "NOT_A_DRIVER") setLoginError(t.akunBukanDriver);
+      else if (msg === "INVALID_CREDENTIALS") setLoginError(t.loginGagal);
+      else setLoginError(msg || t.loginGagal);
     } finally {
-      setPinBusy(false);
+      setLoginBusy(false);
     }
   }
 
-  function backToLanding() {
-    setScreen("landing");
-    setSelectedDriver(null);
-    setPin("");
-    setPinError(false);
-  }
-
-  function logout() {
-    localStorage.removeItem("cikops_driver_session");
+  async function logout() {
+    try {
+      await driverSignOut();
+    } catch {
+      // Sesi lokal tetap dibersihkan meski request sign-out gagal
+      // (mis. sedang offline) — Supabase menghapus token lokalnya sendiri.
+    }
     knownAssignedIdsRef.current = null;
     updateAppBadge(0);
     setLoggedDriver(null);
-    setSelectedDriver(null);
-    setScreen("landing");
+    setLoginPassword("");
+    setLoginError(null);
+    setScreen("login");
     setTab("today");
     setTodayTasks([]);
     setHistoryTasks([]);
@@ -501,103 +417,43 @@ useEffect(() => {
     return historyTasks.filter((t) => t.status === historyStatusFilter);
   }, [historyTasks, historyStatusFilter]);
 
-  const hasMultiplePlants = useMemo(
-    () => new Set(drivers.map((d) => d.plant || "CIK")).size > 1,
-    [drivers]
-  );
-
-  function openPinModal() {
-    setPinModalOpen(true);
-    setPinModalStep("old");
-    setPinModalOld("");
-    setPinModalNew("");
-    setPinModalConfirm("");
-    setPinModalError("");
+  function openPasswordModal() {
+    setPwModalOpen(true);
+    setPwModalNew("");
+    setPwModalConfirm("");
+    setPwModalError("");
   }
 
-  function closePinModal() {
-    setPinModalOpen(false);
+  function closePasswordModal() {
+    if (pwModalBusy) return;
+    setPwModalOpen(false);
   }
 
-  function modalCurrentValue() {
-    if (pinModalStep === "old") return pinModalOld;
-    if (pinModalStep === "new") return pinModalNew;
-    return pinModalConfirm;
-  }
-
-  function pressModalDigit(digit: string) {
-    if (pinModalBusy) return;
-    const current = modalCurrentValue();
-    if (current.length >= PIN_LEN) return;
-    const next = current + digit;
-
-    if (pinModalStep === "old") setPinModalOld(next);
-    else if (pinModalStep === "new") setPinModalNew(next);
-    else setPinModalConfirm(next);
-
-    if (next.length === PIN_LEN) {
-      handleModalStepComplete(next);
-    }
-  }
-
-  function pressModalBackspace() {
-    if (pinModalBusy) return;
-    if (pinModalStep === "old") setPinModalOld((p) => p.slice(0, -1));
-    else if (pinModalStep === "new") setPinModalNew((p) => p.slice(0, -1));
-    else setPinModalConfirm((p) => p.slice(0, -1));
-    setPinModalError("");
-  }
-
-  async function handleModalStepComplete(value: string) {
-    if (pinModalStep === "old") {
-      setPinModalStep("new");
+  async function submitPasswordChange(e?: React.FormEvent) {
+    e?.preventDefault();
+    if (pwModalBusy) return;
+    if (pwModalNew.length < 6) {
+      setPwModalError(t.passwordMin6);
       return;
     }
-    if (pinModalStep === "new") {
-      setPinModalStep("confirm");
+    if (pwModalNew !== pwModalConfirm) {
+      setPwModalError(t.passwordTidakSama);
       return;
     }
-    if (value !== pinModalNew) {
-      setPinModalError(t.pinBaruTidakCocok);
-      setPinModalConfirm("");
-      setPinModalStep("new");
-      setPinModalNew("");
-      return;
-    }
-    if (!loggedDriver) return;
-    setPinModalBusy(true);
+    setPwModalBusy(true);
+    setPwModalError("");
     try {
-      const ok = await changeDriverPin(loggedDriver.id, pinModalOld, pinModalNew);
-      if (!ok) {
-        setPinModalError(t.pinLamaSalah);
-        setPinModalStep("old");
-        setPinModalOld("");
-        setPinModalNew("");
-        setPinModalConfirm("");
-        return;
-      }
-      setPinModalOpen(false);
-      showToast(t.pinBerhasilDiubah);
-    } catch (e) {
-      setPinModalError(e instanceof Error ? e.message : t.gagalMengubahPin);
+      await changeDriverPassword(pwModalNew);
+      setPwModalOpen(false);
+      showToast(t.passwordDiubah);
+    } catch (e2) {
+      setPwModalError(e2 instanceof Error ? e2.message : t.gagalMengubahPassword);
     } finally {
-      setPinModalBusy(false);
+      setPwModalBusy(false);
     }
   }
 
   const stats = useMemo(() => computeStats(todayTasks), [todayTasks]);
-
-  const filteredDrivers = useMemo(() => {
-    let list = drivers;
-    if (driverPlantFilter !== "all") {
-      list = list.filter((d) => (d.plant || "CIK") === driverPlantFilter);
-    }
-    if (driverSearch.trim()) {
-      const q = driverSearch.trim().toLowerCase();
-      list = list.filter((d) => d.nama.toLowerCase().includes(q));
-    }
-    return list;
-  }, [drivers, driverPlantFilter, driverSearch]);
 
   if (screen === "splash") {
     return (
@@ -622,7 +478,7 @@ useEffect(() => {
     );
   }
 
-  if (screen === "landing") {
+  if (screen === "login") {
     return (
       <div className={styles.appOuter}>
       <div className={`${styles.screen} ${styles.landingScreen}`}>
@@ -641,7 +497,7 @@ useEffect(() => {
               onClick={toggleTheme}
               aria-label={t.gantiTema}
             >
-              {theme === "dark" ? "☀️" : "🌙"}
+              {theme === "dark" ? "\u2600\ufe0f" : "\ud83c\udf19"}
             </button>
           </div>
 
@@ -651,177 +507,62 @@ useEffect(() => {
             <div className={styles.brandSub}>Driver Operations</div>
           </div>
 
-          <div className={styles.sectionLabel}>{t.pilihDriver}</div>
+          <div className={styles.sectionLabel}>{t.masukDenganAkun}</div>
 
-          {!driversLoading && !driversError && drivers.length > 6 && (
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 8,
-                background: "#fff",
-                borderRadius: 16,
-                padding: "12px 16px",
-                marginBottom: 10,
-                boxShadow: "0 6px 18px rgba(11,30,77,0.1)",
-              }}
-            >
-              <span style={{ fontSize: 15, opacity: 0.5 }}>🔍</span>
+          <form className={styles.loginCard} onSubmit={submitLogin}>
+            <label className={styles.loginLabel} htmlFor="driver-email">Email</label>
+            <input
+              id="driver-email"
+              className={styles.loginInput}
+              type="email"
+              inputMode="email"
+              autoComplete="email"
+              autoCapitalize="none"
+              spellCheck={false}
+              placeholder="nama@perusahaan.com"
+              value={loginEmail}
+              onChange={(e) => { setLoginEmail(e.target.value); setLoginError(null); }}
+              disabled={loginBusy}
+            />
+
+            <label className={styles.loginLabel} htmlFor="driver-password">Password</label>
+            <div className={styles.loginPasswordWrap}>
               <input
-                value={driverSearch}
-                onChange={(e) => setDriverSearch(e.target.value)}
-                placeholder={lang === "en" ? "Search driver name..." : "Cari nama driver..."}
-                style={{
-                  flex: 1,
-                  border: "none",
-                  outline: "none",
-                  fontSize: 14,
-                  fontFamily: "var(--font)",
-                  color: "var(--t1)",
-                  background: "transparent",
-                }}
+                id="driver-password"
+                className={styles.loginInput}
+                type={loginShowPassword ? "text" : "password"}
+                autoComplete="current-password"
+                placeholder="\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022"
+                value={loginPassword}
+                onChange={(e) => { setLoginPassword(e.target.value); setLoginError(null); }}
+                disabled={loginBusy}
               />
-              {driverSearch && (
-                <button
-                  onClick={() => setDriverSearch("")}
-                  style={{ border: "none", background: "none", color: "var(--t3)", fontSize: 14, cursor: "pointer", padding: 2 }}
-                >
-                  ✕
-                </button>
-              )}
+              <button
+                type="button"
+                className={styles.loginEyeBtn}
+                onClick={() => setLoginShowPassword((v) => !v)}
+                aria-label={loginShowPassword ? t.sembunyikanPassword : t.lihatPassword}
+                tabIndex={-1}
+              >
+                {loginShowPassword ? "\ud83d\ude48" : "\ud83d\udc41\ufe0f"}
+              </button>
             </div>
-          )}
 
-          {!driversLoading && !driversError && hasMultiplePlants && (
-            <div style={{ display: "flex", gap: 8, marginBottom: 14 }}>
-              {(["all", "CIK", "PRB"] as const).map((p) => (
-                <button
-                  key={p}
-                  onClick={() => setDriverPlantFilter(p)}
-                  className={`${styles.chip} ${driverPlantFilter === p ? styles.chipOn : ""}`}
-                  style={{ flex: 1 }}
-                >
-                  {p === "all" ? (lang === "en" ? "All Plants" : "Semua Plant") : p}
-                </button>
-              ))}
-            </div>
-          )}
+            {loginError && <div className={styles.loginError}>{loginError}</div>}
 
-          {driversLoading && (
-            <div className={styles.loadingWrap}>
-              <div className={styles.spinner} />
-              <div className={styles.loadingTxt}>{t.memuatDriver}</div>
-            </div>
-          )}
+            <button
+              type="submit"
+              className={styles.btnMasuk}
+              disabled={!loginEmail.trim() || !loginPassword || loginBusy}
+              style={{ marginTop: 6 }}
+            >
+              {loginBusy ? t.sedangMasuk : t.masuk}
+            </button>
+          </form>
 
-          {driversError && (
-            <div className={styles.errBox}>
-              <div className={styles.errTxt}>{driversError}</div>
-            </div>
-          )}
-
-          {!driversLoading && !driversError && (
-            filteredDrivers.length === 0 ? (
-              <div style={{ textAlign: "center", padding: "32px 16px", color: "rgba(255,255,255,0.6)", fontSize: 13 }}>
-                {lang === "en" ? "No driver found." : "Driver tidak ditemukan."}
-              </div>
-            ) : (
-              <div className={styles.driverGrid}>
-                {filteredDrivers.map((d) => (
-                  <button
-                    key={d.id}
-                    className={`${styles.driverCard} ${selectedDriver?.id === d.id ? styles.driverCardSelected : ""}`}
-                    onClick={() => selectDriver(d)}
-                  >
-                    <div className={styles.driverAvatar}>
-                      {d.avatar_emoji || "🧑‍✈️"}
-                      <span className={styles.driverAvatarDot} />
-                    </div>
-                    <div className={styles.driverCardBody}>
-                      <div className={styles.driverCardName}>
-                        {d.nama}
-                        {hasMultiplePlants && (
-                          <span
-                            style={{
-                              marginLeft: 7,
-                              fontSize: 9.5,
-                              fontWeight: 800,
-                              padding: "1px 6px",
-                              borderRadius: 5,
-                              background: "rgba(61,111,242,0.1)",
-                              color: "var(--brand)",
-                              verticalAlign: "middle",
-                            }}
-                          >
-                            {d.plant || "CIK"}
-                          </span>
-                        )}
-                      </div>
-                      <div className={styles.driverCardRole}>
-                        <span>●</span> {t.online}
-                      </div>
-                    </div>
-                    <div className={styles.driverCardChevron}>›</div>
-                  </button>
-                ))}
-              </div>
-            )
-          )}
-
-          <button
-            className={styles.btnMasuk}
-            disabled={!selectedDriver}
-            onClick={goToPin}
-          >
-            {t.masuk}
-          </button>
+          <div className={styles.loginHint}>{t.loginHintAdmin}</div>
 
           <div className={styles.landingFooter}>CIKOPS-FM SYSTEM v1.0</div>
-        </div>
-      </div>
-      </div>
-    );
-  }
-
-  if (screen === "pin" && selectedDriver) {
-    return (
-      <div className={styles.appOuter}>
-      <div className={`${styles.screen} ${styles.pinScreen}`}>
-        <div className={styles.pinWrap}>
-          <button className={styles.pinBack} onClick={backToLanding}>
-            {t.kembali}
-          </button>
-
-          <div className={styles.pinInfoZone}>
-            <div className={styles.pinAvatar}>
-              {selectedDriver.avatar_emoji || "🧑‍✈️"}
-            </div>
-            <div className={styles.pinDriverName}>{selectedDriver.nama}</div>
-            <div className={styles.pinPrompt}>{t.masukkanPin}</div>
-
-            <div className={styles.pinDots}>
-              {Array.from({ length: PIN_LEN }).map((_, i) => (
-                <div
-                  key={i}
-                  className={`${styles.pinDot} ${
-                    i < pin.length ? styles.pinDotFilled : ""
-                  } ${pinError ? styles.pinDotError : ""}`}
-                />
-              ))}
-            </div>
-
-            <div className={styles.pinErrorMsg}>
-              {pinError ? t.pinSalah : ""}
-            </div>
-          </div>
-
-          <div className={styles.pinNumpadZone}>
-            <Numpad
-              onDigit={pressDigit}
-              onBackspace={pressBackspace}
-              disabled={pinBusy}
-            />
-          </div>
         </div>
       </div>
       </div>
@@ -952,7 +693,7 @@ useEffect(() => {
             {tab === "profile" && (
               <ProfileTab
                 driver={loggedDriver}
-                onChangePin={openPinModal}
+                onChangePassword={openPasswordModal}
                 onLogout={logout}
               />
             )}
@@ -994,17 +735,16 @@ useEffect(() => {
           </button>
         </div>
 
-        {pinModalOpen && (
-          <PinChangeModal
-            step={pinModalStep}
-            oldVal={pinModalOld}
-            newVal={pinModalNew}
-            confirmVal={pinModalConfirm}
-            error={pinModalError}
-            busy={pinModalBusy}
-            onDigit={pressModalDigit}
-            onBackspace={pressModalBackspace}
-            onClose={closePinModal}
+        {pwModalOpen && (
+          <PasswordChangeModal
+            newVal={pwModalNew}
+            confirmVal={pwModalConfirm}
+            error={pwModalError}
+            busy={pwModalBusy}
+            setNewVal={setPwModalNew}
+            setConfirmVal={setPwModalConfirm}
+            onSubmit={submitPasswordChange}
+            onClose={closePasswordModal}
           />
         )}
 
@@ -1042,50 +782,6 @@ useEffect(() => {
   }
 
   return null;
-}
-
-function Numpad({
-  onDigit,
-  onBackspace,
-  disabled,
-}: {
-  onDigit: (d: string) => void;
-  onBackspace: () => void;
-  disabled?: boolean;
-}) {
-  const keys = ["1", "2", "3", "4", "5", "6", "7", "8", "9"];
-  return (
-    <div className={styles.numpad}>
-      {keys.map((k) => (
-        <button
-          key={k}
-          className={styles.numpadKey}
-          onClick={() => onDigit(k)}
-          disabled={disabled}
-        >
-          {k}
-        </button>
-      ))}
-      <button className={`${styles.numpadKey} ${styles.numpadEmpty}`} disabled>
-        {""}
-      </button>
-      <button
-        className={styles.numpadKey}
-        onClick={() => onDigit("0")}
-        disabled={disabled}
-      >
-        0
-      </button>
-      <button
-        className={`${styles.numpadKey} ${styles.numpadDel}`}
-        onClick={onBackspace}
-        disabled={disabled}
-        aria-label="Hapus"
-      >
-        ⌫
-      </button>
-    </div>
-  );
 }
 
 function statusLabel(status: string, t: Dict) {
@@ -1434,11 +1130,11 @@ function HistoryTab({
 
 function ProfileTab({
   driver,
-  onChangePin,
+  onChangePassword,
   onLogout,
 }: {
   driver: Driver;
-  onChangePin: () => void;
+  onChangePassword: () => void;
   onLogout: () => void;
 }) {
   const { t } = useLang();
@@ -1446,7 +1142,7 @@ function ProfileTab({
     <div className={styles.profileWrap}>
       <div className={styles.profileHero}>
         <div className={styles.profileAvatar}>
-          {driver.avatar_emoji || "🧑‍✈️"}
+          {driver.avatar_emoji || "\ud83e\uddd1\u200d\u2708\ufe0f"}
         </div>
         <div className={styles.profileName}>{driver.nama}</div>
         <div className={styles.profileRoleLabel}>DRIVER</div>
@@ -1455,26 +1151,33 @@ function ProfileTab({
       <div className={styles.profileSection}>
         <div className={styles.profileSectionHeader}>{t.informasi}</div>
         <div className={styles.profileRow}>
-          <span className={styles.profileRowIco}>📱</span>
+          <span className={styles.profileRowIco}>\ud83d\udcf1</span>
           <span className={styles.profileRowLabel}>{t.noHp}</span>
           <span className={styles.profileRowVal}>{driver.no_hp || "-"}</span>
         </div>
+        {driver.email && (
+          <div className={styles.profileRow}>
+            <span className={styles.profileRowIco}>\u2709\ufe0f</span>
+            <span className={styles.profileRowLabel}>Email</span>
+            <span className={styles.profileRowVal} style={{ fontSize: 13.5, wordBreak: "break-all" }}>{driver.email}</span>
+          </div>
+        )}
       </div>
 
       <div className={styles.profileSection}>
         <div className={styles.profileSectionHeader}>{t.keamanan}</div>
         <div className={styles.profileRow}>
-          <span className={styles.profileRowIco}>🔒</span>
-          <span className={styles.profileRowLabel}>{t.pinAkses}</span>
-          <button className={styles.pinRowBtn} onClick={onChangePin}>
-            {t.ubahPin}
+          <span className={styles.profileRowIco}>\ud83d\udd12</span>
+          <span className={styles.profileRowLabel}>Password</span>
+          <button className={styles.pinRowBtn} onClick={onChangePassword}>
+            {t.ubahPassword}
           </button>
         </div>
       </div>
 
       <div className={styles.profileSection}>
         <div className={styles.profileRow}>
-          <span className={styles.profileRowIco}>🚪</span>
+          <span className={styles.profileRowIco}>\ud83d\udeaa</span>
           <span className={styles.profileRowLabel}>{t.keluarDariAkun}</span>
           <button className={styles.pinRowBtn} onClick={onLogout}>
             {t.keluar}
@@ -1487,36 +1190,26 @@ function ProfileTab({
   );
 }
 
-function PinChangeModal({
-  step,
-  oldVal,
+function PasswordChangeModal({
   newVal,
   confirmVal,
   error,
   busy,
-  onDigit,
-  onBackspace,
+  setNewVal,
+  setConfirmVal,
+  onSubmit,
   onClose,
 }: {
-  step: "old" | "new" | "confirm";
-  oldVal: string;
   newVal: string;
   confirmVal: string;
   error: string;
   busy: boolean;
-  onDigit: (d: string) => void;
-  onBackspace: () => void;
+  setNewVal: (v: string) => void;
+  setConfirmVal: (v: string) => void;
+  onSubmit: (e?: React.FormEvent) => void;
   onClose: () => void;
 }) {
   const { t } = useLang();
-  const value = step === "old" ? oldVal : step === "new" ? newVal : confirmVal;
-  const title =
-    step === "old"
-      ? t.masukkanPinLama
-      : step === "new"
-      ? t.buatPinBaru
-      : t.konfirmasiPinBaru;
-
   return (
     <div className={styles.modalOverlay} onClick={onClose}>
       <div
@@ -1524,31 +1217,44 @@ function PinChangeModal({
         onClick={(e) => e.stopPropagation()}
       >
         <div className={styles.modalHandle} />
-        <div className={styles.modalTitle}>{title}</div>
-        <div className={styles.modalSub}>
-          {step === "old"
-            ? t.verifikasiIdentitas
-            : step === "new"
-            ? t.empatDigitMudahDiingat
-            : t.ketikUlangPin}
-        </div>
+        <div className={styles.modalTitle}>{t.ubahPassword}</div>
+        <div className={styles.modalSub}>{t.passwordMin6}</div>
 
-        <div className={`${styles.pinDots} ${styles.modalDots}`}>
-          {Array.from({ length: PIN_LEN }).map((_, i) => (
-            <div
-              key={i}
-              className={`${styles.pinDot} ${
-                i < value.length ? styles.pinDotFilled : ""
-              }`}
-            />
-          ))}
-        </div>
+        <form onSubmit={onSubmit} className={styles.pwForm}>
+          <label className={styles.loginLabel} htmlFor="pw-new">{t.passwordBaru}</label>
+          <input
+            id="pw-new"
+            className={styles.loginInput}
+            type="password"
+            autoComplete="new-password"
+            value={newVal}
+            onChange={(e) => setNewVal(e.target.value)}
+            disabled={busy}
+          />
 
-        <div className={styles.modalErr}>{error}</div>
+          <label className={styles.loginLabel} htmlFor="pw-confirm">{t.konfirmasiPasswordBaru}</label>
+          <input
+            id="pw-confirm"
+            className={styles.loginInput}
+            type="password"
+            autoComplete="new-password"
+            value={confirmVal}
+            onChange={(e) => setConfirmVal(e.target.value)}
+            disabled={busy}
+          />
 
-        <Numpad onDigit={onDigit} onBackspace={onBackspace} disabled={busy} />
+          <div className={styles.modalErr}>{error}</div>
 
-        <button className={styles.modalCancelBtn} onClick={onClose}>
+          <button
+            type="submit"
+            className={styles.btnMasuk}
+            disabled={busy || !newVal || !confirmVal}
+          >
+            {busy ? t.menyimpan : t.simpanPassword}
+          </button>
+        </form>
+
+        <button className={styles.modalCancelBtn} onClick={onClose} disabled={busy}>
           {t.batal}
         </button>
       </div>
