@@ -61,6 +61,7 @@ export interface Dict {
 
   // Supabase Auth login
   masukDenganAkun: string;
+  loginWelcome: string;
   sedangMasuk: string;
   loginGagal: string;
   akunBukanDriver: string;
@@ -228,6 +229,7 @@ export const DICT: Record<Lang, Dict> = {
     keluarDariAkun: "Keluar dari akun",
 
     masukDenganAkun: "Masuk dengan akun driver kamu",
+    loginWelcome: "Selamat datang \ud83d\udc4b",
     sedangMasuk: "Masuk...",
     loginGagal: "Email atau password salah.",
     akunBukanDriver: "Akun ini tidak terhubung ke driver aktif. Hubungi admin.",
@@ -387,6 +389,7 @@ export const DICT: Record<Lang, Dict> = {
     keluarDariAkun: "Sign out",
 
     masukDenganAkun: "Sign in with your driver account",
+    loginWelcome: "Welcome back \ud83d\udc4b",
     sedangMasuk: "Signing in...",
     loginGagal: "Wrong email or password.",
     akunBukanDriver: "This account isn't linked to an active driver. Contact your admin.",
