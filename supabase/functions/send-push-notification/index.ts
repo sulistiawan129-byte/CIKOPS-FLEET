@@ -50,10 +50,8 @@ serve(async (req) => {
       target_channel: "push",
       headings: { en: title, id: title },
       contents: { en: body, id: body },
-      android_channel_id: "cikops_task",
       priority: 10,
       data: data ?? {},
-      // Badge: +1 dari badge sebelumnya, driver clear badge saat buka app
       ios_badgeType: "Increase",
       ios_badgeCount: 1,
     };
