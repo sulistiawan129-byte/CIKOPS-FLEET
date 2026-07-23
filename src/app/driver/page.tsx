@@ -200,39 +200,57 @@ useEffect(() => {
   }, []);
 
   // OneSignal JavaScript Bridge — daftarkan driver sebagai External User ID
-  // supaya push notification bisa dikirim ke driver yang spesifik.
-  // Hanya berjalan di dalam Median WebView (median object tersedia).
+  // Median SDK v5: pakai median.onesignal.login(externalId)
+  // 4 jalur supaya pasti terpanggil terlepas dari timing bridge ready:
+  // 1. median_onesignal_info callback (dipanggil otomatis Median setelah page load)
+  // 2. Langsung saat komponen mount
+  // 3. Retry 2 detik  4. Retry 5 detik (cold start lambat)
   useEffect(() => {
     if (screen !== "app" || !loggedDriver) return;
+    const driverId = loggedDriver.id;
+
+    function doLogin() {
+      try {
+        const w = window as Window & {
+          median?: { onesignal?: { login?: (id: string) => void } };
+        };
+        if (w.median?.onesignal?.login) {
+          w.median.onesignal.login(driverId);
+        }
+      } catch {}
+    }
+
+    // Jalur 1: callback global yang Median panggil otomatis setelah bridge siap
+    (window as Window & {
+      median_onesignal_info?: (data: unknown) => void;
+    }).median_onesignal_info = () => { doLogin(); };
+
+    // Jalur 2, 3, 4
+    doLogin();
+    const t1 = setTimeout(doLogin, 2000);
+    const t2 = setTimeout(doLogin, 5000);
+
+    return () => {
+      clearTimeout(t1);
+      clearTimeout(t2);
+      delete (window as Window & { median_onesignal_info?: unknown }).median_onesignal_info;
+    };
+  }, [screen, loggedDriver?.id]);
+
+  // Logout OneSignal saat driver keluar supaya device tidak terima notif driver lain
+  // (dipanggil dari fungsi logout() di bawah)
+  function oneSignalLogout() {
     try {
       const w = window as Window & {
-        median?: {
-          onesignal?: {
-            externalUserId?: {
-              set: (opts: { externalId: string }) => void;
-            };
-            badge?: {
-              set: (count: number) => void;
-            };
-          };
-        };
+        median?: { onesignal?: { logout?: () => void } };
       };
-      // Set External User ID = driver UUID (dipakai Edge Function untuk target push)
-      w.median?.onesignal?.externalUserId?.set({ externalId: loggedDriver.id });
-      // Clear badge saat app dibuka/driver login
-      w.median?.onesignal?.badge?.set(0);
+      w.median?.onesignal?.logout?.();
     } catch {}
-  }, [screen, loggedDriver?.id]);
+  }
 
   // Clear badge saat driver membuka app dari background
   useEffect(() => {
     function clearBadgeOnFocus() {
-      try {
-        const w = window as Window & {
-          median?: { onesignal?: { badge?: { set: (n: number) => void } } };
-        };
-        w.median?.onesignal?.badge?.set(0);
-      } catch {}
       updateAppBadge(0);
     }
     document.addEventListener("visibilitychange", () => {
@@ -464,6 +482,7 @@ useEffect(() => {
   }
 
   async function logout() {
+    oneSignalLogout();
     try {
       await driverSignOut();
     } catch {
