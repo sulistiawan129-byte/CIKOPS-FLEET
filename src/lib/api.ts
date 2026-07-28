@@ -1271,11 +1271,16 @@ function mapCanteenRow(row: CanteenReportRow): CanteenReport {
 
 /** Gets all canteen reports for a given "YYYY-MM" month. */
 export async function getCanteenReportsForMonth(month: string): Promise<CanteenReport[]> {
+  const [y, m] = month.split("-").map(Number);
+  // Bug fix: compute actual last day instead of hardcoding "-31"
+  // (Postgres throws "date out of range" for e.g. "2026-02-31")
+  const lastDay = new Date(y, m, 0).getDate(); // day 0 of next month = last day of this month
+  const lastDate = `${month}-${String(lastDay).padStart(2, "0")}`;
   const { data, error } = await supabase
     .from("canteen_reports")
     .select("*")
     .gte("report_date", `${month}-01`)
-    .lte("report_date", `${month}-31`)
+    .lte("report_date", lastDate)
     .order("report_date", { ascending: true });
   if (error) throw error;
   return ((data as CanteenReportRow[]) ?? []).map(mapCanteenRow);
@@ -1298,22 +1303,46 @@ export interface CanteenReportInput {
   submittedBy: string;
 }
 
-/** Saving a report for a date that already has one REPLACES it (upsert
- *  on report_date) — matches the original system, where submitting the
- *  same day again was how you corrected a mistake, not a duplicate. */
+/** Saving a report for a date that already has one REPLACES it —
+ *  matches the original system, where submitting the same day again
+ *  was how you corrected a mistake, not a duplicate.
+ *
+ *  Bug fix: replaced .upsert({ onConflict: "report_date" }) with an
+ *  explicit insert → update fallback. The table has TWO unique
+ *  constraints on report_date (column-level UNIQUE + a named index),
+ *  which made Supabase upsert's conflict resolution ambiguous and
+ *  caused a duplicate-key error on the second submit for the same day. */
 export async function saveCanteenReport(input: CanteenReportInput): Promise<void> {
-  const { error } = await supabase.from("canteen_reports").upsert(
-    {
-      report_date: input.reportDate,
-      snack_order_1: input.snackOrder[0], snack_order_2: input.snackOrder[1], snack_order_3: input.snackOrder[2],
-      snack_leftover_1: input.snackLeftover[0], snack_leftover_2: input.snackLeftover[1], snack_leftover_3: input.snackLeftover[2],
-      meal_order_1: input.mealOrder[0], meal_order_2: input.mealOrder[1], meal_order_3: input.mealOrder[2],
-      meal_leftover_1: input.mealLeftover[0], meal_leftover_2: input.mealLeftover[1], meal_leftover_3: input.mealLeftover[2],
-      submitted_by: input.submittedBy,
-    },
-    { onConflict: "report_date" }
-  );
-  if (error) throw error;
+  const row = {
+    report_date: input.reportDate,
+    snack_order_1: input.snackOrder[0], snack_order_2: input.snackOrder[1], snack_order_3: input.snackOrder[2],
+    snack_leftover_1: input.snackLeftover[0], snack_leftover_2: input.snackLeftover[1], snack_leftover_3: input.snackLeftover[2],
+    meal_order_1: input.mealOrder[0], meal_order_2: input.mealOrder[1], meal_order_3: input.mealOrder[2],
+    meal_leftover_1: input.mealLeftover[0], meal_leftover_2: input.mealLeftover[1], meal_leftover_3: input.mealLeftover[2],
+    submitted_by: input.submittedBy,
+  };
+
+  // Try insert first (new date)
+  const { error: insertError } = await supabase
+    .from("canteen_reports")
+    .insert(row);
+
+  if (!insertError) return; // inserted successfully
+
+  // If duplicate key → fall back to update for this date
+  const isDuplicate =
+    insertError.code === "23505" || // Postgres unique violation
+    (insertError.message ?? "").toLowerCase().includes("duplicate") ||
+    (insertError.message ?? "").toLowerCase().includes("unique");
+
+  if (!isDuplicate) throw insertError; // unexpected error — bubble up
+
+  const { error: updateError } = await supabase
+    .from("canteen_reports")
+    .update(row)
+    .eq("report_date", input.reportDate);
+
+  if (updateError) throw updateError;
 }
 
 export async function deleteCanteenReport(id: string): Promise<void> {
