@@ -62,7 +62,14 @@ export default function CanteenPublicPage() {
       });
       setScreen("success");
     } catch (e) {
-      alert(e instanceof Error ? e.message : "Gagal menyimpan laporan");
+      // Supabase melempar PostgrestError (plain object), bukan instanceof Error,
+      // sehingga pesan aslinya tersembunyi. Ambil dari .message dulu,
+      // fallback ke JSON, fallback ke pesan generik.
+      const msg =
+        (e instanceof Error ? e.message : null) ||
+        (e && typeof e === "object" && "message" in e ? String((e as { message: unknown }).message) : null) ||
+        (lang === "en" ? "Failed to save report. Please try again." : "Gagal menyimpan laporan. Coba lagi.");
+      alert(msg);
     } finally {
       setSaving(false);
     }
