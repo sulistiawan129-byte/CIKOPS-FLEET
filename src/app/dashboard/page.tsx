@@ -1566,10 +1566,12 @@ function CreateTaskModal({
           dateFrom: tanggal,
           dateTo: tanggalTo,
         });
+        const driverPhone = drivers.find((d) => d.id === driverId)?.no_hp || undefined;
         sendTaskBatchEmail({
           requestorEmail,
           requestor,
           driverName,
+          driverPhone,
           vehicleLabel,
           jenisPekerjaan,
           tujuan,
@@ -1903,10 +1905,20 @@ function daysUntil(dateStr: string | null | undefined): number {
   return Math.ceil((new Date(dateStr).getTime() - Date.now()) / 86400000);
 }
 
-/** Adds months to a date string, returns ISO date string (YYYY-MM-DD). */
+/** Adds months to a date string, returns ISO date string (YYYY-MM-DD).
+ *  Clamps to the last day of the target month so Jan 31 + 1 month
+ *  correctly returns Feb 28 (not March 3). */
 function addMonths(dateStr: string, months: number): string {
   const d = new Date(dateStr);
-  d.setMonth(d.getMonth() + months);
+  const targetMonth = d.getMonth() + months;
+  // Set to day 1 first to avoid overflow when probing last day
+  d.setDate(1);
+  d.setMonth(targetMonth);
+  // Find last day of target month
+  const lastDay = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+  // Use original day, clamped to last day of target month
+  const originalDay = new Date(dateStr).getDate();
+  d.setDate(Math.min(originalDay, lastDay));
   return d.toISOString().slice(0, 10);
 }
 
