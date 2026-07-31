@@ -40,6 +40,11 @@ import {
   getAllCanteenReports,
   saveCanteenReport,
   deleteCanteenReport,
+  getGiftEvents,
+  createGiftEvent,
+  updateGiftEvent,
+  deleteGiftEvent,
+  getGiftRegistrations,
   getTasksByDate,
   getTasksByRange,
   getVehicles,
@@ -73,7 +78,7 @@ import {
   updateGasStation,
   deleteGasStation,
 } from "@/lib/api";
-import type { Claim, ClaimItem, Overtime, Plant, Kantong, DriverTier, GasStation, FuelEntry, CanteenReport } from "@/lib/types";
+import type { Claim, ClaimItem, Overtime, Plant, Kantong, DriverTier, GasStation, FuelEntry, CanteenReport, GiftEvent, GiftItemDef, GiftRegistration } from "@/lib/types";
 import { computeCanteenKPI } from "@/lib/types";
 import { exportTandaTerima } from "@/lib/tandaTerima";
 import { buildRincianRows } from "@/lib/claimRecap";
@@ -138,6 +143,7 @@ export type DashboardTab =
   | "masterdata"
   | "canteen"
   | "locker"
+  | "gift"
   | "activitylog";
 
 interface NavTab { id: DashboardTab; icon: string; labelId: string; labelEn: string }
@@ -172,6 +178,7 @@ const NAV_GROUPS: NavGroup[] = [
     tabs: [
       { id: "canteen", icon: "🍱", labelId: "Kantin", labelEn: "Canteen" },
       { id: "locker", icon: "🔐", labelId: "Locker", labelEn: "Locker" },
+      { id: "gift", icon: "🎁", labelId: "Pembagian", labelEn: "Gift Dist." },
     ],
   },
   {
@@ -790,6 +797,7 @@ const [masterDataInitialSub, setMasterDataInitialSub] = useState<"drivers" | "em
 )}
           {activeTab === "canteen" && <CanteenTab />}
           {activeTab === "locker" && <LockerTab />}
+          {activeTab === "gift" && <GiftMasterPanel cardStyle={{ background: "linear-gradient(180deg, var(--surface2), var(--surface))", border: "1px solid var(--border2)", borderRadius: "var(--r2)", boxShadow: "var(--shadow-md)" }} />}
           {activeTab === "activitylog" && <ActivityLogTab />}
         </div>
       )}
@@ -1446,7 +1454,22 @@ function buildTaskWhatsAppMessage(params: {
 }): string {
   const hour = new Date().getHours();
   const greeting = hour < 11 ? "Selamat Pagi" : hour < 15 ? "Selamat Siang" : hour < 18 ? "Selamat Sore" : "Selamat Malam";
-  const tanggalFormatted = new Date(params.tanggal).toLocaleDateString("id-ID", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
+
+  // params.tanggal bisa berupa single date "YYYY-MM-DD"
+  // atau range "YYYY-MM-DD s/d YYYY-MM-DD" — handle keduanya
+  function fmtWaDate(d: string): string {
+    const parsed = new Date(d + "T00:00:00");
+    if (isNaN(parsed.getTime())) return d;
+    return parsed.toLocaleDateString("id-ID", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
+  }
+
+  let tanggalFormatted: string;
+  if (params.tanggal.includes(" s/d ")) {
+    const [from, to] = params.tanggal.split(" s/d ");
+    tanggalFormatted = `${fmtWaDate(from.trim())} s/d ${fmtWaDate(to.trim())}`;
+  } else {
+    tanggalFormatted = fmtWaDate(params.tanggal);
+  }
 
   const lines = [
     `${greeting},`,
@@ -7335,6 +7358,307 @@ function CanteenDashboardPanel({ cardStyle }: { cardStyle: CSSProperties }) {
             </div>
           </div>
         </ModalPortal>
+      )}
+    </div>
+  );
+}
+
+// ════════════════════════════════════════════════════════════════
+//  GIFT DISTRIBUTION MASTER PANEL
+// ════════════════════════════════════════════════════════════════
+function GiftMasterPanel({ cardStyle }: { cardStyle: CSSProperties }) {
+  const { lang, t } = useLang();
+  const [events, setEvents] = useState<GiftEvent[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [view, setView] = useState<"list" | "create" | "edit" | "registrations">("list");
+  const [editTarget, setEditTarget] = useState<GiftEvent | null>(null);
+  const [regEvent, setRegEvent] = useState<GiftEvent | null>(null);
+  const [regs, setRegs] = useState<GiftRegistration[]>([]);
+  const [regsLoading, setRegsLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState<GiftEvent | null>(null);
+
+  // Form
+  const [formName, setFormName] = useState("");
+  const [formDesc, setFormDesc] = useState("");
+  const [formStatus, setFormStatus] = useState<"open" | "closed">("open");
+  const [formItems, setFormItems] = useState<GiftItemDef[]>([{ name: "", variants: [] }]);
+  const [variantInput, setVariantInput] = useState<Record<number, string>>({});
+
+  const baseUrl = typeof window !== "undefined" ? window.location.origin : "";
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try { setEvents(await getGiftEvents()); } catch { /**/ } finally { setLoading(false); }
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
+
+  function openCreate() {
+    setFormName(""); setFormDesc(""); setFormStatus("open");
+    setFormItems([{ name: "", variants: [] }]); setVariantInput({});
+    setEditTarget(null); setView("create");
+  }
+
+  function openEdit(ev: GiftEvent) {
+    setFormName(ev.name); setFormDesc(ev.description ?? "");
+    setFormStatus(ev.status); setFormItems(ev.items.map(i => ({ ...i, variants: [...i.variants] })));
+    setVariantInput({}); setEditTarget(ev); setView("edit");
+  }
+
+  async function openRegistrations(ev: GiftEvent) {
+    setRegEvent(ev); setView("registrations"); setRegsLoading(true);
+    try { setRegs(await getGiftRegistrations(ev.id)); } catch { setRegs([]); } finally { setRegsLoading(false); }
+  }
+
+  function addItem() { setFormItems(prev => [...prev, { name: "", variants: [] }]); }
+  function removeItem(i: number) { setFormItems(prev => prev.filter((_, idx) => idx !== i)); }
+  function setItemName(i: number, name: string) { setFormItems(prev => prev.map((it, idx) => idx === i ? { ...it, name } : it)); }
+  function addVariant(i: number) {
+    const v = (variantInput[i] ?? "").trim();
+    if (!v) return;
+    setFormItems(prev => prev.map((it, idx) => idx === i ? { ...it, variants: [...it.variants, v] } : it));
+    setVariantInput(prev => ({ ...prev, [i]: "" }));
+  }
+  function removeVariant(itemIdx: number, varIdx: number) {
+    setFormItems(prev => prev.map((it, idx) => idx === itemIdx ? { ...it, variants: it.variants.filter((_, vi) => vi !== varIdx) } : it));
+  }
+
+  async function handleSave() {
+    if (!formName.trim()) { alert("Nama event wajib diisi."); return; }
+    const validItems = formItems.filter(i => i.name.trim());
+    if (validItems.length === 0) { alert("Minimal satu item harus diisi."); return; }
+    setSaving(true);
+    try {
+      const payload = { name: formName.trim(), description: formDesc.trim(), items: validItems, status: formStatus };
+      if (editTarget) { await updateGiftEvent(editTarget.id, payload); }
+      else { await createGiftEvent(payload); }
+      await load(); setView("list");
+    } catch (e) { alert(e instanceof Error ? e.message : "Gagal menyimpan."); }
+    finally { setSaving(false); }
+  }
+
+  async function handleDelete(ev: GiftEvent) {
+    try { await deleteGiftEvent(ev.id); await load(); setConfirmDelete(null); }
+    catch (e) { alert(e instanceof Error ? e.message : "Gagal menghapus."); }
+  }
+
+  async function toggleStatus(ev: GiftEvent) {
+    try { await updateGiftEvent(ev.id, { status: ev.status === "open" ? "closed" : "open" }); await load(); }
+    catch { /**/ }
+  }
+
+  const inputSt: CSSProperties = { width: "100%", padding: "10px 12px", borderRadius: 10, border: "1px solid var(--border2)", background: "var(--bg2)", color: "var(--t1)", fontSize: 13, fontFamily: "var(--font)", boxSizing: "border-box" };
+
+  // ── REGISTRATIONS VIEW ──
+  if (view === "registrations" && regEvent) return (
+    <div style={{ ...cardStyle, padding: 24 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20 }}>
+        <button onClick={() => setView("list")} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--t3)", fontSize: 13 }}>← Kembali</button>
+        <div style={{ fontWeight: 800, fontSize: 16, color: "var(--t1)" }}>
+          Peserta: {regEvent.name}
+        </div>
+        <span style={{ marginLeft: "auto", fontSize: 12, color: "var(--t3)" }}>{regs.length} peserta</span>
+      </div>
+      {regsLoading ? (
+        <div style={{ textAlign: "center", padding: 40, color: "var(--t3)" }}>Memuat...</div>
+      ) : regs.length === 0 ? (
+        <div style={{ textAlign: "center", padding: 40, color: "var(--t3)" }}>
+          <div style={{ fontSize: 32, marginBottom: 10 }}>📋</div>
+          <div>Belum ada yang mendaftar</div>
+        </div>
+      ) : (
+        <div style={{ overflowX: "auto" }}>
+          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+            <thead>
+              <tr style={{ background: "var(--bg2)" }}>
+                {["NIK", "Nama", "Departemen", "Email", "Item", "Status", "Terdaftar"].map(h => (
+                  <th key={h} style={{ padding: "10px 12px", textAlign: "left", fontWeight: 700, color: "var(--t3)", fontSize: 11, textTransform: "uppercase", borderBottom: "1px solid var(--border)" }}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {regs.map(r => (
+                <tr key={r.id} style={{ borderBottom: "1px solid var(--border)" }}>
+                  <td style={{ padding: "10px 12px", fontFamily: "var(--mono)", color: "var(--t2)" }}>{r.nik}</td>
+                  <td style={{ padding: "10px 12px", fontWeight: 600, color: "var(--t1)" }}>{r.nama}</td>
+                  <td style={{ padding: "10px 12px", color: "var(--t2)" }}>{r.departemen}</td>
+                  <td style={{ padding: "10px 12px", color: "var(--t3)", fontSize: 12 }}>{r.email}</td>
+                  <td style={{ padding: "10px 12px" }}>
+                    {r.selections.map(s => (
+                      <span key={s.item} style={{ fontSize: 11, background: "var(--bg2)", borderRadius: 6, padding: "2px 8px", marginRight: 4, whiteSpace: "nowrap" }}>
+                        {s.item}{s.variant ? ` (${s.variant})` : ""}
+                      </span>
+                    ))}
+                  </td>
+                  <td style={{ padding: "10px 12px" }}>
+                    <span style={{ fontSize: 11, fontWeight: 700, padding: "3px 10px", borderRadius: 999, background: r.claimed ? "rgba(34,197,94,0.12)" : "rgba(234,179,8,0.12)", color: r.claimed ? "var(--green)" : "#eab308" }}>
+                      {r.claimed ? "✅ Diambil" : "⏳ Belum"}
+                    </span>
+                  </td>
+                  <td style={{ padding: "10px 12px", color: "var(--t3)", fontSize: 11 }}>
+                    {new Date(r.registeredAt).toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" })}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+
+  // ── CREATE / EDIT FORM ──
+  if (view === "create" || view === "edit") return (
+    <div style={{ ...cardStyle, padding: 24 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 22 }}>
+        <button onClick={() => setView("list")} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--t3)", fontSize: 13 }}>← Batal</button>
+        <div style={{ fontWeight: 800, fontSize: 16, color: "var(--t1)" }}>
+          {view === "create" ? "Buat Event Baru" : `Edit: ${editTarget?.name}`}
+        </div>
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginBottom: 14 }}>
+        <div style={{ gridColumn: "1/-1" }}>
+          <label style={{ fontSize: 12, fontWeight: 700, color: "var(--t3)", display: "block", marginBottom: 6 }}>NAMA EVENT</label>
+          <input value={formName} onChange={e => setFormName(e.target.value)} placeholder="Contoh: Pembagian Seragam 2026" style={inputSt} />
+        </div>
+        <div style={{ gridColumn: "1/-1" }}>
+          <label style={{ fontSize: 12, fontWeight: 700, color: "var(--t3)", display: "block", marginBottom: 6 }}>DESKRIPSI (opsional)</label>
+          <input value={formDesc} onChange={e => setFormDesc(e.target.value)} placeholder="Informasi tambahan untuk karyawan" style={inputSt} />
+        </div>
+        <div>
+          <label style={{ fontSize: 12, fontWeight: 700, color: "var(--t3)", display: "block", marginBottom: 6 }}>STATUS</label>
+          <select value={formStatus} onChange={e => setFormStatus(e.target.value as "open" | "closed")} style={{ ...inputSt, width: "auto" }}>
+            <option value="open">🟢 Buka (karyawan bisa daftar)</option>
+            <option value="closed">🔴 Tutup</option>
+          </select>
+        </div>
+      </div>
+
+      {/* Items */}
+      <div style={{ fontWeight: 700, fontSize: 13, color: "var(--t2)", marginBottom: 12 }}>Item yang Dibagikan</div>
+      {formItems.map((item, i) => (
+        <div key={i} style={{ background: "var(--bg2)", borderRadius: 14, padding: "16px", marginBottom: 10, border: "1px solid var(--border2)" }}>
+          <div style={{ display: "flex", gap: 10, marginBottom: 10, alignItems: "center" }}>
+            <input value={item.name} onChange={e => setItemName(i, e.target.value)} placeholder="Nama item (contoh: Seragam)" style={{ ...inputSt, flex: 1 }} />
+            {formItems.length > 1 && (
+              <button onClick={() => removeItem(i)} style={{ background: "rgba(239,68,68,0.1)", border: "none", borderRadius: 8, padding: "8px 12px", color: "var(--red)", cursor: "pointer", fontSize: 16 }}>×</button>
+            )}
+          </div>
+          <div style={{ fontSize: 12, color: "var(--t3)", marginBottom: 8 }}>Varian/Ukuran (kosongkan jika semua sama):</div>
+          <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 8 }}>
+            {item.variants.map((v, vi) => (
+              <span key={vi} style={{ fontSize: 12, background: "var(--surface)", border: "1px solid var(--border2)", borderRadius: 8, padding: "4px 10px", display: "flex", alignItems: "center", gap: 6 }}>
+                {v}
+                <button onClick={() => removeVariant(i, vi)} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--t3)", fontSize: 14, lineHeight: 1 }}>×</button>
+              </span>
+            ))}
+          </div>
+          <div style={{ display: "flex", gap: 8 }}>
+            <input value={variantInput[i] ?? ""} onChange={e => setVariantInput(p => ({ ...p, [i]: e.target.value }))}
+              onKeyDown={e => e.key === "Enter" && (e.preventDefault(), addVariant(i))}
+              placeholder="Ketik ukuran lalu Enter" style={{ ...inputSt, flex: 1, padding: "8px 12px" }} />
+            <button onClick={() => addVariant(i)} style={{ background: "var(--brand)", border: "none", borderRadius: 10, padding: "8px 14px", color: "#fff", cursor: "pointer", fontWeight: 700, fontSize: 13 }}>+ Tambah</button>
+          </div>
+        </div>
+      ))}
+      <button onClick={addItem} style={{ background: "none", border: "1.5px dashed var(--border2)", borderRadius: 12, padding: "10px 16px", color: "var(--t3)", cursor: "pointer", fontSize: 13, width: "100%", marginBottom: 20 }}>
+        + Tambah Item Lain
+      </button>
+
+      <button onClick={handleSave} disabled={saving} style={{ width: "100%", padding: 13, borderRadius: 12, border: "none", background: "var(--brand)", color: "#fff", fontWeight: 800, fontSize: 15, cursor: saving ? "default" : "pointer", opacity: saving ? 0.65 : 1 }}>
+        {saving ? "Menyimpan..." : view === "create" ? "Buat Event" : "Simpan Perubahan"}
+      </button>
+    </div>
+  );
+
+  // ── LIST VIEW ──
+  return (
+    <div style={{ ...cardStyle, padding: 24 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 18 }}>
+        <div>
+          <div style={{ fontWeight: 800, fontSize: 16, color: "var(--t1)" }}>🎁 Pembagian Gift / Seragam</div>
+          <div style={{ fontSize: 12, color: "var(--t3)", marginTop: 2 }}>Kelola program pembagian dan pantau peserta</div>
+        </div>
+        <button onClick={openCreate} style={{ background: "var(--brand)", border: "none", borderRadius: 10, padding: "9px 16px", color: "#fff", fontWeight: 700, fontSize: 13, cursor: "pointer" }}>
+          + Event Baru
+        </button>
+      </div>
+
+      {/* Links */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 20 }}>
+        {[
+          { label: "🔗 Link Pendaftaran Karyawan", url: `${baseUrl}/gift`, desc: "Bagikan ke karyawan" },
+          { label: "🔑 Link Verifikasi Petugas", url: `${baseUrl}/gift/verify`, desc: "Khusus petugas pengambilan" },
+        ].map(l => (
+          <div key={l.url} style={{ background: "var(--bg2)", borderRadius: 12, padding: "12px 14px", border: "1px solid var(--border2)" }}>
+            <div style={{ fontSize: 12, fontWeight: 700, color: "var(--t2)", marginBottom: 6 }}>{l.label}</div>
+            <div style={{ fontSize: 11, color: "var(--t3)", marginBottom: 8 }}>{l.desc}</div>
+            <div style={{ display: "flex", gap: 6 }}>
+              <input readOnly value={l.url} style={{ flex: 1, fontSize: 11, padding: "6px 10px", borderRadius: 8, border: "1px solid var(--border2)", background: "var(--surface)", color: "var(--t2)", fontFamily: "var(--mono)" }} />
+              <button onClick={() => navigator.clipboard.writeText(l.url)} style={{ background: "var(--brand)", border: "none", borderRadius: 8, padding: "6px 10px", color: "#fff", fontSize: 11, cursor: "pointer" }}>Salin</button>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {loading ? (
+        <div style={{ textAlign: "center", padding: 40, color: "var(--t3)" }}>{t.actionLoading}</div>
+      ) : events.length === 0 ? (
+        <div style={{ textAlign: "center", padding: 40, color: "var(--t3)" }}>
+          <div style={{ fontSize: 40, marginBottom: 12 }}>🎁</div>
+          <div style={{ fontWeight: 700, color: "var(--t2)", marginBottom: 4 }}>Belum ada event</div>
+          <div style={{ fontSize: 13 }}>Buat event baru untuk mulai pembagian.</div>
+        </div>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          {events.map(ev => (
+            <div key={ev.id} style={{ border: "1px solid var(--border2)", borderRadius: 16, overflow: "hidden" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", padding: "16px 18px", background: "var(--bg2)" }}>
+                <div style={{ flex: 1 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4 }}>
+                    <span style={{ fontWeight: 800, fontSize: 15, color: "var(--t1)" }}>{ev.name}</span>
+                    <span style={{ fontSize: 11, fontWeight: 700, padding: "2px 10px", borderRadius: 999, background: ev.status === "open" ? "rgba(34,197,94,0.12)" : "rgba(239,68,68,0.1)", color: ev.status === "open" ? "var(--green)" : "var(--red)" }}>
+                      {ev.status === "open" ? "BUKA" : "TUTUP"}
+                    </span>
+                  </div>
+                  {ev.description && <div style={{ fontSize: 12, color: "var(--t3)", marginBottom: 6 }}>{ev.description}</div>}
+                  <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                    {ev.items.map(item => (
+                      <span key={item.name} style={{ fontSize: 11, background: "var(--surface)", border: "1px solid var(--border2)", borderRadius: 8, padding: "2px 10px", color: "var(--t2)" }}>
+                        {item.name}{item.variants.length > 0 ? ` (${item.variants.join(", ")})` : ""}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+                <div style={{ display: "flex", gap: 6, flexShrink: 0, marginLeft: 14 }}>
+                  <button onClick={() => openRegistrations(ev)} title="Lihat peserta" style={{ background: "rgba(61,111,242,0.1)", border: "none", borderRadius: 8, padding: "7px 11px", cursor: "pointer", fontSize: 14 }}>👥</button>
+                  <button onClick={() => toggleStatus(ev)} title={ev.status === "open" ? "Tutup pendaftaran" : "Buka pendaftaran"} style={{ background: ev.status === "open" ? "rgba(239,68,68,0.1)" : "rgba(34,197,94,0.1)", border: "none", borderRadius: 8, padding: "7px 11px", cursor: "pointer", fontSize: 14 }}>
+                    {ev.status === "open" ? "🔒" : "🔓"}
+                  </button>
+                  <button onClick={() => openEdit(ev)} title="Edit" style={{ background: "var(--bg2)", border: "1px solid var(--border2)", borderRadius: 8, padding: "7px 11px", cursor: "pointer", fontSize: 14 }}>✏️</button>
+                  <button onClick={() => setConfirmDelete(ev)} title="Hapus" style={{ background: "rgba(239,68,68,0.1)", border: "none", borderRadius: 8, padding: "7px 11px", cursor: "pointer", fontSize: 14 }}>🗑️</button>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {confirmDelete && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 9999 }}>
+          <div style={{ background: "var(--surface)", borderRadius: 20, padding: 28, maxWidth: 380, width: "90%", textAlign: "center" }}>
+            <div style={{ fontSize: 36, marginBottom: 12 }}>⚠️</div>
+            <div style={{ fontWeight: 800, fontSize: 16, color: "var(--t1)", marginBottom: 8 }}>Hapus Event?</div>
+            <div style={{ fontSize: 13, color: "var(--t3)", marginBottom: 20 }}>
+              Event "<strong>{confirmDelete.name}</strong>" dan semua data pendaftarannya akan dihapus permanen.
+            </div>
+            <div style={{ display: "flex", gap: 10 }}>
+              <button onClick={() => setConfirmDelete(null)} style={{ flex: 1, padding: 11, borderRadius: 10, border: "1px solid var(--border2)", background: "var(--bg2)", color: "var(--t2)", fontWeight: 700, cursor: "pointer" }}>Batal</button>
+              <button onClick={() => handleDelete(confirmDelete)} style={{ flex: 1, padding: 11, borderRadius: 10, border: "none", background: "var(--red)", color: "#fff", fontWeight: 700, cursor: "pointer" }}>Hapus</button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
