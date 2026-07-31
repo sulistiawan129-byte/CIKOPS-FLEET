@@ -280,3 +280,41 @@ export function computeCanteenKPI(rows: CanteenReport[]): CanteenKPI {
     mealEff: totalMealOrder > 0 ? Math.round((totalMealConsumed / totalMealOrder) * 10000) / 100 : 0,
   };
 }
+
+// ── Gift Distribution System ──────────────────────────────────
+
+export interface GiftItemDef {
+  name: string;
+  variants: string[]; // [] = no variants (semua sama)
+}
+
+export interface GiftSelection {
+  item: string;
+  variant: string; // "" jika tidak ada varian
+}
+
+export interface GiftEvent {
+  id: string;
+  name: string;
+  description: string | null;
+  items: GiftItemDef[];
+  status: "open" | "closed";
+  plant: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface GiftRegistration {
+  id: string;
+  eventId: string;
+  eventName: string;
+  nik: string;
+  nama: string;
+  departemen: string;
+  email: string;
+  selections: GiftSelection[];
+  claimed: boolean;
+  claimedAt: string | null;
+  claimedBy: string | null;
+  registeredAt: string;
+}

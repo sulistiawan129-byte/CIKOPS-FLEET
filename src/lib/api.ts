@@ -1350,3 +1350,124 @@ export async function deleteCanteenReport(id: string): Promise<void> {
   const { error } = await supabase.from("canteen_reports").delete().eq("id", id);
   if (error) throw error;
 }
+
+// ════════════════════════════════════════════════════════════
+//  GIFT DISTRIBUTION SYSTEM
+// ════════════════════════════════════════════════════════════
+
+import type { GiftEvent, GiftRegistration, GiftItemDef, GiftSelection } from "./types";
+
+// ── Row types ─────────────────────────────────────────────────
+interface GiftEventRow {
+  id: string; name: string; description: string | null;
+  items: GiftItemDef[]; status: "open" | "closed"; plant: string | null;
+  created_at: string; updated_at: string;
+}
+interface GiftRegRow {
+  id: string; event_id: string; event_name: string;
+  nik: string; nama: string; departemen: string; email: string;
+  selections: GiftSelection[]; claimed: boolean;
+  claimed_at: string | null; claimed_by: string | null; registered_at: string;
+}
+
+function mapGiftEvent(r: GiftEventRow): GiftEvent {
+  return { id: r.id, name: r.name, description: r.description,
+    items: r.items ?? [], status: r.status, plant: r.plant,
+    createdAt: r.created_at, updatedAt: r.updated_at };
+}
+function mapGiftReg(r: GiftRegRow): GiftRegistration {
+  return { id: r.id, eventId: r.event_id, eventName: r.event_name ?? "",
+    nik: r.nik, nama: r.nama, departemen: r.departemen, email: r.email,
+    selections: r.selections ?? [], claimed: r.claimed,
+    claimedAt: r.claimed_at, claimedBy: r.claimed_by, registeredAt: r.registered_at };
+}
+
+// ── Events CRUD ───────────────────────────────────────────────
+export async function getGiftEvents(onlyOpen = false): Promise<GiftEvent[]> {
+  let q = supabase.from("gift_events").select("*").order("created_at", { ascending: false });
+  if (onlyOpen) q = q.eq("status", "open");
+  const { data, error } = await q;
+  if (error) throw error;
+  return ((data as GiftEventRow[]) ?? []).map(mapGiftEvent);
+}
+
+export async function createGiftEvent(input: {
+  name: string; description: string; items: GiftItemDef[];
+  status: "open" | "closed"; plant?: string;
+}): Promise<void> {
+  const { error } = await supabase.from("gift_events").insert({
+    name: input.name, description: input.description || null,
+    items: input.items, status: input.status, plant: input.plant || null,
+  });
+  if (error) throw error;
+}
+
+export async function updateGiftEvent(id: string, input: {
+  name?: string; description?: string; items?: GiftItemDef[];
+  status?: "open" | "closed"; plant?: string;
+}): Promise<void> {
+  const { error } = await supabase.from("gift_events")
+    .update({ ...input, updated_at: new Date().toISOString() }).eq("id", id);
+  if (error) throw error;
+}
+
+export async function deleteGiftEvent(id: string): Promise<void> {
+  const { error } = await supabase.from("gift_events").delete().eq("id", id);
+  if (error) throw error;
+}
+
+// ── Registrations ─────────────────────────────────────────────
+export async function getGiftRegistrations(eventId: string): Promise<GiftRegistration[]> {
+  const { data, error } = await supabase
+    .from("gift_registrations")
+    .select("*, gift_events(name)")
+    .eq("event_id", eventId)
+    .order("registered_at", { ascending: false });
+  if (error) throw error;
+  return ((data ?? []) as unknown[]).map((r: unknown) => {
+    const row = r as GiftRegRow & { gift_events?: { name: string } };
+    return mapGiftReg({ ...row, event_name: row.gift_events?.name ?? "" });
+  });
+}
+
+/** Generate passcode 8 digit acak (client-side, langsung dikirim ke RPC untuk di-hash) */
+export function generateGiftPasscode(): string {
+  const arr = new Uint32Array(1);
+  crypto.getRandomValues(arr);
+  return String(arr[0] % 100000000).padStart(8, "0");
+}
+
+export async function registerGift(input: {
+  eventId: string; nik: string; nama: string;
+  departemen: string; email: string;
+  selections: GiftSelection[]; passcode: string;
+}): Promise<{ success: boolean; errorCode?: string }> {
+  const { data, error } = await supabase.rpc("create_gift_registration", {
+    p_event_id:   input.eventId,
+    p_nik:        input.nik.trim(),
+    p_nama:       input.nama.trim(),
+    p_departemen: input.departemen.trim(),
+    p_email:      input.email.trim().toLowerCase(),
+    p_selections: input.selections,
+    p_passcode:   input.passcode,
+  });
+  if (error) return { success: false, errorCode: error.message };
+  const row = (data as { success: boolean; error_code: string }[])?.[0];
+  return { success: row?.success ?? false, errorCode: row?.error_code || undefined };
+}
+
+export async function verifyGiftPasscode(passcode: string): Promise<GiftRegistration | null> {
+  const { data, error } = await supabase.rpc("verify_gift_passcode", { p_passcode: passcode });
+  if (error) throw error;
+  if (!data || (data as GiftRegRow[]).length === 0) return null;
+  return mapGiftReg((data as GiftRegRow[])[0]);
+}
+
+export async function claimGift(registrationId: string, claimedBy: string): Promise<void> {
+  const { error } = await supabase.from("gift_registrations").update({
+    claimed: true,
+    claimed_at: new Date().toISOString(),
+    claimed_by: claimedBy,
+  }).eq("id", registrationId).eq("claimed", false); // guard: tidak bisa klaim dua kali
+  if (error) throw error;
+}
