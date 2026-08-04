@@ -9,10 +9,11 @@ const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
-
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 interface TaskBatchEmailPayload {
+  // "requestor" = email ke requestor, "manager" = email ke manager/admin
+  recipientType?: "requestor" | "manager";
   toEmail: string | string[];
   requestor: string;
   driverName: string;
@@ -25,248 +26,118 @@ interface TaskBatchEmailPayload {
   dateFrom: string;
   dateTo: string;
   dayCount: number;
-  lang?: "id" | "en";
 }
 
-function escapeHtml(value: unknown): string {
-  return String(value ?? "").replace(/[&<>"']/g, (ch) => {
-    switch (ch) {
-      case "&": return "&amp;";
-      case "<": return "&lt;";
-      case ">": return "&gt;";
-      case '"': return "&quot;";
-      case "'": return "&#39;";
-      default: return ch;
-    }
-  });
+function esc(v: unknown): string {
+  return String(v ?? "").replace(/[&<>"']/g, c =>
+    ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c] ?? c));
 }
 
-function fmtDateLong(d: string): string {
+function fmtDate(d: string): string {
   try {
     return new Date(d + "T00:00:00").toLocaleDateString("id-ID", {
-      weekday: "long",
-      day: "numeric",
-      month: "long",
-      year: "numeric",
+      day: "numeric", month: "long", year: "numeric",
     });
-  } catch {
-    return d;
-  }
+  } catch { return d; }
 }
 
-function fmtDateShort(d: string): string {
-  try {
-    return new Date(d + "T00:00:00").toLocaleDateString("id-ID", {
-      day: "numeric",
-      month: "long",
-      year: "numeric",
-    });
-  } catch {
-    return d;
-  }
+function minify(html: string): string {
+  return html.replace(/>\s+</g, "><").replace(/\s{2,}/g, " ").trim();
 }
 
-function template(p: TaskBatchEmailPayload): { subject: string; html: string } {
-  const requestor    = escapeHtml(p.requestor);
-  const driverName   = escapeHtml(p.driverName);
-  const driverPhone  = p.driverPhone ? escapeHtml(p.driverPhone) : null;
-  const vehicleLabel = escapeHtml(p.vehicleLabel);
-  const jenis        = escapeHtml(p.jenisPekerjaan);
-  const tujuan       = escapeHtml(p.tujuan);
-  const departement  = escapeHtml(p.departement) || "-";
-  const perihal      = p.perihal ? escapeHtml(p.perihal) : null;
-  const dateFrom     = fmtDateShort(p.dateFrom);
-  const dateTo       = fmtDateShort(p.dateTo);
-  const dayCount     = Number.isFinite(p.dayCount) ? p.dayCount : 0;
-  const isSameDay    = p.dateFrom === p.dateTo;
+const HEADER = (subtitle: string) => `<div style="background:linear-gradient(135deg,#1c3e82 0%,#3d6ff2 100%);border-radius:16px 16px 0 0;padding:28px 28px 24px;text-align:center;"><div style="font-size:12px;font-weight:700;color:rgba(255,255,255,0.65);letter-spacing:2px;text-transform:uppercase;margin-bottom:8px;">PT. FRISIAN FLAG INDONESIA</div><div style="font-size:22px;font-weight:800;color:#ffffff;margin-bottom:4px;">${subtitle}</div><div style="font-size:13px;color:rgba(255,255,255,0.7);">CIKOPS Fleet Management System</div></div>`;
 
-  // Subject: Penugasan Driver : <Tanggal> <Requestor> <Tujuan>
+const FOOTER = `<div style="text-align:center;padding:16px 0 0;"><p style="font-size:11px;color:#a0aac0;margin:0;">Email ini dibuat secara otomatis oleh <strong>CIKOPS-FM System</strong> dan tidak memerlukan balasan langsung.</p></div>`;
+
+function detailTable(p: TaskBatchEmailPayload, isSameDay: boolean, dateFrom: string, dateTo: string): string {
+  const rows = [
+    ["Nama Driver", `<strong>${esc(p.driverName)}</strong>`],
+    ...(p.driverPhone ? [["No. HP Driver", esc(p.driverPhone)]] : []),
+    ["Kendaraan", esc(p.vehicleLabel)],
+    ["Jenis Pekerjaan", esc(p.jenisPekerjaan)],
+    ["Tujuan", `<strong>${esc(p.tujuan)}</strong>`],
+    ["Departemen", esc(p.departement) || "-"],
+    ["Requestor", esc(p.requestor)],
+    ["Tanggal", `<strong style="color:#1c3e82;">${isSameDay ? dateFrom : `${dateFrom} s/d ${dateTo}`}</strong>${!isSameDay ? ` <span style="font-size:11px;color:#7a86aa;">(${p.dayCount} hari)</span>` : ""}`],
+    ...(p.perihal ? [["Perihal / Catatan", `<em>${esc(p.perihal)}</em>`]] : []),
+  ];
+  return `<table style="width:100%;border-collapse:collapse;margin-bottom:20px;">${rows.map(([k, v], i) =>
+    `<tr style="border-bottom:1px solid #edf0f7;"><td style="padding:10px 14px;color:#7a86aa;width:38%;background:#f8faff;${i === 0 ? "border-radius:8px 0 0 0;" : i === rows.length - 1 ? "border-radius:0 0 0 8px;" : ""}">${k}</td><td style="padding:10px 14px;color:#1a2540;">${v}</td></tr>`
+  ).join("")}</table>`;
+}
+
+// ── EMAIL KE REQUESTOR ──────────────────────────────────────────────────────
+function requestorTemplate(p: TaskBatchEmailPayload): { subject: string; html: string } {
+  const isSameDay = p.dateFrom === p.dateTo;
+  const dateFrom = fmtDate(p.dateFrom);
+  const dateTo = fmtDate(p.dateTo);
   const dateLabel = isSameDay ? dateFrom : `${dateFrom} – ${dateTo}`;
-  const subject = `Penugasan Driver : ${dateLabel} | ${p.requestor} | ${p.tujuan}`;
 
-  const html = `
-<!DOCTYPE html>
-<html lang="id">
-<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
-<body style="margin:0;padding:0;background:#f0f4fb;font-family:-apple-system,'Segoe UI',Roboto,Arial,sans-serif;">
-<div style="max-width:560px;margin:32px auto;background:#f0f4fb;padding:0 16px 32px;">
+  const subject = `Konfirmasi Penugasan Driver : ${dateLabel} | ${p.tujuan}`;
 
-  <!-- Header -->
-  <div style="background:linear-gradient(135deg,#1c3e82 0%,#3d6ff2 100%);border-radius:16px 16px 0 0;padding:28px 28px 24px;text-align:center;">
-    <div style="font-size:13px;font-weight:700;color:rgba(255,255,255,0.7);letter-spacing:2px;text-transform:uppercase;margin-bottom:8px;">
-      PT. FRISIAN FLAG INDONESIA
-    </div>
-    <div style="font-size:22px;font-weight:800;color:#ffffff;margin-bottom:4px;">
-      Surat Penugasan Driver
-    </div>
-    <div style="font-size:13px;color:rgba(255,255,255,0.75);">
-      CIKOPS Fleet Management System
-    </div>
-  </div>
+  const html = minify(`<!DOCTYPE html><html lang="id"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head><body style="margin:0;padding:0;background:#f0f4fb;font-family:-apple-system,'Segoe UI',Roboto,Arial,sans-serif;"><div style="max-width:560px;margin:32px auto;background:#f0f4fb;padding:0 16px 32px;">${HEADER("Konfirmasi Penugasan Driver")}<div style="background:#ffffff;border-radius:0 0 16px 16px;padding:28px;"><p style="font-size:14px;color:#1a2540;line-height:1.7;margin:0 0 14px;">Yth. <strong>${esc(p.requestor)}</strong>,</p><p style="font-size:14px;color:#2d3d6b;line-height:1.7;margin:0 0 20px;">Permintaan penugasan driver Anda telah <strong>dikonfirmasi dan dijadwalkan</strong>. Berikut detail penugasan yang telah diproses:</p>${detailTable(p, isSameDay, dateFrom, dateTo)}<div style="background:#f0f5ff;border-left:4px solid #3d6ff2;border-radius:0 10px 10px 0;padding:14px 16px;margin-bottom:24px;"><p style="margin:0;font-size:13px;color:#2d3d6b;line-height:1.7;">Silakan melakukan koordinasi langsung dengan driver apabila terdapat informasi tambahan atau perubahan jadwal.${p.driverPhone ? ` Driver dapat dihubungi melalui nomor <strong>${esc(p.driverPhone)}</strong>.` : ""}</p></div><p style="font-size:13px;color:#2d3d6b;line-height:1.7;margin:0 0 8px;">Demikian konfirmasi ini kami sampaikan. Terima kasih atas kepercayaan Anda.</p><p style="font-size:13px;color:#2d3d6b;margin:0;">Hormat kami,<br><strong>Tim GA — Fleet Management</strong><br><span style="color:#7a86aa;font-size:12px;">PT. Frisian Flag Indonesia</span></p></div>${FOOTER}</div></body></html>`);
 
-  <!-- Body -->
-  <div style="background:#ffffff;border-radius:0 0 16px 16px;padding:28px;">
+  return { subject, html };
+}
 
-    <p style="font-size:14px;color:#1a2540;line-height:1.7;margin:0 0 18px;">
-      Yth. <strong>${requestor}</strong>,
-    </p>
+// ── EMAIL KE MANAGER / ADMIN ─────────────────────────────────────────────────
+function managerTemplate(p: TaskBatchEmailPayload): { subject: string; html: string } {
+  const isSameDay = p.dateFrom === p.dateTo;
+  const dateFrom = fmtDate(p.dateFrom);
+  const dateTo = fmtDate(p.dateTo);
+  const dateLabel = isSameDay ? dateFrom : `${dateFrom} – ${dateTo}`;
 
-    <p style="font-size:14px;color:#2d3d6b;line-height:1.7;margin:0 0 20px;">
-      Berikut kami informasikan Penugasan Driver pada tanggal
-      <strong style="color:#1c3e82;">${isSameDay ? dateFrom : `${dateFrom} s/d ${dateTo}`}</strong>${!isSameDay ? ` <span style="font-size:12px;color:#7a86aa;">(${dayCount} hari)</span>` : ""}
-      dengan detail sebagai berikut:
-    </p>
+  const subject = `[Notifikasi Penugasan] ${p.driverName} → ${p.tujuan} | ${dateLabel}`;
 
-    <!-- Detail table -->
-    <table style="width:100%;border-collapse:collapse;margin-bottom:20px;font-size:13.5px;">
-      <tbody>
-        <tr style="border-bottom:1px solid #edf0f7;">
-          <td style="padding:10px 14px;color:#7a86aa;width:38%;background:#f8faff;border-radius:8px 0 0 0;">Nama Driver</td>
-          <td style="padding:10px 14px;color:#1a2540;font-weight:700;">${driverName}</td>
-        </tr>
-        ${driverPhone ? `
-        <tr style="border-bottom:1px solid #edf0f7;">
-          <td style="padding:10px 14px;color:#7a86aa;background:#f8faff;">No. HP Driver</td>
-          <td style="padding:10px 14px;color:#1a2540;font-weight:600;">${driverPhone}</td>
-        </tr>` : ""}
-        <tr style="border-bottom:1px solid #edf0f7;">
-          <td style="padding:10px 14px;color:#7a86aa;background:#f8faff;">Kendaraan</td>
-          <td style="padding:10px 14px;color:#1a2540;">${vehicleLabel}</td>
-        </tr>
-        <tr style="border-bottom:1px solid #edf0f7;">
-          <td style="padding:10px 14px;color:#7a86aa;background:#f8faff;">Jenis Pekerjaan</td>
-          <td style="padding:10px 14px;color:#1a2540;">${jenis}</td>
-        </tr>
-        <tr style="border-bottom:1px solid #edf0f7;">
-          <td style="padding:10px 14px;color:#7a86aa;background:#f8faff;">Tujuan</td>
-          <td style="padding:10px 14px;color:#1a2540;font-weight:600;">${tujuan}</td>
-        </tr>
-        <tr style="border-bottom:1px solid #edf0f7;">
-          <td style="padding:10px 14px;color:#7a86aa;background:#f8faff;">Departemen</td>
-          <td style="padding:10px 14px;color:#1a2540;">${departement}</td>
-        </tr>
-        <tr style="${perihal ? "border-bottom:1px solid #edf0f7;" : ""}">
-          <td style="padding:10px 14px;color:#7a86aa;background:#f8faff;border-radius:0 0 0 8px;">Tanggal</td>
-          <td style="padding:10px 14px;color:#1c3e82;font-weight:700;">
-            ${isSameDay ? dateFrom : `${dateFrom} s/d ${dateTo}`}
-          </td>
-        </tr>
-        ${perihal ? `
-        <tr>
-          <td style="padding:10px 14px;color:#7a86aa;background:#f8faff;border-radius:0 0 0 8px;">Perihal / Catatan</td>
-          <td style="padding:10px 14px;color:#1a2540;font-style:italic;">${perihal}</td>
-        </tr>` : ""}
-      </tbody>
-    </table>
-
-    <!-- Notice box -->
-    <div style="background:#f0f5ff;border-left:4px solid #3d6ff2;border-radius:0 10px 10px 0;padding:14px 16px;margin-bottom:24px;">
-      <p style="margin:0;font-size:13px;color:#2d3d6b;line-height:1.7;">
-        Mohon untuk dapat melakukan konfirmasi kepada driver secara langsung apabila terdapat informasi tambahan atau perubahan yang diperlukan.
-        ${driverPhone ? `Driver dapat dihubungi melalui nomor <strong>${driverPhone}</strong>.` : ""}
-      </p>
-    </div>
-
-    <p style="font-size:13px;color:#2d3d6b;line-height:1.7;margin:0 0 8px;">
-      Demikian informasi penugasan ini kami sampaikan. Atas perhatian dan kerja samanya, kami ucapkan terima kasih.
-    </p>
-
-    <p style="font-size:13px;color:#2d3d6b;margin:0;">
-      Hormat kami,<br>
-      <strong>Tim GA — Fleet Management</strong><br>
-      <span style="color:#7a86aa;font-size:12px;">PT. Frisian Flag Indonesia</span>
-    </p>
-  </div>
-
-  <!-- Footer -->
-  <div style="text-align:center;padding:16px 0 0;">
-    <p style="font-size:11px;color:#a0aac0;margin:0;">
-      Email ini dibuat secara otomatis oleh <strong>CIKOPS-FM System</strong> dan tidak memerlukan balasan langsung.<br>
-      Untuk pertanyaan, silakan hubungi tim GA secara langsung.
-    </p>
-  </div>
-
-</div>
-</body>
-</html>`;
+  const html = minify(`<!DOCTYPE html><html lang="id"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head><body style="margin:0;padding:0;background:#f0f4fb;font-family:-apple-system,'Segoe UI',Roboto,Arial,sans-serif;"><div style="max-width:560px;margin:32px auto;background:#f0f4fb;padding:0 16px 32px;">${HEADER("Notifikasi Penugasan Driver")}<div style="background:#ffffff;border-radius:0 0 16px 16px;padding:28px;"><p style="font-size:14px;color:#1a2540;line-height:1.7;margin:0 0 14px;">Yth. Bapak/Ibu,</p><p style="font-size:14px;color:#2d3d6b;line-height:1.7;margin:0 0 20px;">Dengan hormat, berikut kami sampaikan informasi penugasan driver yang telah dijadwalkan oleh tim GA:</p>${detailTable(p, isSameDay, dateFrom, dateTo)}<div style="background:#fef3c7;border-left:4px solid #f59e0b;border-radius:0 10px 10px 0;padding:14px 16px;margin-bottom:24px;"><p style="margin:0;font-size:13px;color:#92400e;line-height:1.7;"><strong>Informasi untuk Tim Manajemen:</strong> Penugasan ini telah dikonfirmasi dan driver telah mendapatkan notifikasi. Apabila diperlukan penyesuaian, segera koordinasikan dengan tim GA.</p></div><p style="font-size:13px;color:#2d3d6b;line-height:1.7;margin:0 0 8px;">Demikian informasi ini kami sampaikan untuk diketahui. Atas perhatiannya, kami ucapkan terima kasih.</p><p style="font-size:13px;color:#2d3d6b;margin:0;">Hormat kami,<br><strong>Tim GA — Fleet Management</strong><br><span style="color:#7a86aa;font-size:12px;">PT. Frisian Flag Indonesia</span></p></div>${FOOTER}</div></body></html>`);
 
   return { subject, html };
 }
 
 serve(async (req) => {
-  if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders });
-  }
+  if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   if (req.method !== "POST") {
-    return new Response(JSON.stringify({ error: "Method not allowed. Use POST." }), {
-      status: 405,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    return new Response(JSON.stringify({ error: "Method not allowed." }), { status: 405, headers: { ...corsHeaders, "Content-Type": "application/json" } });
   }
   try {
     if (!GMAIL_USER || !GMAIL_APP_PASSWORD) {
-      return new Response(
-        JSON.stringify({ error: "GMAIL_USER / GMAIL_APP_PASSWORD belum diset di secrets." }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      return new Response(JSON.stringify({ error: "GMAIL secrets belum diset." }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
     let payload: TaskBatchEmailPayload;
-    try {
-      payload = await req.json();
-    } catch {
-      return new Response(JSON.stringify({ error: "Invalid JSON body." }), {
-        status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
+    try { payload = await req.json(); }
+    catch { return new Response(JSON.stringify({ error: "Invalid JSON." }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }); }
 
     const recipients = (Array.isArray(payload.toEmail) ? payload.toEmail : [payload.toEmail])
-      .map((e) => (typeof e === "string" ? e.trim() : ""))
-      .filter((e) => EMAIL_RE.test(e));
+      .map(e => typeof e === "string" ? e.trim() : "").filter(e => EMAIL_RE.test(e));
 
-    if (recipients.length === 0 || !payload.driverName || !payload.dateFrom || !payload.dateTo) {
-      return new Response(
-        JSON.stringify({ error: "Missing required fields or no valid recipient email." }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+    if (!recipients.length || !payload.driverName || !payload.dateFrom || !payload.dateTo) {
+      return new Response(JSON.stringify({ error: "Missing required fields." }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    const { subject, html } = template(payload);
-    const client = new SMTPClient({
-      connection: {
-        hostname: "smtp.gmail.com",
-        port: 465,
-        tls: true,
-        auth: { username: GMAIL_USER, password: GMAIL_APP_PASSWORD },
-      },
-    });
+    // Pilih template berdasarkan recipientType
+    const { subject, html } = payload.recipientType === "manager"
+      ? managerTemplate(payload)
+      : requestorTemplate(payload);
 
+    const client = new SMTPClient({
+      connection: { hostname: "smtp.gmail.com", port: 465, tls: true, auth: { username: GMAIL_USER, password: GMAIL_APP_PASSWORD } },
+    });
     const failed: string[] = [];
     for (const to of recipients) {
-      try {
-        await client.send({ from: `${FROM_NAME} <${GMAIL_USER}>`, to, subject, html });
-      } catch (sendErr) {
-        console.error(`Gagal kirim ke ${to}:`, sendErr);
-        failed.push(to);
-      }
+      try { await client.send({ from: `${FROM_NAME} <${GMAIL_USER}>`, to, subject, html }); }
+      catch (e) { console.error(`Failed to send to ${to}:`, e); failed.push(to); }
     }
     await client.close();
 
     if (failed.length === recipients.length) {
-      return new Response(
-        JSON.stringify({ error: "Gagal mengirim ke semua penerima.", failed }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      return new Response(JSON.stringify({ error: "Gagal kirim ke semua penerima.", failed }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
     return new Response(
-      JSON.stringify({ success: true, recipients: recipients.filter((r) => !failed.includes(r)), failed }),
+      JSON.stringify({ success: true, sent: recipients.filter(r => !failed.includes(r)), failed }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (err) {
-    return new Response(JSON.stringify({ error: String(err) }), {
-      status: 500,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    return new Response(JSON.stringify({ error: String(err) }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
   }
 });
