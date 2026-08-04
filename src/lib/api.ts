@@ -341,21 +341,37 @@ export async function sendTaskBatchEmail(input: {
   } catch (e) {
     console.warn("Failed to read manager_email:", e instanceof Error ? e.message : e);
   }
-  // Selalu kirim ke manager — requestorEmail opsional (kalau ada, ikut terkirim juga)
-  const recipients = [...new Set([
-    ...(input.requestorEmail ? [input.requestorEmail] : []),
-    ...managerEmails,
-  ])].filter(Boolean);
-  if (recipients.length === 0) {
-    console.warn("sendTaskBatchEmail: tidak ada penerima — isi manager_email di Settings.");
-    return;
+
+  const basePayload = {
+    requestor: input.requestor,
+    driverName: input.driverName,
+    driverPhone: input.driverPhone,
+    vehicleLabel: input.vehicleLabel,
+    jenisPekerjaan: input.jenisPekerjaan,
+    tujuan: input.tujuan,
+    departement: input.departement,
+    perihal: input.perihal,
+    dateFrom: input.dateFrom,
+    dateTo: input.dateTo,
+    dayCount: input.dayCount,
+  };
+
+  // Kirim ke requestor (template konfirmasi)
+  if (input.requestorEmail) {
+    supabase.functions.invoke("send-task-email", {
+      body: { ...basePayload, recipientType: "requestor", toEmail: [input.requestorEmail] },
+    }).catch((e) => console.warn("Task email to requestor failed:", e instanceof Error ? e.message : e));
   }
-  try {
-    await supabase.functions.invoke("send-task-email", {
-      body: { toEmail: recipients, ...input },
-    });
-  } catch (e) {
-    console.warn("Task batch email failed:", e instanceof Error ? e.message : e);
+
+  // Kirim ke manager (template notifikasi) — selalu dikirim kalau ada manager
+  if (managerEmails.length > 0) {
+    supabase.functions.invoke("send-task-email", {
+      body: { ...basePayload, recipientType: "manager", toEmail: managerEmails },
+    }).catch((e) => console.warn("Task email to manager failed:", e instanceof Error ? e.message : e));
+  }
+
+  if (!input.requestorEmail && managerEmails.length === 0) {
+    console.warn("sendTaskBatchEmail: tidak ada penerima — isi manager_email di Settings.");
   }
 }
 
