@@ -683,21 +683,42 @@
   overflow-y: auto;
   background: var(--surface);
   border-radius: 28px;
-  padding: 30px;
-  box-shadow: var(--shadow-lg);
+  box-shadow: var(--shadow-lg), 0 0 0 1px var(--border);
+  overflow: hidden;
+}
+
+/* Scrollable inner wrapper so header sticks */
+.modalBox > * {
+  padding: 0;
 }
 
 .modalHeader {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 24px;
+  padding: 22px 28px 20px;
+  background: linear-gradient(135deg, var(--brand) 0%, color-mix(in srgb, var(--brand) 65%, var(--purple)) 100%);
+  position: relative;
+  overflow: hidden;
+}
+
+.modalHeader::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at 90% 10%, rgba(255,255,255,0.18) 0%, transparent 55%),
+    radial-gradient(circle at 10% 90%, rgba(255,255,255,0.08) 0%, transparent 45%);
+  pointer-events: none;
 }
 
 .modalTitle {
-  font-size: var(--fs-lg);
+  font-size: 18px;
   font-weight: 800;
-  color: var(--t1);
+  color: #fff;
+  text-shadow: 0 1px 4px rgba(0,0,0,0.18);
+  position: relative;
+  z-index: 1;
 }
 
 .modalClose {
@@ -705,148 +726,262 @@
   height: 36px;
   border-radius: 12px;
   border: none;
-  background: var(--bg2);
+  background: rgba(255,255,255,0.18);
+  backdrop-filter: blur(4px);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: var(--fs-md);
+  font-size: 18px;
   cursor: pointer;
-  color: var(--t2);
+  color: #fff;
+  transition: background 0.15s, transform 0.15s;
+  position: relative;
+  z-index: 1;
+}
+
+.modalClose:hover {
+  background: rgba(255,255,255,0.28);
+  transform: scale(1.08);
+}
+
+/* ── Form body (padded area below header) ── */
+.formBody {
+  padding: 24px 28px 8px;
+  overflow-y: auto;
+  max-height: calc(90vh - 80px);
 }
 
 .formGrid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 14px;
+  gap: 16px;
 }
 
 .formField {
   display: flex;
   flex-direction: column;
-  gap: 7px;
+  gap: 6px;
 }
 
 .formFieldFull {
   grid-column: 1 / -1;
 }
 
+/* Section dividers inside forms */
+.formSection {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 6px 0 2px;
+}
+
+.formSection::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(90deg, var(--border2), transparent);
+}
+
+.formSectionLabel {
+  font-family: var(--mono);
+  font-size: 10.5px;
+  font-weight: 700;
+  color: var(--brand);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  white-space: nowrap;
+}
+
 .formLabel {
   font-family: var(--mono);
-  font-size: var(--fs-xs);
+  font-size: 10.5px;
   font-weight: 700;
   color: var(--t3);
   text-transform: uppercase;
-  letter-spacing: 0.6px;
+  letter-spacing: 0.8px;
+  transition: color 0.15s;
 }
 
+.formField:focus-within .formLabel {
+  color: var(--brand);
+}
+
+/* ── Inputs ── */
 .formInput,
 .formSelect,
 .formTextarea {
   width: 100%;
-  padding: 13px 15px;
-  border-radius: 14px;
-  border: none;
+  padding: 12px 14px;
+  border-radius: 13px;
+  border: 1.5px solid var(--border2);
   background: var(--bg2);
   font-family: var(--font);
-  font-size: var(--fs-base);
+  font-size: 14px;
   color: var(--t1);
   outline: none;
-  transition: box-shadow 0.15s;
+  transition: border-color 0.18s, box-shadow 0.18s, background 0.18s;
+  appearance: none;
+  -webkit-appearance: none;
+}
+
+.formInput::placeholder,
+.formTextarea::placeholder {
+  color: var(--t3);
+  opacity: 0.7;
+}
+
+.formInput:hover,
+.formSelect:hover {
+  border-color: var(--brand);
+  background: var(--surface);
 }
 
 .formInput:focus,
 .formSelect:focus,
 .formTextarea:focus {
-  box-shadow: 0 0 0 2px var(--brand);
+  border-color: var(--brand);
+  background: var(--surface);
+  box-shadow: 0 0 0 3.5px rgba(61,111,242,0.14), 0 2px 8px rgba(61,111,242,0.08);
+}
+
+[data-theme="dark"] .formInput:focus,
+[data-theme="dark"] .formSelect:focus,
+[data-theme="dark"] .formTextarea:focus {
+  box-shadow: 0 0 0 3.5px rgba(91,140,255,0.2), 0 2px 8px rgba(91,140,255,0.12);
+}
+
+.formSelect {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2374889f' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  padding-right: 36px;
+  cursor: pointer;
 }
 
 .formTextarea {
   resize: vertical;
-  min-height: 72px;
+  min-height: 78px;
+  line-height: 1.55;
 }
 
 .formError {
   font-family: var(--mono);
-  font-size: var(--fs-sm);
+  font-size: 11px;
   color: var(--red);
   font-weight: 600;
-  margin-top: -4px;
+  margin-top: -2px;
+  padding: 6px 10px;
+  background: var(--red-soft);
+  border-radius: 8px;
 }
 
+/* ── Modal actions bar ── */
 .modalActions {
   display: flex;
-  gap: 12px;
-  margin-top: 26px;
+  gap: 10px;
+  padding: 16px 28px 24px;
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+  position: sticky;
+  bottom: 0;
 }
 
 .btnCancel {
   flex: 1;
-  padding: 14px;
-  border-radius: 15px;
-  border: none;
-  background: var(--bg2);
+  padding: 13px 18px;
+  border-radius: 14px;
+  border: 1.5px solid var(--border2);
+  background: transparent;
   font-family: var(--font);
-  font-size: var(--fs-base);
+  font-size: 14px;
   font-weight: 700;
   color: var(--t2);
   cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.btnCancel:hover {
+  background: var(--bg2);
+  border-color: var(--t3);
 }
 
 .btnSubmit {
   flex: 2;
-  padding: 14px;
-  border-radius: 15px;
+  padding: 13px 18px;
+  border-radius: 14px;
   border: none;
   font-family: var(--font);
-  font-size: var(--fs-base);
+  font-size: 14px;
   font-weight: 800;
-  background: var(--brand);
+  background: linear-gradient(135deg, var(--brand) 0%, color-mix(in srgb, var(--brand) 65%, var(--purple)) 100%);
   color: #fff;
   cursor: pointer;
-  box-shadow: var(--shadow-brand);
-  transition: transform 0.15s, opacity 0.15s;
+  box-shadow: 0 8px 20px rgba(61,111,242,0.35);
+  transition: transform 0.15s, box-shadow 0.15s, opacity 0.15s;
+  letter-spacing: 0.1px;
+}
+
+.btnSubmit:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 28px rgba(61,111,242,0.42);
 }
 
 .btnSubmit:active {
-  transform: scale(0.97);
+  transform: scale(0.97) translateY(0);
 }
 
 .btnSubmit:disabled {
-  opacity: 0.5;
+  opacity: 0.45;
   pointer-events: none;
+  box-shadow: none;
 }
 
+[data-theme="dark"] .btnSubmit {
+  box-shadow: 0 8px 20px rgba(91,140,255,0.38);
+}
+
+[data-theme="dark"] .btnSubmit:hover {
+  box-shadow: 0 12px 28px rgba(91,140,255,0.48);
+}
+
+/* ── Confirm / danger dialog ── */
 .confirmBox {
   width: 100%;
   max-width: 420px;
   background: var(--surface);
   border-radius: 26px;
-  padding: 28px;
-  box-shadow: var(--shadow-lg);
+  padding: 32px 28px 24px;
+  box-shadow: var(--shadow-lg), 0 0 0 1px var(--border);
   text-align: center;
 }
 
 .confirmSub {
-  font-size: var(--fs-base);
+  font-size: 14px;
   color: var(--t2);
   margin-top: 8px;
   margin-bottom: 4px;
-  line-height: 1.5;
+  line-height: 1.6;
 }
 
 .btnDangerConfirm {
   flex: 2;
-  padding: 14px;
-  border-radius: 15px;
+  padding: 13px 18px;
+  border-radius: 14px;
   border: none;
   font-family: var(--font);
-  font-size: var(--fs-base);
+  font-size: 14px;
   font-weight: 800;
-  background: var(--red);
+  background: linear-gradient(135deg, var(--red), #c0392b);
   color: #fff;
   cursor: pointer;
-  transition: transform 0.15s;
-  box-shadow: 0 10px 24px rgba(255, 59, 92, 0.25);
+  transition: transform 0.15s, box-shadow 0.15s;
+  box-shadow: 0 8px 20px rgba(224,72,63,0.32);
+}
+
+.btnDangerConfirm:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 28px rgba(224,72,63,0.4);
 }
 
 .btnDangerConfirm:active {

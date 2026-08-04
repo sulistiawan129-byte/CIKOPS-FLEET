@@ -1756,7 +1756,8 @@ function CreateTaskModal({
               />
             </div>
 
-            <form onSubmit={handleSubmit} style={{ padding: "0 24px 24px" }}>
+            <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", maxHeight: "calc(90vh - 80px)" }}>
+              <div className={styles.formBody ?? ""} style={{ flex: 1, overflowY: "auto", padding: "20px 24px" }}>
               <SectionEyebrow label="Penugasan" color="var(--brand)" />
               <div className={styles.formGrid}>
                 <div className={styles.formField}>
@@ -1917,7 +1918,7 @@ function CreateTaskModal({
               </div>
 
               {formError && <div className={styles.formError}>{formError}</div>}
-
+              </div>
               <div className={styles.modalActions}>
                 <button type="button" className={styles.btnCancel} onClick={onClose}>Batal</button>
                 <button type="submit" className={styles.btnSubmit} disabled={busy}>
