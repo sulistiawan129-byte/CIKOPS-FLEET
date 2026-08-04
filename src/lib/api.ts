@@ -341,8 +341,15 @@ export async function sendTaskBatchEmail(input: {
   } catch (e) {
     console.warn("Failed to read manager_email:", e instanceof Error ? e.message : e);
   }
-  const recipients = [input.requestorEmail, ...managerEmails].filter(Boolean);
-  if (recipients.length === 0) return;
+  // Selalu kirim ke manager — requestorEmail opsional (kalau ada, ikut terkirim juga)
+  const recipients = [...new Set([
+    ...(input.requestorEmail ? [input.requestorEmail] : []),
+    ...managerEmails,
+  ])].filter(Boolean);
+  if (recipients.length === 0) {
+    console.warn("sendTaskBatchEmail: tidak ada penerima — isi manager_email di Settings.");
+    return;
+  }
   try {
     await supabase.functions.invoke("send-task-email", {
       body: { toEmail: recipients, ...input },
@@ -1434,7 +1441,7 @@ export async function getGiftRegistrations(eventId: string): Promise<GiftRegistr
 export function generateGiftPasscode(): string {
   const arr = new Uint32Array(1);
   crypto.getRandomValues(arr);
-  return String(arr[0] % 100000000).padStart(8, "0");
+  return String(arr[0] % 10000).padStart(4, "0");
 }
 
 export async function registerGift(input: {
