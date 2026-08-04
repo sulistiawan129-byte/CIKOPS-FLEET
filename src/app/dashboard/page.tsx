@@ -1634,6 +1634,22 @@ function CreateTaskModal({
           perihal,
           plant,
         });
+        // Kirim email untuk single task juga (sama seperti range)
+        const driverPhoneSingle = drivers.find((d) => d.id === driverId)?.no_hp || undefined;
+        sendTaskBatchEmail({
+          requestorEmail,
+          requestor,
+          driverName,
+          driverPhone: driverPhoneSingle,
+          vehicleLabel,
+          jenisPekerjaan,
+          tujuan,
+          departement,
+          perihal,
+          dateFrom: tanggal,
+          dateTo: tanggal,
+          dayCount: 1,
+        }).catch((e) => console.warn("Task single email failed:", e));
         sendPushToDriver(
           [driverId],
           "Ada Tugas Baru 🚗",
