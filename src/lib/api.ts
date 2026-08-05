@@ -22,22 +22,26 @@ import type {
    MASTER DATA
 ════════════════════════════════════════════════════════════ */
 
-export async function getDrivers(): Promise<Driver[]> {
-  const { data, error } = await supabase
+export async function getDrivers(plant?: Plant | null): Promise<Driver[]> {
+  let q = supabase
     .from("drivers")
     .select("id, nama, no_hp, avatar_emoji, aktif, tier_id, email, plant")
     .eq("aktif", true)
     .order("nama", { ascending: true });
+  if (plant) q = q.eq("plant", plant);
+  const { data, error } = await q;
   if (error) throw error;
   return data ?? [];
 }
 
-export async function getVehicles(): Promise<Vehicle[]> {
-  const { data, error } = await supabase
+export async function getVehicles(plant?: Plant | null): Promise<Vehicle[]> {
+  let q = supabase
     .from("vehicles")
     .select("id, nopol, jenis, aktif, plant")
     .eq("aktif", true)
     .order("nopol", { ascending: true });
+  if (plant) q = q.eq("plant", plant);
+  const { data, error } = await q;
   if (error) throw error;
   return data ?? [];
 }
@@ -235,27 +239,33 @@ export async function cancelTaskByDriver(
 ════════════════════════════════════════════════════════════ */
 
 export async function getTasksByDate(
-  dateFilter: string
+  dateFilter: string,
+  plant?: Plant | null
 ): Promise<TaskDetail[]> {
-  const { data, error } = await supabase
+  let q = supabase
     .from("tasks_detail")
     .select("*")
     .eq("tanggal", dateFilter)
     .order("created_at", { ascending: false });
+  if (plant) q = q.eq("plant", plant);
+  const { data, error } = await q;
   if (error) throw error;
   return data ?? [];
 }
 
 export async function getTasksByRange(
   dateFrom: string,
-  dateTo: string
+  dateTo: string,
+  plant?: Plant | null
 ): Promise<TaskDetail[]> {
-  const { data, error } = await supabase
+  let q = supabase
     .from("tasks_detail")
     .select("*")
     .gte("tanggal", dateFrom)
     .lte("tanggal", dateTo)
     .order("tanggal", { ascending: false });
+  if (plant) q = q.eq("plant", plant);
+  const { data, error } = await q;
   if (error) throw error;
   return data ?? [];
 }
@@ -583,14 +593,16 @@ export function subscribeToDriverClaims(driverId: string, onChange: () => void) 
   return () => { supabase.removeChannel(channel); };
 }
 
-export async function getClaims(): Promise<Claim[]> {
-  const { data, error } = await supabase
+export async function getClaims(plant?: Plant | null): Promise<Claim[]> {
+  let q = supabase
     .from("claims")
     .select(`
       id, driver_id, period_date, submission_date, items, total, status, note, submitted_at, plant,
       drivers ( nama, email )
     `)
     .order("submission_date", { ascending: false });
+  if (plant) q = q.eq("plant", plant);
+  const { data, error } = await q;
   if (error) throw error;
   return (data as unknown as ClaimRow[] ?? []).map(mapClaimRow);
 }
@@ -657,11 +669,13 @@ function mapOvertimeRow(row: OvertimeRow): Overtime {
   };
 }
 
-export async function getOvertimes(): Promise<Overtime[]> {
-  const { data, error } = await supabase
+export async function getOvertimes(plant?: Plant | null): Promise<Overtime[]> {
+  let q = supabase
     .from("overtime")
     .select("*, drivers(nama)")
     .order("period", { ascending: false });
+  if (plant) q = q.eq("plant", plant);
+  const { data, error } = await q;
   if (error) throw error;
   return (data as unknown as OvertimeRow[] ?? []).map(mapOvertimeRow);
 }
