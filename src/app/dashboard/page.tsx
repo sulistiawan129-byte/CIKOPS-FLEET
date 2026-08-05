@@ -349,7 +349,7 @@ const [masterDataInitialSub, setMasterDataInitialSub] = useState<"drivers" | "em
     } finally {
       setLoading(false);
     }
-  }, [dateFilter]);
+  }, [dateFilter, myProfile?.plantScope]);
 
   useEffect(() => {
     loadTasks();
@@ -383,7 +383,8 @@ const [masterDataInitialSub, setMasterDataInitialSub] = useState<"drivers" | "em
         );
       }
     })();
-  }, []);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [myProfile?.plantScope]);
 
   const stats = useMemo(() => computeStats(tasks), [tasks]);
 
@@ -824,6 +825,7 @@ const [masterDataInitialSub, setMasterDataInitialSub] = useState<"drivers" | "em
       {reportModalOpen && (
         <ReportModal
           drivers={drivers}
+          myProfile={myProfile}
           onClose={() => setReportModalOpen(false)}
           onError={(msg) => showToast(msg, true)}
           onSuccess={(msg) => showToast(msg)}
@@ -1076,11 +1078,13 @@ function quickRangeToDates(range: QuickRange): { from: string; to: string } {
 
 function ReportModal({
   drivers,
+  myProfile,
   onClose,
   onError,
   onSuccess,
 }: {
   drivers: Driver[];
+  myProfile: MyProfile | null;
   onClose: () => void;
   onError: (msg: string) => void;
   onSuccess: (msg: string) => void;
@@ -1096,8 +1100,7 @@ function ReportModal({
     if (!dateFrom || !dateTo) return;
     setLoadingPreview(true);
     try {
-      const data = await getTasksByRange(dateFrom, dateTo);
-      setReportTasks(data);
+      const data = await getTasksByRange(dateFrom, dateTo, myProfile?.plantScope ?? null);
     } catch (e) {
       onError(e instanceof Error ? e.message : "Gagal memuat data laporan");
     } finally {
@@ -1131,7 +1134,7 @@ function ReportModal({
       const tasks =
         reportTasks.length > 0 || !loadingPreview
           ? reportTasks
-          : await getTasksByRange(dateFrom, dateTo);
+          : await getTasksByRange(dateFrom, dateTo, myProfile?.plantScope ?? null);
       if (format === "csv") {
         exportTasksToCsv(tasks, dateFrom, dateTo);
       } else {
@@ -5038,7 +5041,7 @@ function ReportsTab({ myProfile }: { myProfile: MyProfile | null }) {
 
       const period: ReportPeriod = { mode, month, year, dateFrom, dateTo };
       const { from, to } = getPeriodDateRange(period);
-      const tasks = await getTasksByRange(from, to);
+      const tasks = await getTasksByRange(from, to, myProfile?.plantScope ?? null);
 
       const data = buildFleetReportData(period, freshClaims, freshOt, freshVehicles, myKantongForReport, freshTiers, tasks);
       // Previous-period data, for trend insights — silently skipped if it
@@ -5047,7 +5050,7 @@ function ReportsTab({ myProfile }: { myProfile: MyProfile | null }) {
       try {
         const prevPeriod = getPreviousPeriod(period);
         const prevRange = getPeriodDateRange(prevPeriod);
-        const prevTasks = await getTasksByRange(prevRange.from, prevRange.to);
+        const prevTasks = await getTasksByRange(prevRange.from, prevRange.to, myProfile?.plantScope ?? null);
         prevData = buildFleetReportData(prevPeriod, freshClaims, freshOt, freshVehicles, myKantongForReport, freshTiers, prevTasks);
       } catch {
         prevData = null;
