@@ -342,7 +342,7 @@ const [masterDataInitialSub, setMasterDataInitialSub] = useState<"drivers" | "em
     setLoading(true);
     setError(null);
     try {
-      const data = await getTasksByDate(dateFilter);
+      const data = await getTasksByDate(dateFilter, myProfile?.plantScope ?? null);
       setTasks(data);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Gagal memuat data tugas");
@@ -367,8 +367,8 @@ const [masterDataInitialSub, setMasterDataInitialSub] = useState<"drivers" | "em
     (async () => {
       try {
         const [d, v, e, j] = await Promise.all([
-          getDrivers(),
-          getVehicles(),
+          getDrivers(myProfile?.plantScope ?? null),
+          getVehicles(myProfile?.plantScope ?? null),
           getEmployees(),
           getJobTypes(),
         ]);
@@ -603,7 +603,7 @@ const [masterDataInitialSub, setMasterDataInitialSub] = useState<"drivers" | "em
               <span style={{ position: "absolute", left: 13, top: "50%", transform: "translateY(-50%)", color: "var(--t3)", fontSize: 13 }}>🔍</span>
               <input
                 placeholder={lang === "en" ? "Search menu, data, or module..." : "Cari menu, data, atau modul..."}
-                className="premiumInput"
+                className="fInput"
                 style={{ width: "100%", padding: "9px 14px 9px 36px", borderRadius: "var(--pill)", border: "1px solid var(--border2)", background: "var(--bg2)", fontSize: 13, color: "var(--t1)" }}
               />
             </div>
@@ -2097,7 +2097,7 @@ function OverviewTab({ setActiveTab, myProfile }: { setActiveTab: (t: DashboardT
           getCurrentKantong("PRB"),
           getDriverTiers(),
           getGasStations(),
-          getTasksByRange(toLocalISODate(from30d), todayStr()),
+          getTasksByRange(toLocalISODate(from30d), todayStr(), myProfile?.plantScope ?? null),
           getCanteenReportsForMonth(monthStr).catch(() => []),
           getLockerStatusGrid().catch(() => []),
         ]);
@@ -2977,7 +2977,7 @@ function ActivityLogTab() {
 
       <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 18 }}>
         <select
-          className="premiumInput"
+          className="fInput"
           value={tableFilter}
           onChange={(e) => setTableFilter(e.target.value)}
           style={{ padding: "9px 12px", borderRadius: 10, border: "1px solid var(--border2)", background: "var(--bg2)", color: "var(--t1)", fontSize: 13, fontFamily: "var(--font)" }}
@@ -3363,7 +3363,7 @@ function ClaimsTab() {
           <select
             value={driverFilter}
             onChange={(e) => setDriverFilter(e.target.value)}
-            className="premiumInput"
+            className="fInput"
             style={{ ...inputStyle, width: "auto", minWidth: 160 }}
           >
             <option value="all">{lang === "en" ? "All Drivers" : "Semua Driver"}</option>
@@ -3397,7 +3397,7 @@ function ClaimsTab() {
           {periodMode !== "all" && (
             <input
               type="date"
-              className="premiumInput"
+              className="fInput"
               style={{ ...inputStyle, width: "auto" }}
               value={filterDate}
               onChange={(e) => setFilterDate(e.target.value)}
@@ -3653,18 +3653,18 @@ function ClaimsTab() {
             <div style={{ padding: 24 }}>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 14 }}>
                 <div>
-                  <label style={labelStyle}>{lang === "en" ? "SUBMISSION DATE" : "TANGGAL PENGAJUAN"}</label>
-                  <input className="premiumInput" style={inputStyle} type="date" value={submissionDate} onChange={(e) => setSubmissionDate(e.target.value)} />
+                  <label>{lang === "en" ? "SUBMISSION DATE" : "TANGGAL PENGAJUAN"}</label>
+                  <input className="fInput" type="date" value={submissionDate} onChange={(e) => setSubmissionDate(e.target.value)} />
                 </div>
                 <div>
-                  <label style={labelStyle}>{lang === "en" ? "PERIOD DATE" : "TANGGAL PERIODE"}</label>
-                  <input className="premiumInput" style={inputStyle} type="date" value={periodDate} onChange={(e) => setPeriodDate(e.target.value)} />
+                  <label>{lang === "en" ? "PERIOD DATE" : "TANGGAL PERIODE"}</label>
+                  <input className="fInput" type="date" value={periodDate} onChange={(e) => setPeriodDate(e.target.value)} />
                 </div>
               </div>
 
               <div style={{ marginBottom: 14 }}>
-                <label style={labelStyle}>{t.fieldDriver} *</label>
-                <select className="premiumInput" style={inputStyle} value={formDriverId} onChange={(e) => setFormDriverId(e.target.value)}>
+                <label>{t.fieldDriver} *</label>
+                <select className="fInput" value={formDriverId} onChange={(e) => setFormDriverId(e.target.value)}>
                   <option value="">{lang === "en" ? "Select driver" : "Pilih driver"}</option>
                   {drivers.map((d) => (
                     <option key={d.id} value={d.id}>{d.nama}</option>
@@ -3674,7 +3674,7 @@ function ClaimsTab() {
 
              <div style={{ marginBottom: 14, padding: 14, background: "var(--bg2)", borderRadius: 12 }}>
                 <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 10 }}>
-                  <label style={{ ...labelStyle, marginBottom: 0 }}>{lang === "en" ? "CLAIM LINES" : "RINCIAN KLAIM"}</label>
+                  <label className="fLabel" style={{ ...labelStyle, marginBottom: 0 }}>{lang === "en" ? "CLAIM LINES" : "RINCIAN KLAIM"}</label>
                   <button onClick={addLine} style={{ fontSize: 13, fontWeight: 700, color: "var(--brand)", background: "none", border: "none", cursor: "pointer" }}>
                     + {lang === "en" ? "Add Line" : "Tambah Baris"}
                   </button>
@@ -3685,13 +3685,13 @@ function ClaimsTab() {
                     return (
                       <div key={line.id} style={{ background: "var(--surface)", borderRadius: 10, padding: 8, border: "1px solid var(--border2)" }}>
                         <div style={{ display: "grid", gridTemplateColumns: "120px 1fr 28px", gap: 8 }}>
-                          <select className="premiumInput" style={{ ...inputStyle, fontSize: 12 }} value={line.type} onChange={(e) => updateLine(line.id, "type", e.target.value)}>
+                          <select className="fInput" style={{ ...inputStyle, fontSize: 12 }} value={line.type} onChange={(e) => updateLine(line.id, "type", e.target.value)}>
                             {CLAIM_TYPES.map((ct) => (
                               <option key={ct} value={ct}>{ct}</option>
                             ))}
                           </select>
                           <input
-                            className="premiumInput"
+                            className="fInput"
                             style={{ ...inputStyle, fontFamily: "var(--mono)" }}
                             placeholder="50000+30000"
                             value={line.expr}
@@ -3728,8 +3728,8 @@ function ClaimsTab() {
               </div>
 
               <div style={{ marginBottom: 16 }}>
-                <label style={labelStyle}>{lang === "en" ? "NOTE (optional)" : "CATATAN (opsional)"}</label>
-                <input className="premiumInput" style={inputStyle} value={note} onChange={(e) => setNote(e.target.value)} />
+                <label>{lang === "en" ? "NOTE (optional)" : "CATATAN (opsional)"}</label>
+                <input className="fInput" value={note} onChange={(e) => setNote(e.target.value)} />
               </div>
 
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "14px 16px", background: "var(--gold-soft)", border: "1px solid var(--gold)", borderRadius: 12, marginBottom: 18 }}>
@@ -4044,24 +4044,24 @@ function OvertimeTab({ myProfile }: { myProfile: MyProfile | null }) {
             <div style={{ fontSize: 16, fontWeight: 800, marginBottom: 18, color: "var(--t1)" }}>{lang === "en" ? "Add Overtime" : "Tambah Overtime"}</div>
 
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 12 }}>
-              <select className="premiumInput" style={inputStyle} value={formMonth} onChange={(e) => setFormMonth(Number(e.target.value))}>
+              <select className="fInput" value={formMonth} onChange={(e) => setFormMonth(Number(e.target.value))}>
                 {months.map((m, i) => <option key={i} value={i}>{m}</option>)}
               </select>
-              <select className="premiumInput" style={inputStyle} value={formYear} onChange={(e) => setFormYear(Number(e.target.value))}>
+              <select className="fInput" value={formYear} onChange={(e) => setFormYear(Number(e.target.value))}>
                 {[now.getFullYear() - 1, now.getFullYear(), now.getFullYear() + 1].map((y) => <option key={y} value={y}>{y}</option>)}
               </select>
             </div>
 
             <div style={{ marginBottom: 12 }}>
-              <label style={labelStyle}>{t.fieldDriver} *</label>
-              <select className="premiumInput" style={inputStyle} value={formDriverId} onChange={(e) => setFormDriverId(e.target.value)}>
+              <label>{t.fieldDriver} *</label>
+              <select className="fInput" value={formDriverId} onChange={(e) => setFormDriverId(e.target.value)}>
                 <option value="">{lang === "en" ? "Select driver" : "Pilih driver"}</option>
                 {drivers.map((d) => <option key={d.id} value={d.id}>{d.nama}</option>)}
               </select>
             </div>
 
             <div style={{ marginBottom: 12 }}>
-              <label style={labelStyle}>{t.fieldPlant} *</label>
+              <label>{t.fieldPlant} *</label>
               <div style={{ display: "flex", gap: 8 }}>
                 {OT_PLANTS.map((p) => (
                   <button
@@ -4083,18 +4083,18 @@ function OvertimeTab({ myProfile }: { myProfile: MyProfile | null }) {
 
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 12 }}>
               <div>
-                <label style={labelStyle}>{lang === "en" ? "HOURS *" : "TOTAL JAM OT *"}</label>
-                <input className="premiumInput" style={inputStyle} type="number" step="0.5" value={formHours} onChange={(e) => setFormHours(e.target.value)} placeholder="4" />
+                <label>{lang === "en" ? "HOURS *" : "TOTAL JAM OT *"}</label>
+                <input className="fInput" type="number" step="0.5" value={formHours} onChange={(e) => setFormHours(e.target.value)} placeholder="4" />
               </div>
               <div>
-                <label style={labelStyle}>{lang === "en" ? "AMOUNT *" : "TOTAL NOMINAL *"}</label>
-                <input className="premiumInput" style={inputStyle} value={formAmount} onChange={(e) => setFormAmount(e.target.value)} placeholder="150000" />
+                <label>{lang === "en" ? "AMOUNT *" : "TOTAL NOMINAL *"}</label>
+                <input className="fInput" value={formAmount} onChange={(e) => setFormAmount(e.target.value)} placeholder="150000" />
               </div>
             </div>
 
             <div style={{ marginBottom: 18 }}>
-              <label style={labelStyle}>{lang === "en" ? "REASON" : "ALASAN OT"}</label>
-              <input className="premiumInput" style={inputStyle} value={formReason} onChange={(e) => setFormReason(e.target.value)} placeholder="Lembur closing bulanan" />
+              <label>{lang === "en" ? "REASON" : "ALASAN OT"}</label>
+              <input className="fInput" value={formReason} onChange={(e) => setFormReason(e.target.value)} placeholder="Lembur closing bulanan" />
             </div>
 
             <div style={{ display: "flex", gap: 10 }}>
@@ -4240,21 +4240,21 @@ function LoginScreen() {
 
             <form onSubmit={handleSubmit}>
               <div style={{ marginBottom: 14 }}>
-                <label style={labelStyle}>{t.loginEmail.toUpperCase()}</label>
+                <label>{t.loginEmail.toUpperCase()}</label>
                 <div style={{ position: "relative" }}>
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" width={16} height={16} style={{ position: "absolute", left: 13, top: "50%", transform: "translateY(-50%)", color: "var(--t3)", pointerEvents: "none" }}>
                     <rect x="2" y="4" width="20" height="16" rx="2" /><path d="m2 7 10 6 10-6" />
                   </svg>
-                  <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} className="premiumInput" style={inputStyle} />
+                  <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} className="fInput" />
                 </div>
               </div>
               <div style={{ marginBottom: 20 }}>
-                <label style={labelStyle}>{t.loginPassword.toUpperCase()}</label>
+                <label>{t.loginPassword.toUpperCase()}</label>
                 <div style={{ position: "relative" }}>
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" width={16} height={16} style={{ position: "absolute", left: 13, top: "50%", transform: "translateY(-50%)", color: "var(--t3)", pointerEvents: "none" }}>
                     <rect x="5" y="11" width="14" height="10" rx="2" /><path d="M8 11V7a4 4 0 0 1 8 0v4" />
                   </svg>
-                  <input type={showPassword ? "text" : "password"} required value={password} onChange={(e) => setPassword(e.target.value)} className="premiumInput" style={{ ...inputStyle, paddingRight: 40 }} />
+                  <input type={showPassword ? "text" : "password"} required value={password} onChange={(e) => setPassword(e.target.value)} className="fInput" style={{ ...inputStyle, paddingRight: 40 }} />
                   <button
                     type="button"
                     onClick={() => setShowPassword((p) => !p)}
@@ -4486,11 +4486,11 @@ function DriverBudgetTab() {
           <div style={{ ...cardStyle, padding: 24 }}>
             <div style={{ fontSize: 16, fontWeight: 800, marginBottom: 18, color: "var(--t1)" }}>{editing ? (lang === "en" ? "Edit Tier" : "Edit Tier") : (lang === "en" ? "Add Tier" : "Tambah Tier")}</div>
             <div style={{ marginBottom: 12 }}>
-              <label style={labelStyle}>{t.fieldTierName}</label>
-              <input className="premiumInput" style={inputStyle} value={formName} onChange={(e) => setFormName(e.target.value)} placeholder="Senior Driver" />
+              <label>{t.fieldTierName}</label>
+              <input className="fInput" value={formName} onChange={(e) => setFormName(e.target.value)} placeholder="Senior Driver" />
             </div>
             <div style={{ marginBottom: 12 }}>
-              <label style={labelStyle}>{t.fieldColor}</label>
+              <label>{t.fieldColor}</label>
               <div style={{ display: "flex", gap: 8 }}>
                 {TIER_PALETTE.map((c) => (
                   <div key={c} onClick={() => setFormColor(c)} style={{ width: 26, height: 26, borderRadius: "50%", background: c, cursor: "pointer", border: formColor === c ? "2px solid var(--t1)" : "2px solid transparent" }} />
@@ -4498,8 +4498,8 @@ function DriverBudgetTab() {
               </div>
             </div>
             <div style={{ marginBottom: 18 }}>
-              <label style={labelStyle}>{t.fieldAmountPerPersonMonth}</label>
-              <input className="premiumInput" style={inputStyle} value={formAmount} onChange={(e) => setFormAmount(e.target.value)} placeholder="2000000" />
+              <label>{t.fieldAmountPerPersonMonth}</label>
+              <input className="fInput" value={formAmount} onChange={(e) => setFormAmount(e.target.value)} placeholder="2000000" />
             </div>
             <div style={{ display: "flex", gap: 10 }}>
               <button onClick={() => setShowForm(false)} style={{ flex: 1, padding: "10px", borderRadius: 10, border: "1px solid var(--border2)", background: "var(--surface2)", color: "var(--t2)", fontWeight: 700, cursor: "pointer" }}>{t.actionCancel}</button>
@@ -4693,20 +4693,20 @@ function OpFundTab({ myProfile }: { myProfile: MyProfile | null }) {
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 12, position: "relative", zIndex: 1 }}>
             <div>
-              <label style={labelStyleInit}>{t.fieldTotalCashOp} *</label>
-              <input className="premiumInput" style={inputStyleInit} value={initBudget} onChange={(e) => setInitBudget(e.target.value)} placeholder="48000000" />
+              <label className="fLabel" style={labelStyleInit}>{t.fieldTotalCashOp} *</label>
+              <input className="fInput" style={inputStyleInit} value={initBudget} onChange={(e) => setInitBudget(e.target.value)} placeholder="48000000" />
             </div>
             <div>
-              <label style={labelStyleInit}>OP DRIVER (A1)</label>
-              <input className="premiumInput" style={inputStyleInit} value={initOpDriver} onChange={(e) => setInitOpDriver(e.target.value)} placeholder="9000000" />
+              <label className="fLabel" style={labelStyleInit}>OP DRIVER (A1)</label>
+              <input className="fInput" style={inputStyleInit} value={initOpDriver} onChange={(e) => setInitOpDriver(e.target.value)} placeholder="9000000" />
             </div>
             <div>
-              <label style={labelStyleInit}>EMERGENCY (A2)</label>
-              <input className="premiumInput" style={inputStyleInit} value={initEmergency} onChange={(e) => setInitEmergency(e.target.value)} placeholder="1500000" />
+              <label className="fLabel" style={labelStyleInit}>EMERGENCY (A2)</label>
+              <input className="fInput" style={inputStyleInit} value={initEmergency} onChange={(e) => setInitEmergency(e.target.value)} placeholder="1500000" />
             </div>
             <div>
-              <label style={labelStyleInit}>CASH AVAILABLE (A4)</label>
-              <input className="premiumInput" style={inputStyleInit} value={initCash} onChange={(e) => setInitCash(e.target.value)} placeholder="20000000" />
+              <label className="fLabel" style={labelStyleInit}>CASH AVAILABLE (A4)</label>
+              <input className="fInput" style={inputStyleInit} value={initCash} onChange={(e) => setInitCash(e.target.value)} placeholder="20000000" />
             </div>
           </div>
           <button
@@ -4915,13 +4915,13 @@ gap: h.allocOpDriver + h.allocEmergency + h.cashAvailable + h.claimSubmitted + h
           <div style={{ ...cardStyle, padding: 24 }}>
             <div style={{ fontSize: 16, fontWeight: 800, marginBottom: 18, color: "var(--t1)" }}>Edit Dana Operasional — {viewPlant}</div>
             <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-              <div><label style={labelStyle}>{t.fieldTotalCashOp}</label><input className="premiumInput" style={inputStyle} value={eBudget} onChange={(e) => setEBudget(e.target.value)} /></div>
-              <div><label style={labelStyle}>OP DRIVER (A1)</label><input className="premiumInput" style={inputStyle} value={eOpDriver} onChange={(e) => setEOpDriver(e.target.value)} /></div>
-              <div><label style={labelStyle}>EMERGENCY (A2)</label><input className="premiumInput" style={inputStyle} value={eEmergency} onChange={(e) => setEEmergency(e.target.value)} /></div>
-              <div><label style={labelStyle}>CASH AVAILABLE (A4)</label><input className="premiumInput" style={inputStyle} value={eCash} onChange={(e) => setECash(e.target.value)} /></div>
-              <div><label style={labelStyle}>{lang === "en" ? "CLAIM SUBMITTED (A5)" : "CLAIM DIAJUKAN (A5)"}</label><input className="premiumInput" style={inputStyle} value={eSubmitted} onChange={(e) => setESubmitted(e.target.value)} /></div>
-             <div><label style={labelStyle}>{lang === "en" ? "CLAIM PAID (A6)" : "CLAIM DIBAYAR (A6)"}</label><input className="premiumInput" style={inputStyle} value={ePaid} onChange={(e) => setEPaid(e.target.value)} /></div>
-              <div><label style={labelStyle}>{lang === "en" ? "UNSUBMITTED CLAIM (A7)" : "KLAIM BELUM DIAJUKAN (A7)"}</label><input className="premiumInput" style={inputStyle} value={eUnsubmittedClaim} onChange={(e) => setEUnsubmittedClaim(e.target.value)} placeholder="0" /></div>
+              <div><label>{t.fieldTotalCashOp}</label><input className="fInput" value={eBudget} onChange={(e) => setEBudget(e.target.value)} /></div>
+              <div><label>OP DRIVER (A1)</label><input className="fInput" value={eOpDriver} onChange={(e) => setEOpDriver(e.target.value)} /></div>
+              <div><label>EMERGENCY (A2)</label><input className="fInput" value={eEmergency} onChange={(e) => setEEmergency(e.target.value)} /></div>
+              <div><label>CASH AVAILABLE (A4)</label><input className="fInput" value={eCash} onChange={(e) => setECash(e.target.value)} /></div>
+              <div><label>{lang === "en" ? "CLAIM SUBMITTED (A5)" : "CLAIM DIAJUKAN (A5)"}</label><input className="fInput" value={eSubmitted} onChange={(e) => setESubmitted(e.target.value)} /></div>
+             <div><label>{lang === "en" ? "CLAIM PAID (A6)" : "CLAIM DIBAYAR (A6)"}</label><input className="fInput" value={ePaid} onChange={(e) => setEPaid(e.target.value)} /></div>
+              <div><label>{lang === "en" ? "UNSUBMITTED CLAIM (A7)" : "KLAIM BELUM DIAJUKAN (A7)"}</label><input className="fInput" value={eUnsubmittedClaim} onChange={(e) => setEUnsubmittedClaim(e.target.value)} placeholder="0" /></div>
             </div>
             <div style={{ display: "flex", gap: 10, marginTop: 18 }}>
               <button onClick={() => setShowEdit(false)} style={{ flex: 1, padding: "10px", borderRadius: 10, border: "1px solid var(--border2)", background: "var(--surface2)", color: "var(--t2)", fontWeight: 700, cursor: "pointer" }}>{t.actionCancel}</button>
@@ -5171,23 +5171,23 @@ function ReportsTab({ myProfile }: { myProfile: MyProfile | null }) {
         <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
           {mode === "month" && (
             <>
-              <select className="premiumInput" style={{ ...inputStyle, width: "auto" }} value={month} onChange={(e) => { setMonth(Number(e.target.value)); setGenerated(false); }}>
+              <select className="fInput" style={{ ...inputStyle, width: "auto" }} value={month} onChange={(e) => { setMonth(Number(e.target.value)); setGenerated(false); }}>
                 {months.map((m, i) => <option key={i} value={i}>{m}</option>)}
               </select>
-              <select className="premiumInput" style={{ ...inputStyle, width: "auto" }} value={year} onChange={(e) => { setYear(Number(e.target.value)); setGenerated(false); }}>
+              <select className="fInput" style={{ ...inputStyle, width: "auto" }} value={year} onChange={(e) => { setYear(Number(e.target.value)); setGenerated(false); }}>
                 {[now.getFullYear() - 1, now.getFullYear(), now.getFullYear() + 1].map((y) => <option key={y} value={y}>{y}</option>)}
               </select>
             </>
           )}
           {mode === "range" && (
             <>
-              <input className="premiumInput" style={{ ...inputStyle, width: "auto" }} type="date" value={dateFrom} onChange={(e) => { setDateFrom(e.target.value); setGenerated(false); }} />
+              <input className="fInput" style={{ ...inputStyle, width: "auto" }} type="date" value={dateFrom} onChange={(e) => { setDateFrom(e.target.value); setGenerated(false); }} />
               <span style={{ color: "var(--t3)" }}>s/d</span>
-              <input className="premiumInput" style={{ ...inputStyle, width: "auto" }} type="date" value={dateTo} onChange={(e) => { setDateTo(e.target.value); setGenerated(false); }} />
+              <input className="fInput" style={{ ...inputStyle, width: "auto" }} type="date" value={dateTo} onChange={(e) => { setDateTo(e.target.value); setGenerated(false); }} />
             </>
           )}
           {mode === "year" && (
-            <select className="premiumInput" style={{ ...inputStyle, width: "auto" }} value={year} onChange={(e) => { setYear(Number(e.target.value)); setGenerated(false); }}>
+            <select className="fInput" style={{ ...inputStyle, width: "auto" }} value={year} onChange={(e) => { setYear(Number(e.target.value)); setGenerated(false); }}>
               {[now.getFullYear() - 2, now.getFullYear() - 1, now.getFullYear(), now.getFullYear() + 1].map((y) => <option key={y} value={y}>{y}</option>)}
             </select>
           )}
@@ -5702,19 +5702,19 @@ return (
           <div style={{ ...cardStyle, padding: 24 }}>
             <div style={{ fontSize: 16, fontWeight: 800, marginBottom: 18, color: "var(--t1)" }}>{editing ? (lang === "en" ? "Edit Station" : "Edit SPBU") : (lang === "en" ? "Add Station" : "Tambah SPBU")}</div>
             <div style={{ marginBottom: 12 }}>
-              <label style={labelStyle}>{t.fieldStationName}</label>
-              <input className="premiumInput" style={inputStyle} value={formName} onChange={(e) => setFormName(e.target.value)} />
+              <label>{t.fieldStationName}</label>
+              <input className="fInput" value={formName} onChange={(e) => setFormName(e.target.value)} />
             </div>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 12 }}>
-              <div><label style={labelStyle}>{t.fieldLatitude}</label><input className="premiumInput" style={inputStyle} value={formLat} onChange={(e) => setFormLat(e.target.value)} placeholder="-6.2607" /></div>
-              <div><label style={labelStyle}>{t.fieldLongitude}</label><input className="premiumInput" style={inputStyle} value={formLng} onChange={(e) => setFormLng(e.target.value)} placeholder="107.1525" /></div>
+              <div><label>{t.fieldLatitude}</label><input className="fInput" value={formLat} onChange={(e) => setFormLat(e.target.value)} placeholder="-6.2607" /></div>
+              <div><label>{t.fieldLongitude}</label><input className="fInput" value={formLng} onChange={(e) => setFormLng(e.target.value)} placeholder="107.1525" /></div>
             </div>
             <div style={{ marginBottom: 14 }}>
-              <label style={labelStyle}>{t.fieldAddress}</label>
-              <input className="premiumInput" style={inputStyle} value={formAddress} onChange={(e) => setFormAddress(e.target.value)} />
+              <label>{t.fieldAddress}</label>
+              <input className="fInput" value={formAddress} onChange={(e) => setFormAddress(e.target.value)} />
             </div>
             <div style={{ marginBottom: 14 }}>
-              <label style={labelStyle}>{t.fieldFuelsAvailable}</label>
+              <label>{t.fieldFuelsAvailable}</label>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 7 }}>
                 {formFuels.map((f) => (
                   <div
@@ -5729,8 +5729,8 @@ return (
               </div>
             </div>
             <div style={{ marginBottom: 18 }}>
-              <label style={labelStyle}>{t.fieldNotes}</label>
-              <input className="premiumInput" style={inputStyle} value={formNotes} onChange={(e) => setFormNotes(e.target.value)} placeholder="dekat pintu tol, buka 24 jam..." />
+              <label>{t.fieldNotes}</label>
+              <input className="fInput" value={formNotes} onChange={(e) => setFormNotes(e.target.value)} placeholder="dekat pintu tol, buka 24 jam..." />
             </div>
             <div style={{ display: "flex", gap: 10 }}>
               <button onClick={() => setShowForm(false)} style={{ flex: 1, padding: "10px", borderRadius: 10, border: "1px solid var(--border2)", background: "var(--surface2)", color: "var(--t2)", fontWeight: 700, cursor: "pointer" }}>{t.actionCancel}</button>
@@ -6138,7 +6138,7 @@ function VehiclesTab({ myProfile }: { myProfile: MyProfile | null }) {
             <div style={{ padding: 24 }}>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
                 <div>
-    <label style={labelStyle}>PLANT *</label>
+    <label>PLANT *</label>
      <div style={{ display: "flex", gap: 6 }}>
       {(["CIK", "PRB"] as Plant[]).map((p) => (
         <button
@@ -6163,36 +6163,36 @@ function VehiclesTab({ myProfile }: { myProfile: MyProfile | null }) {
     </div>
   </div>
                 <div>
-                  <label style={labelStyle}>{t.fieldPlateNumber} *</label>
-                  <input className="premiumInput" style={inputStyle} value={form.nopol} onChange={(e) => setForm({ ...form, nopol: e.target.value })} placeholder="B 1234 XY" />
+                  <label>{t.fieldPlateNumber} *</label>
+                  <input className="fInput" value={form.nopol} onChange={(e) => setForm({ ...form, nopol: e.target.value })} placeholder="B 1234 XY" />
                 </div>
                 <div>
-                  <label style={labelStyle}>{t.fieldType} *</label>
-                  <input className="premiumInput" style={inputStyle} value={form.jenis} onChange={(e) => setForm({ ...form, jenis: e.target.value })} placeholder="Toyota Avanza" />
+                  <label>{t.fieldType} *</label>
+                  <input className="fInput" value={form.jenis} onChange={(e) => setForm({ ...form, jenis: e.target.value })} placeholder="Toyota Avanza" />
                 </div>
                 <div>
-                  <label style={labelStyle}>{t.fieldYear}</label>
-                  <input className="premiumInput" style={inputStyle} type="number" value={form.year} onChange={(e) => setForm({ ...form, year: e.target.value })} />
+                  <label>{t.fieldYear}</label>
+                  <input className="fInput" type="number" value={form.year} onChange={(e) => setForm({ ...form, year: e.target.value })} />
                 </div>
                 <div>
-                  <label style={labelStyle}>{t.fieldColor}</label>
-                  <input className="premiumInput" style={inputStyle} value={form.color} onChange={(e) => setForm({ ...form, color: e.target.value })} />
+                  <label>{t.fieldColor}</label>
+                  <input className="fInput" value={form.color} onChange={(e) => setForm({ ...form, color: e.target.value })} />
                 </div>
                 <div>
-                  <label style={labelStyle}>{t.fieldFuel}</label>
-                  <select className="premiumInput" style={inputStyle} value={form.fuel} onChange={(e) => setForm({ ...form, fuel: e.target.value })}>
+                  <label>{t.fieldFuel}</label>
+                  <select className="fInput" value={form.fuel} onChange={(e) => setForm({ ...form, fuel: e.target.value })}>
                     {FUEL_OPTIONS.map((f) => (
                       <option key={f} value={f}>{f}</option>
                     ))}
                   </select>
                 </div>
                 <div>
-                  <label style={labelStyle}>{t.fieldOdometer}</label>
-                  <input className="premiumInput" style={inputStyle} type="number" value={form.odometer} onChange={(e) => setForm({ ...form, odometer: e.target.value })} />
+                  <label>{t.fieldOdometer}</label>
+                  <input className="fInput" type="number" value={form.odometer} onChange={(e) => setForm({ ...form, odometer: e.target.value })} />
                 </div>
                 <div>
-                  <label style={labelStyle}>{t.fieldDefaultDriver}</label>
-                  <select className="premiumInput" style={inputStyle} value={form.default_driver_id} onChange={(e) => setForm({ ...form, default_driver_id: e.target.value })}>
+                  <label>{t.fieldDefaultDriver}</label>
+                  <select className="fInput" value={form.default_driver_id} onChange={(e) => setForm({ ...form, default_driver_id: e.target.value })}>
                     <option value="">-</option>
                     {drivers.map((d) => (
                       <option key={d.id} value={d.id}>{d.nama}</option>
@@ -6200,13 +6200,13 @@ function VehiclesTab({ myProfile }: { myProfile: MyProfile | null }) {
                   </select>
                 </div>
                 <div>
-                  <label style={labelStyle}>{t.fieldDepartment}</label>
-                  <input className="premiumInput" style={inputStyle} value={form.dept} onChange={(e) => setForm({ ...form, dept: e.target.value })} />
+                  <label>{t.fieldDepartment}</label>
+                  <input className="fInput" value={form.dept} onChange={(e) => setForm({ ...form, dept: e.target.value })} />
                 </div>
                 <div>
-                  <label style={labelStyle}>{t.fieldStatus}</label>
+                  <label>{t.fieldStatus}</label>
                   <select
-                    className="premiumInput" style={inputStyle}
+                    className="fInput"
                     value={form.aktif ? "active" : "maintenance"}
                     onChange={(e) => setForm({ ...form, aktif: e.target.value === "active" })}
                   >
@@ -6221,16 +6221,16 @@ function VehiclesTab({ myProfile }: { myProfile: MyProfile | null }) {
                 <div style={{ fontSize: 11, fontWeight: 700, color: "var(--t3)", marginBottom: 10, textTransform: "uppercase", letterSpacing: "0.07em" }}>📋 {lang === "en" ? "Document Schedule" : "Jadwal Dokumen"}</div>
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
                   <div>
-                    <label style={labelStyle}>{t.fieldScheduleKir}</label>
-                    <input className="premiumInput" style={inputStyle} type="date" value={form.kir_date} onChange={(e) => setForm({ ...form, kir_date: e.target.value })} />
+                    <label>{t.fieldScheduleKir}</label>
+                    <input className="fInput" type="date" value={form.kir_date} onChange={(e) => setForm({ ...form, kir_date: e.target.value })} />
                   </div>
                   <div>
-                    <label style={labelStyle}>{t.fieldScheduleService}</label>
-                    <input className="premiumInput" style={inputStyle} type="date" value={form.service_date} onChange={(e) => setForm({ ...form, service_date: e.target.value })} />
+                    <label>{t.fieldScheduleService}</label>
+                    <input className="fInput" type="date" value={form.service_date} onChange={(e) => setForm({ ...form, service_date: e.target.value })} />
                   </div>
                   <div>
-                    <label style={labelStyle}>{t.fieldScheduleStnk}</label>
-                    <input className="premiumInput" style={inputStyle} type="date" value={form.stnk_date} onChange={(e) => setForm({ ...form, stnk_date: e.target.value })} />
+                    <label>{t.fieldScheduleStnk}</label>
+                    <input className="fInput" type="date" value={form.stnk_date} onChange={(e) => setForm({ ...form, stnk_date: e.target.value })} />
                   </div>
                 </div>
               </div>
@@ -6427,7 +6427,7 @@ function SettingsPanel({ cardStyle }: { cardStyle: CSSProperties }) {
 
         {error && <div style={{ padding: 10, borderRadius: 8, background: "var(--red-soft)", color: "var(--red)", marginBottom: 14, fontSize: 12.5 }}>{error}</div>}
 
-        <label style={labelStyle}>{lang === "en" ? "MANAGER EMAILS" : "EMAIL MANAGER"}</label>
+        <label>{lang === "en" ? "MANAGER EMAILS" : "EMAIL MANAGER"}</label>
 
         {managerEmails.length > 0 && (
           <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 10 }}>
@@ -6455,8 +6455,7 @@ function SettingsPanel({ cardStyle }: { cardStyle: CSSProperties }) {
 
         <div style={{ display: "flex", gap: 8 }}>
           <input
-            className="premiumInput"
-            style={inputStyle}
+            className="fInput"
             type="email"
             value={newManagerEmail}
             onChange={(e) => setNewManagerEmail(e.target.value)}
@@ -6680,7 +6679,7 @@ function DriversMasterPanel({ cardStyle, myProfile = null }: { cardStyle: CSSPro
             </div>
             <div style={{ padding: 24 }}>
               <div style={{ marginBottom: 16 }}>
-                <label style={labelStyle}>AVATAR</label>
+                <label>AVATAR</label>
                 <div style={{ display: "flex", gap: 8, flexWrap: "wrap", padding: 12, background: "var(--bg2)", borderRadius: 12 }}>
                   {AVATAR_EMOJIS.map((em) => (
                     <button
@@ -6698,7 +6697,7 @@ function DriversMasterPanel({ cardStyle, myProfile = null }: { cardStyle: CSSPro
                 </div>
               </div>
               <div style={{ marginBottom: 14 }}>
-     <label style={labelStyle}>PLANT *</label>
+     <label>PLANT *</label>
     <div style={{ display: "flex", gap: 8 }}>
       {(["CIK", "PRB"] as Plant[]).map((p) => (
         <button
@@ -6723,28 +6722,28 @@ function DriversMasterPanel({ cardStyle, myProfile = null }: { cardStyle: CSSPro
      </div>
               </div>
               <div style={{ marginBottom: 14 }}>
-                <label style={labelStyle}>{lang === "en" ? "NAME" : "NAMA"} *</label>
-                <input className="premiumInput" style={inputStyle} value={formNama} onChange={(e) => setFormNama(e.target.value)} />
+                <label>{lang === "en" ? "NAME" : "NAMA"} *</label>
+                <input className="fInput" value={formNama} onChange={(e) => setFormNama(e.target.value)} />
               </div>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 14 }}>
                 <div>
-                  <label style={labelStyle}>{lang === "en" ? "PHONE" : "NO. HP"}</label>
-                  <input className="premiumInput" style={inputStyle} value={formPhone} onChange={(e) => setFormPhone(e.target.value)} placeholder="0812xxxxxxx" />
+                  <label>{lang === "en" ? "PHONE" : "NO. HP"}</label>
+                  <input className="fInput" value={formPhone} onChange={(e) => setFormPhone(e.target.value)} placeholder="0812xxxxxxx" />
                 </div>
                 <div>
-                  <label style={labelStyle}>EMAIL</label>
-                  <input className="premiumInput" style={inputStyle} value={formEmail} onChange={(e) => setFormEmail(e.target.value)} />
+                  <label>EMAIL</label>
+                  <input className="fInput" value={formEmail} onChange={(e) => setFormEmail(e.target.value)} />
                 </div>
               </div>
               {!editing && (
                 <div style={{ marginBottom: 14, padding: 14, background: "var(--gold-soft)", borderRadius: 12, border: "1px solid var(--gold)" }}>
-                  <label style={{ ...labelStyle, color: "var(--gold2)" }}>🔑 {lang === "en" ? "INITIAL PIN (min. 4 digits)" : "PIN AWAL (min. 4 digit)"} *</label>
-                  <input className="premiumInput" style={inputStyle} type="password" inputMode="numeric" value={formPin} onChange={(e) => setFormPin(e.target.value.replace(/\D/g, ""))} placeholder="1234" />
+                  <label className="fLabel" style={{ ...labelStyle, color: "var(--gold2)" }}>🔑 {lang === "en" ? "INITIAL PIN (min. 4 digits)" : "PIN AWAL (min. 4 digit)"} *</label>
+                  <input className="fInput" type="password" inputMode="numeric" value={formPin} onChange={(e) => setFormPin(e.target.value.replace(/\D/g, ""))} placeholder="1234" />
                 </div>
               )}
               <div style={{ marginBottom: 18, display: "flex", alignItems: "center", gap: 8 }}>
                 <input type="checkbox" checked={formAktif} onChange={(e) => setFormAktif(e.target.checked)} id="driverAktif" />
-                <label htmlFor="driverAktif" style={{ fontSize: 12.5, color: "var(--t2)" }}>{lang === "en" ? "Active" : "Aktif"}</label>
+                <label className="fLabel" htmlFor="driverAktif" style={{ fontSize: 12.5, color: "var(--t2)" }}>{lang === "en" ? "Active" : "Aktif"}</label>
               </div>
               <div style={{ display: "flex", gap: 10 }}>
                 <button onClick={() => setShowForm(false)} style={{ flex: 1, padding: "11px", borderRadius: 10, border: "1px solid var(--border2)", background: "var(--surface2)", color: "var(--t2)", fontWeight: 700, cursor: "pointer" }}>{t.actionCancel}</button>
@@ -6924,12 +6923,12 @@ function EmployeesMasterPanel({ cardStyle }: { cardStyle: CSSProperties }) {
           <div style={{ ...cardStyle, padding: 24 }}>
             <div style={{ fontSize: 16, fontWeight: 800, marginBottom: 18, color: "var(--t1)" }}>{editing ? (lang === "en" ? "Edit Employee" : "Edit Pegawai") : (lang === "en" ? "Add Employee" : "Tambah Pegawai")}</div>
             <div style={{ marginBottom: 12 }}>
-              <label style={labelStyle}>{lang === "en" ? "NAME" : "NAMA"} *</label>
-              <input className="premiumInput" style={inputStyle} value={formNama} onChange={(e) => setFormNama(e.target.value)} />
+              <label>{lang === "en" ? "NAME" : "NAMA"} *</label>
+              <input className="fInput" value={formNama} onChange={(e) => setFormNama(e.target.value)} />
             </div>
             <div style={{ marginBottom: 18 }}>
-              <label style={labelStyle}>{lang === "en" ? "DEPARTMENT" : "DEPARTEMEN"}</label>
-              <input className="premiumInput" style={inputStyle} value={formDept} onChange={(e) => setFormDept(e.target.value)} />
+              <label>{lang === "en" ? "DEPARTMENT" : "DEPARTEMEN"}</label>
+              <input className="fInput" value={formDept} onChange={(e) => setFormDept(e.target.value)} />
             </div>
             <div style={{ display: "flex", gap: 10 }}>
               <button onClick={() => setShowForm(false)} style={{ flex: 1, padding: "10px", borderRadius: 10, border: "1px solid var(--border2)", background: "var(--surface2)", color: "var(--t2)", fontWeight: 700, cursor: "pointer" }}>{t.actionCancel}</button>
@@ -7040,8 +7039,8 @@ function JobTypesMasterPanel({ cardStyle }: { cardStyle: CSSProperties }) {
           <div style={{ ...cardStyle, padding: 24 }}>
             <div style={{ fontSize: 16, fontWeight: 800, marginBottom: 18, color: "var(--t1)" }}>{editing ? (lang === "en" ? "Edit Job Type" : "Edit Jenis Pekerjaan") : (lang === "en" ? "Add Job Type" : "Tambah Jenis Pekerjaan")}</div>
             <div style={{ marginBottom: 18 }}>
-              <label style={labelStyle}>LABEL *</label>
-              <input className="premiumInput" style={inputStyle} value={formLabel} onChange={(e) => setFormLabel(e.target.value)} placeholder={lang === "en" ? "e.g. Internal Meeting" : "cth: Meeting Internal"} />
+              <label>LABEL *</label>
+              <input className="fInput" value={formLabel} onChange={(e) => setFormLabel(e.target.value)} placeholder={lang === "en" ? "e.g. Internal Meeting" : "cth: Meeting Internal"} />
             </div>
             <div style={{ display: "flex", gap: 10 }}>
               <button onClick={() => setShowForm(false)} style={{ flex: 1, padding: "10px", borderRadius: 10, border: "1px solid var(--border2)", background: "var(--surface2)", color: "var(--t2)", fontWeight: 700, cursor: "pointer" }}>{t.actionCancel}</button>
@@ -7149,8 +7148,8 @@ function CanteenEntryPanel({ cardStyle, onSaved }: { cardStyle: CSSProperties; o
         {SHIFT_LABELS.map((sh, i) => (
           <div key={i} style={{ display: "grid", gridTemplateColumns: "80px 1fr 1fr", gap: 8, marginBottom: 8, alignItems: "center" }}>
             <div style={{ fontSize: 12, color: "var(--t2)", fontWeight: 600 }}>{sh}</div>
-            <input className="premiumInput" style={inputStyle} type="number" min="0" placeholder="0" value={order[i]} onChange={(e) => { const v = [...order] as [string, string, string]; v[i] = e.target.value; setOrder(v); }} />
-            <input className="premiumInput" style={{ ...inputStyle, borderColor: Number(leftover[i]) > Number(order[i]) && Number(order[i]) > 0 ? "var(--red)" : undefined }} type="number" min="0" placeholder="0" value={leftover[i]} onChange={(e) => { const v = [...leftover] as [string, string, string]; v[i] = e.target.value; setLeftover(v); }} />
+            <input className="fInput" type="number" min="0" placeholder="0" value={order[i]} onChange={(e) => { const v = [...order] as [string, string, string]; v[i] = e.target.value; setOrder(v); }} />
+            <input className="fInput" style={{ ...inputStyle, borderColor: Number(leftover[i]) > Number(order[i]) && Number(order[i]) > 0 ? "var(--red)" : undefined }} type="number" min="0" placeholder="0" value={leftover[i]} onChange={(e) => { const v = [...leftover] as [string, string, string]; v[i] = e.target.value; setLeftover(v); }} />
           </div>
         ))}
       </div>
@@ -7162,12 +7161,12 @@ function CanteenEntryPanel({ cardStyle, onSaved }: { cardStyle: CSSProperties; o
       <div className="statPop" style={{ ...cardStyle, padding: 18, marginBottom: 16 }}>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
           <div>
-            <label style={labelStyle}>{lang === "en" ? "REPORT DATE" : "TANGGAL LAPORAN"} *</label>
-            <input className="premiumInput" style={{ ...inputStyle, textAlign: "left" }} type="date" value={reportDate} onChange={(e) => setReportDate(e.target.value)} />
+            <label>{lang === "en" ? "REPORT DATE" : "TANGGAL LAPORAN"} *</label>
+            <input className="fInput" style={{ ...inputStyle, textAlign: "left" }} type="date" value={reportDate} onChange={(e) => setReportDate(e.target.value)} />
           </div>
           <div>
-            <label style={labelStyle}>{lang === "en" ? "SUBMITTED BY" : "DIINPUT OLEH"}</label>
-            <input className="premiumInput" style={{ ...inputStyle, textAlign: "left" }} value={submittedBy} onChange={(e) => setSubmittedBy(e.target.value)} placeholder={lang === "en" ? "Canteen Operator" : "Operator Kantin"} />
+            <label>{lang === "en" ? "SUBMITTED BY" : "DIINPUT OLEH"}</label>
+            <input className="fInput" style={{ ...inputStyle, textAlign: "left" }} value={submittedBy} onChange={(e) => setSubmittedBy(e.target.value)} placeholder={lang === "en" ? "Canteen Operator" : "Operator Kantin"} />
           </div>
         </div>
       </div>
@@ -7269,7 +7268,7 @@ function CanteenDashboardPanel({ cardStyle }: { cardStyle: CSSProperties }) {
   return (
     <div>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 18, flexWrap: "wrap", gap: 10 }}>
-        <select className="premiumInput" value={month} onChange={(e) => setMonth(e.target.value)} style={{ padding: "9px 14px", borderRadius: "var(--pill)", border: "1px solid var(--border2)", background: "var(--bg2)", color: "var(--t1)", fontSize: 13 }}>
+        <select className="fInput" value={month} onChange={(e) => setMonth(e.target.value)} style={{ padding: "9px 14px", borderRadius: "var(--pill)", border: "1px solid var(--border2)", background: "var(--bg2)", color: "var(--t1)", fontSize: 13 }}>
           {availableMonths.map((m) => (
             <option key={m} value={m}>{new Date(m + "-01").toLocaleDateString(lang === "en" ? "en-GB" : "id-ID", { month: "long", year: "numeric" })}</option>
           ))}
@@ -7536,15 +7535,15 @@ function GiftMasterPanel({ cardStyle }: { cardStyle: CSSProperties }) {
       </div>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginBottom: 14 }}>
         <div style={{ gridColumn: "1/-1" }}>
-          <label style={{ fontSize: 12, fontWeight: 700, color: "var(--t3)", display: "block", marginBottom: 6 }}>NAMA EVENT</label>
+          <label className="fLabel" style={{ fontSize: 12, fontWeight: 700, color: "var(--t3)", display: "block", marginBottom: 6 }}>NAMA EVENT</label>
           <input value={formName} onChange={e => setFormName(e.target.value)} placeholder="Contoh: Pembagian Seragam 2026" style={inputSt} />
         </div>
         <div style={{ gridColumn: "1/-1" }}>
-          <label style={{ fontSize: 12, fontWeight: 700, color: "var(--t3)", display: "block", marginBottom: 6 }}>DESKRIPSI (opsional)</label>
+          <label className="fLabel" style={{ fontSize: 12, fontWeight: 700, color: "var(--t3)", display: "block", marginBottom: 6 }}>DESKRIPSI (opsional)</label>
           <input value={formDesc} onChange={e => setFormDesc(e.target.value)} placeholder="Informasi tambahan untuk karyawan" style={inputSt} />
         </div>
         <div>
-          <label style={{ fontSize: 12, fontWeight: 700, color: "var(--t3)", display: "block", marginBottom: 6 }}>STATUS</label>
+          <label className="fLabel" style={{ fontSize: 12, fontWeight: 700, color: "var(--t3)", display: "block", marginBottom: 6 }}>STATUS</label>
           <select value={formStatus} onChange={e => setFormStatus(e.target.value as "open" | "closed")} style={{ ...inputSt, width: "auto" }}>
             <option value="open">🟢 Buka (karyawan bisa daftar)</option>
             <option value="closed">🔴 Tutup</option>
