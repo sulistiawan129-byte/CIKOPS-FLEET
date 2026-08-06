@@ -279,8 +279,7 @@ function LockerOverviewPanel() {
       <div style={{ display: "flex", gap: 10, marginBottom: 18, flexWrap: "wrap" }}>
         <div style={{ flex: 1, position: "relative", minWidth: 220 }}>
           <input
-            className="premiumInput"
-            style={inputStyle}
+            className="fInput"
             placeholder={lang === "en" ? "Search name or locker number..." : "Cari nama atau nomor locker..."}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
@@ -670,14 +669,14 @@ function LockerManagePanel() {
     <div>
       <div style={{ display: "flex", gap: 10, marginBottom: 16, flexWrap: "wrap", alignItems: "center" }}>
         <input
-          className="premiumInput"
+          className="fInput"
           style={{ ...inputStyle, flex: 1, minWidth: 180 }}
           placeholder={lang === "en" ? "Search number / name..." : "Cari nomor / nama..."}
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
         <select
-          className="premiumInput"
+          className="fInput"
           style={{ ...inputStyle, width: "auto" }}
           value={filterStatus}
           onChange={(e) => setFilterStatus(e.target.value as "all" | LockerStatus)}
@@ -748,18 +747,18 @@ function LockerManagePanel() {
             <div style={{ padding: 24 }}>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 14 }}>
                 <div>
-                  <label style={labelStyle}>{lang === "en" ? "Locker Number" : "Nomor Locker"} *</label>
-                  <input className="premiumInput" style={inputStyle} value={form.number} onChange={(e) => setForm({ ...form, number: e.target.value })} placeholder="12" />
+                  <label className="fLabel">{lang === "en" ? "Locker Number" : "Nomor Locker"} *</label>
+                  <input className="fInput" value={form.number} onChange={(e) => setForm({ ...form, number: e.target.value })} placeholder="12" />
                 </div>
                 <div>
-                  <label style={labelStyle}>PIN</label>
-                  <input className="premiumInput" style={inputStyle} value={form.pin} onChange={(e) => setForm({ ...form, pin: e.target.value })} placeholder={lang === "en" ? "Blank = auto" : "Kosong = acak otomatis"} />
+                  <label className="fLabel">PIN</label>
+                  <input className="fInput" value={form.pin} onChange={(e) => setForm({ ...form, pin: e.target.value })} placeholder={lang === "en" ? "Blank = auto" : "Kosong = acak otomatis"} />
                 </div>
               </div>
 
               <div style={{ marginBottom: 14 }}>
-                <label style={labelStyle}>Status</label>
-                <select className="premiumInput" style={inputStyle} value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value as LockerStatus })}>
+                <label className="fLabel">Status</label>
+                <select className="fInput" value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value as LockerStatus })}>
                   <option value="Available">Available</option>
                   <option value="Terisi">Terisi</option>
                 </select>
@@ -768,32 +767,32 @@ function LockerManagePanel() {
               {form.status === "Terisi" && (
                 <>
                   <div style={{ marginBottom: 14 }}>
-                    <label style={labelStyle}>Nama</label>
-                    <input className="premiumInput" style={inputStyle} value={form.nama} onChange={(e) => setForm({ ...form, nama: e.target.value })} />
+                    <label className="fLabel">Nama</label>
+                    <input className="fInput" value={form.nama} onChange={(e) => setForm({ ...form, nama: e.target.value })} />
                   </div>
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 14 }}>
                     <div>
-                      <label style={labelStyle}>No. HP</label>
-                      <input className="premiumInput" style={inputStyle} value={form.noHp} onChange={(e) => setForm({ ...form, noHp: e.target.value })} placeholder="08xxxxxxxxxx" />
+                      <label className="fLabel">No. HP</label>
+                      <input className="fInput" value={form.noHp} onChange={(e) => setForm({ ...form, noHp: e.target.value })} placeholder="08xxxxxxxxxx" />
                     </div>
                     <div>
-                      <label style={labelStyle}>Email</label>
-                      <input className="premiumInput" style={inputStyle} value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} placeholder="nama@email.com" />
+                      <label className="fLabel">Email</label>
+                      <input className="fInput" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} placeholder="nama@email.com" />
                     </div>
                   </div>
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 14 }}>
                     <div>
-                      <label style={labelStyle}>Periode</label>
-                      <input className="premiumInput" style={inputStyle} value={form.periode} onChange={(e) => setForm({ ...form, periode: e.target.value })} placeholder="Employee / Jul-Des 2026" />
+                      <label className="fLabel">Periode</label>
+                      <input className="fInput" value={form.periode} onChange={(e) => setForm({ ...form, periode: e.target.value })} placeholder="Employee / Jul-Des 2026" />
                     </div>
                     <div>
-                      <label style={labelStyle}>Dept / Universitas</label>
-                      <input className="premiumInput" style={inputStyle} value={form.extra} onChange={(e) => setForm({ ...form, extra: e.target.value })} />
+                      <label className="fLabel">Dept / Universitas</label>
+                      <input className="fInput" value={form.extra} onChange={(e) => setForm({ ...form, extra: e.target.value })} />
                     </div>
                   </div>
                   <div style={{ marginBottom: 18 }}>
-                    <label style={labelStyle}>{lang === "en" ? "End Date (interns only)" : "Tanggal Selesai (khusus intern)"}</label>
-                    <input className="premiumInput" style={inputStyle} type="date" value={form.endDate} onChange={(e) => setForm({ ...form, endDate: e.target.value })} />
+                    <label className="fLabel">{lang === "en" ? "End Date (interns only)" : "Tanggal Selesai (khusus intern)"}</label>
+                    <input className="fInput" type="date" value={form.endDate} onChange={(e) => setForm({ ...form, endDate: e.target.value })} />
                   </div>
                 </>
               )}

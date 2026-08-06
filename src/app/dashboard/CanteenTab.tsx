@@ -267,16 +267,16 @@ export default function CanteenTab() {
 
         <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
           {(mode === "day" || mode === "week") && (
-            <input className="premiumInput" style={inputStyle} type="date" value={dayValue} onChange={(e) => setDayValue(e.target.value)} />
+            <input className="fInput" type="date" value={dayValue} onChange={(e) => setDayValue(e.target.value)} />
           )}
           {mode === "month" && (
-            <input className="premiumInput" style={inputStyle} type="month" value={monthValue} onChange={(e) => setMonthValue(e.target.value)} />
+            <input className="fInput" type="month" value={monthValue} onChange={(e) => setMonthValue(e.target.value)} />
           )}
           {mode === "custom" && (
             <>
-              <input className="premiumInput" style={inputStyle} type="date" value={customFrom} onChange={(e) => setCustomFrom(e.target.value)} />
+              <input className="fInput" type="date" value={customFrom} onChange={(e) => setCustomFrom(e.target.value)} />
               <span style={{ color: "var(--t3)" }}>s/d</span>
-              <input className="premiumInput" style={inputStyle} type="date" value={customTo} onChange={(e) => setCustomTo(e.target.value)} />
+              <input className="fInput" type="date" value={customTo} onChange={(e) => setCustomTo(e.target.value)} />
             </>
           )}
           <span style={{ fontSize: 12.5, color: "var(--t3)", fontWeight: 600 }}>
