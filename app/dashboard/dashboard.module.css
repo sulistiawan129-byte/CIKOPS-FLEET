@@ -680,19 +680,16 @@
   width: 100%;
   max-width: 560px;
   max-height: 90vh;
+  overflow-y: auto;
   background: var(--surface);
   border-radius: 28px;
   box-shadow: var(--shadow-lg), 0 0 0 1px var(--border);
   overflow: hidden;
-  display: flex;
-  flex-direction: column;
 }
 
-/* Inner scrollable area */
-.modalBox > form,
-.modalBox > div:not(.modalHeader) {
-  overflow-y: auto;
-  flex: 1;
+/* Scrollable inner wrapper so header sticks */
+.modalBox > * {
+  padding: 0;
 }
 
 .modalHeader {

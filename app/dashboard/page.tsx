@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import type { CSSProperties } from "react";
 import dynamic from "next/dynamic";
@@ -45,11 +45,6 @@ import {
   updateGiftEvent,
   deleteGiftEvent,
   getGiftRegistrations,
-  importGiftRegistrations,
-  importRfidCards,
-  getRfidCards,
-  lookupRfid,
-  registerGiftAdmin,
   getTasksByDate,
   getTasksByRange,
   getVehicles,
@@ -83,7 +78,7 @@ import {
   updateGasStation,
   deleteGasStation,
 } from "@/lib/api";
-import type { Claim, ClaimItem, Overtime, Plant, Kantong, DriverTier, GasStation, FuelEntry, CanteenReport, GiftEvent, GiftItemDef, GiftRegistration, RfidCard, GiftImportRow, GiftSelection } from "@/lib/types";
+import type { Claim, ClaimItem, Overtime, Plant, Kantong, DriverTier, GasStation, FuelEntry, CanteenReport, GiftEvent, GiftItemDef, GiftRegistration } from "@/lib/types";
 import { computeCanteenKPI } from "@/lib/types";
 import { exportTandaTerima } from "@/lib/tandaTerima";
 import { buildRincianRows } from "@/lib/claimRecap";
@@ -1736,7 +1731,8 @@ function CreateTaskModal({
                     setWaMessage(null);
                     onCreated();
                   }}
-                  className="fBtnSubmit" style={{ flex: 2 }} 
+                  className="pillBtn"
+                  style={{ flex: 2, justifyContent: "center", textDecoration: "none", background: "linear-gradient(135deg, #25d366, #128c7e)" }}
                 >
                   💬 Kirim via WhatsApp
                 </a>
@@ -1768,7 +1764,7 @@ function CreateTaskModal({
               <SectionEyebrow label="Penugasan" color="var(--brand)" />
               <div className={styles.formGrid}>
                 <div className={styles.formField}>
-                  <label className="fLabel">Plant *</label>
+                  <label className={styles.formLabel}>Plant *</label>
                   {lockedPlant ? (
                     <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 14px", borderRadius: 10, background: "var(--bg2)", fontSize: 13, fontWeight: 700, color: "var(--t1)" }}>
                       <span style={{ width: 7, height: 7, borderRadius: "50%", background: "var(--brand)", flexShrink: 0 }} />
@@ -1808,7 +1804,7 @@ function CreateTaskModal({
                 </div>
 
                <div className={`${styles.formField} ${styles.formFieldFull}`}>
-                  <label className="fLabel">Tanggal *</label>
+                  <label className={styles.formLabel}>Tanggal *</label>
                   <div style={{ display: "flex", padding: 3, borderRadius: 10, background: "var(--bg2)", border: "1px solid var(--border2)", width: "fit-content", marginBottom: 10 }}>
                     {(["single", "range"] as const).map((m) => (
                       <button
@@ -1827,17 +1823,17 @@ function CreateTaskModal({
                     ))}
                   </div>
                   <div style={{ display: "grid", gridTemplateColumns: dateMode === "range" ? "1fr 1fr" : "1fr", gap: 12 }}>
-                    <input type="date" className="fInput" value={tanggal} onChange={(e) => setTanggal(e.target.value)} />
+                    <input type="date" className={`${styles.formInput} premiumInput`} value={tanggal} onChange={(e) => setTanggal(e.target.value)} />
                     {dateMode === "range" && (
-                      <input type="date" className="fInput" value={tanggalTo} onChange={(e) => setTanggalTo(e.target.value)} min={tanggal} />
+                      <input type="date" className={`${styles.formInput} premiumInput`} value={tanggalTo} onChange={(e) => setTanggalTo(e.target.value)} min={tanggal} />
                     )}
                   </div>
                   {dateMode === "range" && (
                     <div style={{ marginTop: 12 }}>
-                      <label className="fLabel">Email Requestor * <span style={{ fontWeight: 400, color: "var(--t3)" }}>(buat notifikasi otomatis)</span></label>
+                      <label className={styles.formLabel}>Email Requestor * <span style={{ fontWeight: 400, color: "var(--t3)" }}>(buat notifikasi otomatis)</span></label>
                       <input
                         type="email"
-                        className="fInput"
+                        className={`${styles.formInput} premiumInput`}
                         placeholder="nama@perusahaan.com"
                         value={requestorEmail}
                         onChange={(e) => setRequestorEmail(e.target.value)}
@@ -1849,8 +1845,8 @@ function CreateTaskModal({
               <SectionEyebrow label="Driver & Kendaraan" color="var(--gold2)" />
               <div className={styles.formGrid}>
                 <div className={styles.formField}>
-                  <label className="fLabel">Driver *</label>
-                  <select className="fSelect" value={driverId} onChange={(e) => setDriverId(e.target.value)}>
+                  <label className={styles.formLabel}>Driver *</label>
+                  <select className={`${styles.formSelect} premiumInput`} value={driverId} onChange={(e) => setDriverId(e.target.value)}>
                     <option value="">Pilih driver</option>
                     {filteredDrivers.map((d) => (
                       <option key={d.id} value={d.id}>{d.nama}</option>
@@ -1859,8 +1855,8 @@ function CreateTaskModal({
                 </div>
 
                 <div className={styles.formField}>
-                  <label className="fLabel">Kendaraan *</label>
-                  <select className="fSelect" value={vehicleId} onChange={(e) => setVehicleId(e.target.value)}>
+                  <label className={styles.formLabel}>Kendaraan *</label>
+                  <select className={`${styles.formSelect} premiumInput`} value={vehicleId} onChange={(e) => setVehicleId(e.target.value)}>
                     <option value="">Pilih kendaraan</option>
                     {filteredVehicles.map((v) => (
                       <option key={v.id} value={v.id}>{v.nopol} {v.jenis ? `(${v.jenis})` : ""}</option>
@@ -1872,8 +1868,8 @@ function CreateTaskModal({
               <SectionEyebrow label="Detail Tugas" color="var(--purple)" />
               <div className={styles.formGrid}>
                 <div className={styles.formField}>
-                  <label className="fLabel">Jenis Pekerjaan *</label>
-                  <select className="fSelect" value={jenisPekerjaan} onChange={(e) => setJenisPekerjaan(e.target.value)}>
+                  <label className={styles.formLabel}>Jenis Pekerjaan *</label>
+                  <select className={`${styles.formSelect} premiumInput`} value={jenisPekerjaan} onChange={(e) => setJenisPekerjaan(e.target.value)}>
                     <option value="">Pilih jenis</option>
                     {jobTypes.map((j) => (
                       <option key={j.id} value={j.label}>{j.label}</option>
@@ -1882,8 +1878,8 @@ function CreateTaskModal({
                 </div>
 
                 <div className={styles.formField}>
-                  <label className="fLabel">Requestor *</label>
-                  <select className="fSelect" value={requestor} onChange={(e) => handleRequestorPick(e.target.value)}>
+                  <label className={styles.formLabel}>Requestor *</label>
+                  <select className={`${styles.formSelect} premiumInput`} value={requestor} onChange={(e) => handleRequestorPick(e.target.value)}>
                     <option value="">Pilih pegawai</option>
                     {employees.map((emp) => (
                       <option key={emp.id} value={emp.nama}>{emp.nama}</option>
@@ -1892,10 +1888,10 @@ function CreateTaskModal({
                 </div>
 
                 <div className={`${styles.formField} ${styles.formFieldFull}`}>
-                  <label className="fLabel">Tujuan *</label>
+                  <label className={styles.formLabel}>Tujuan *</label>
                   <input
                     type="text"
-                    className="fInput"
+                    className={`${styles.formInput} premiumInput`}
                     placeholder="Contoh: Kantor Cabang Selatan"
                     value={tujuan}
                     onChange={(e) => setTujuan(e.target.value)}
@@ -1903,10 +1899,10 @@ function CreateTaskModal({
                 </div>
 
                 <div className={styles.formField}>
-                  <label className="fLabel">Departemen</label>
+                  <label className={styles.formLabel}>Departemen</label>
                   <input
                     type="text"
-                    className="fInput"
+                    className={`${styles.formInput} premiumInput`}
                     placeholder="Otomatis terisi"
                     value={departement}
                     onChange={(e) => setDepartement(e.target.value)}
@@ -1914,9 +1910,9 @@ function CreateTaskModal({
                 </div>
 
                 <div className={`${styles.formField} ${styles.formFieldFull}`}>
-                  <label className="fLabel">Perihal (opsional)</label>
+                  <label className={styles.formLabel}>Perihal (opsional)</label>
                   <textarea
-                    className="fTextarea"
+                    className={`${styles.formTextarea} premiumInput`}
                     placeholder="Catatan tambahan untuk driver..."
                     value={perihal}
                     onChange={(e) => setPerihal(e.target.value)}
@@ -2984,7 +2980,7 @@ function ActivityLogTab() {
 
       <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 18 }}>
         <select
-          className="fSelect"
+          className="fInput"
           value={tableFilter}
           onChange={(e) => setTableFilter(e.target.value)}
           style={{ padding: "9px 12px", borderRadius: 10, border: "1px solid var(--border2)", background: "var(--bg2)", color: "var(--t1)", fontSize: 13, fontFamily: "var(--font)" }}
@@ -3371,7 +3367,7 @@ function ClaimsTab() {
             value={driverFilter}
             onChange={(e) => setDriverFilter(e.target.value)}
             className="fInput"
-            
+            style={{ ...inputStyle, width: "auto", minWidth: 160 }}
           >
             <option value="all">{lang === "en" ? "All Drivers" : "Semua Driver"}</option>
             {drivers.map((d) => (
@@ -3405,7 +3401,7 @@ function ClaimsTab() {
             <input
               type="date"
               className="fInput"
-              
+              style={{ ...inputStyle, width: "auto" }}
               value={filterDate}
               onChange={(e) => setFilterDate(e.target.value)}
             />
@@ -3650,8 +3646,8 @@ function ClaimsTab() {
 
       {showForm && (
         <ModalPortal onOverlayClick={() => setShowForm(false)} maxWidth={500}>
-          <div style={{ borderRadius: "var(--r2)", overflow: "hidden", background: "var(--surface)", boxShadow: "var(--shadow-lg)" }}>
-            <div className="fModalHeader">
+          <div style={{ ...cardStyle, padding: 0, overflow: "hidden" }}>
+            <div style={{ padding: "20px 24px", background: "linear-gradient(135deg, var(--brand), var(--brand2))", display: "flex", alignItems: "center", gap: 12 }}>
               <div style={{ width: 40, height: 40, borderRadius: 12, background: "rgba(255,255,255,0.18)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20 }}>🧾</div>
               <div style={{ fontSize: 16, fontWeight: 800, color: "#fff" }}>
                 {lang === "en" ? "New Claim" : "Buat Klaim"}
@@ -3660,18 +3656,18 @@ function ClaimsTab() {
             <div style={{ padding: 24 }}>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 14 }}>
                 <div>
-                  <label className="fLabel">{lang === "en" ? "SUBMISSION DATE" : "TANGGAL PENGAJUAN"}</label>
+                  <label>{lang === "en" ? "SUBMISSION DATE" : "TANGGAL PENGAJUAN"}</label>
                   <input className="fInput" type="date" value={submissionDate} onChange={(e) => setSubmissionDate(e.target.value)} />
                 </div>
                 <div>
-                  <label className="fLabel">{lang === "en" ? "PERIOD DATE" : "TANGGAL PERIODE"}</label>
+                  <label>{lang === "en" ? "PERIOD DATE" : "TANGGAL PERIODE"}</label>
                   <input className="fInput" type="date" value={periodDate} onChange={(e) => setPeriodDate(e.target.value)} />
                 </div>
               </div>
 
               <div style={{ marginBottom: 14 }}>
-                <label className="fLabel">{t.fieldDriver} *</label>
-                <select className="fSelect" value={formDriverId} onChange={(e) => setFormDriverId(e.target.value)}>
+                <label>{t.fieldDriver} *</label>
+                <select className="fInput" value={formDriverId} onChange={(e) => setFormDriverId(e.target.value)}>
                   <option value="">{lang === "en" ? "Select driver" : "Pilih driver"}</option>
                   {drivers.map((d) => (
                     <option key={d.id} value={d.id}>{d.nama}</option>
@@ -3692,14 +3688,14 @@ function ClaimsTab() {
                     return (
                       <div key={line.id} style={{ background: "var(--surface)", borderRadius: 10, padding: 8, border: "1px solid var(--border2)" }}>
                         <div style={{ display: "grid", gridTemplateColumns: "120px 1fr 28px", gap: 8 }}>
-                          <select className="fSelect"  value={line.type} onChange={(e) => updateLine(line.id, "type", e.target.value)}>
+                          <select className="fInput" style={{ ...inputStyle, fontSize: 12 }} value={line.type} onChange={(e) => updateLine(line.id, "type", e.target.value)}>
                             {CLAIM_TYPES.map((ct) => (
                               <option key={ct} value={ct}>{ct}</option>
                             ))}
                           </select>
                           <input
                             className="fInput"
-                            
+                            style={{ ...inputStyle, fontFamily: "var(--mono)" }}
                             placeholder="50000+30000"
                             value={line.expr}
                             onChange={(e) => updateLine(line.id, "expr", e.target.value)}
@@ -3735,7 +3731,7 @@ function ClaimsTab() {
               </div>
 
               <div style={{ marginBottom: 16 }}>
-                <label className="fLabel">{lang === "en" ? "NOTE (optional)" : "CATATAN (opsional)"}</label>
+                <label>{lang === "en" ? "NOTE (optional)" : "CATATAN (opsional)"}</label>
                 <input className="fInput" value={note} onChange={(e) => setNote(e.target.value)} />
               </div>
 
@@ -3749,9 +3745,10 @@ function ClaimsTab() {
                   {t.actionCancel}
                 </button>
                 <button
-                  className="fBtnSubmit" style={{ flex: 2 }} onClick={handleSave}
+                  className="pillBtn"
+                  onClick={handleSave}
                   disabled={!canSave || saving}
-                  
+                  style={{ flex: 2, justifyContent: "center", opacity: canSave && !saving ? 1 : 0.5 }}
                 >
                   {saving ? t.actionSaving : (lang === "en" ? "Submit Claim" : "Submit Klaim")}
                 </button>
@@ -3763,7 +3760,7 @@ function ClaimsTab() {
 
       {confirmDelete && (
         <ModalPortal onOverlayClick={() => setConfirmDelete(null)} maxWidth={360}>
-          <div style={{ borderRadius: "var(--r2)", background: "var(--surface)", boxShadow: "var(--shadow-lg)", padding: 28, textAlign: "center" }}>
+          <div style={{ ...cardStyle, padding: 24, textAlign: "center" }}>
             <div style={{ fontSize: 28, marginBottom: 8 }}>⚠️</div>
             <div style={{ fontSize: 15, fontWeight: 800, marginBottom: 8, color: "var(--t1)" }}>{lang === "en" ? "Delete this claim?" : "Hapus klaim ini?"}</div>
             <div style={{ fontSize: 13, color: "var(--t3)", marginBottom: 18 }}>
@@ -3925,13 +3922,13 @@ function OvertimeTab({ myProfile }: { myProfile: MyProfile | null }) {
   return (
     <div style={{ padding: 20 }}>
       <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap", marginBottom: 16 }}>
-        <select style={{ width: "auto" }} value={filterMonth} onChange={(e) => setFilterMonth(Number(e.target.value))}>
+        <select style={{ ...inputStyle, width: "auto" }} value={filterMonth} onChange={(e) => setFilterMonth(Number(e.target.value))}>
           {months.map((m, i) => <option key={i} value={i}>{m}</option>)}
         </select>
-        <select style={{ width: "auto" }} value={filterYear} onChange={(e) => setFilterYear(Number(e.target.value))}>
+        <select style={{ ...inputStyle, width: "auto" }} value={filterYear} onChange={(e) => setFilterYear(Number(e.target.value))}>
           {[now.getFullYear() - 1, now.getFullYear(), now.getFullYear() + 1].map((y) => <option key={y} value={y}>{y}</option>)}
         </select>
-        <select style={{ width: "auto" }} value={filterPlant} onChange={(e) => setFilterPlant(e.target.value as "all" | Plant)}>
+        <select style={{ ...inputStyle, width: "auto" }} value={filterPlant} onChange={(e) => setFilterPlant(e.target.value as "all" | Plant)}>
           <option value="all">{lang === "en" ? "All Plants" : "Semua Plant"}</option>
           {OT_PLANTS.map((p) => <option key={p} value={p}>{p}</option>)}
         </select>
@@ -4046,27 +4043,28 @@ function OvertimeTab({ myProfile }: { myProfile: MyProfile | null }) {
 
       {showForm && (
         <ModalPortal onOverlayClick={() => setShowForm(false)} maxWidth={440}>
-          <div style={{borderRadius:"var(--r2)",overflow:"hidden",background:"var(--surface)",boxShadow:"var(--shadow-lg)"}}><div className="fModalHeader"><span className="fModalTitle">{lang === "en" ? "Add Overtime" : "Tambah Overtime"}</span></div><div style={{padding:24}}>
+          <div style={{ ...cardStyle, padding: 24 }}>
+            <div style={{ fontSize: 16, fontWeight: 800, marginBottom: 18, color: "var(--t1)" }}>{lang === "en" ? "Add Overtime" : "Tambah Overtime"}</div>
 
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 12 }}>
-              <select className="fSelect" value={formMonth} onChange={(e) => setFormMonth(Number(e.target.value))}>
+              <select className="fInput" value={formMonth} onChange={(e) => setFormMonth(Number(e.target.value))}>
                 {months.map((m, i) => <option key={i} value={i}>{m}</option>)}
               </select>
-              <select className="fSelect" value={formYear} onChange={(e) => setFormYear(Number(e.target.value))}>
+              <select className="fInput" value={formYear} onChange={(e) => setFormYear(Number(e.target.value))}>
                 {[now.getFullYear() - 1, now.getFullYear(), now.getFullYear() + 1].map((y) => <option key={y} value={y}>{y}</option>)}
               </select>
             </div>
 
             <div style={{ marginBottom: 12 }}>
-              <label className="fLabel">{t.fieldDriver} *</label>
-              <select className="fSelect" value={formDriverId} onChange={(e) => setFormDriverId(e.target.value)}>
+              <label>{t.fieldDriver} *</label>
+              <select className="fInput" value={formDriverId} onChange={(e) => setFormDriverId(e.target.value)}>
                 <option value="">{lang === "en" ? "Select driver" : "Pilih driver"}</option>
                 {drivers.map((d) => <option key={d.id} value={d.id}>{d.nama}</option>)}
               </select>
             </div>
 
             <div style={{ marginBottom: 12 }}>
-              <label className="fLabel">{t.fieldPlant} *</label>
+              <label>{t.fieldPlant} *</label>
               <div style={{ display: "flex", gap: 8 }}>
                 {OT_PLANTS.map((p) => (
                   <button
@@ -4088,17 +4086,17 @@ function OvertimeTab({ myProfile }: { myProfile: MyProfile | null }) {
 
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 12 }}>
               <div>
-                <label className="fLabel">{lang === "en" ? "HOURS *" : "TOTAL JAM OT *"}</label>
+                <label>{lang === "en" ? "HOURS *" : "TOTAL JAM OT *"}</label>
                 <input className="fInput" type="number" step="0.5" value={formHours} onChange={(e) => setFormHours(e.target.value)} placeholder="4" />
               </div>
               <div>
-                <label className="fLabel">{lang === "en" ? "AMOUNT *" : "TOTAL NOMINAL *"}</label>
+                <label>{lang === "en" ? "AMOUNT *" : "TOTAL NOMINAL *"}</label>
                 <input className="fInput" value={formAmount} onChange={(e) => setFormAmount(e.target.value)} placeholder="150000" />
               </div>
             </div>
 
             <div style={{ marginBottom: 18 }}>
-              <label className="fLabel">{lang === "en" ? "REASON" : "ALASAN OT"}</label>
+              <label>{lang === "en" ? "REASON" : "ALASAN OT"}</label>
               <input className="fInput" value={formReason} onChange={(e) => setFormReason(e.target.value)} placeholder="Lembur closing bulanan" />
             </div>
 
@@ -4106,18 +4104,17 @@ function OvertimeTab({ myProfile }: { myProfile: MyProfile | null }) {
               <button onClick={() => setShowForm(false)} style={{ flex: 1, padding: "10px", borderRadius: 10, border: "1px solid var(--border2)", background: "var(--surface2)", color: "var(--t2)", fontWeight: 700, cursor: "pointer" }}>
                 Batal
               </button>
-              <button className="fBtnSubmit" style={{ flex: 2 }} onClick={handleSave} disabled={!canSave || saving} >
+              <button className="pillBtn" onClick={handleSave} disabled={!canSave || saving} style={{ flex: 2, justifyContent: "center", opacity: canSave && !saving ? 1 : 0.5 }}>
                 {saving ? t.actionSaving : t.actionSave}
               </button>
             </div>
-          </div>
           </div>
         </ModalPortal>
       )}
 
       {confirmDelete && (
         <ModalPortal onOverlayClick={() => setConfirmDelete(null)} maxWidth={360}>
-          <div style={{ borderRadius: "var(--r2)", background: "var(--surface)", boxShadow: "var(--shadow-lg)", padding: 28, textAlign: "center" }}>
+          <div style={{ ...cardStyle, padding: 24, textAlign: "center" }}>
             <div style={{ fontSize: 28, marginBottom: 8 }}>⚠️</div>
             <div style={{ fontSize: 15, fontWeight: 800, marginBottom: 8, color: "var(--t1)" }}>{lang === "en" ? "Delete this OT entry?" : "Hapus entri OT ini?"}</div>
             <div style={{ fontSize: 13, color: "var(--t3)", marginBottom: 18 }}>
@@ -4246,7 +4243,7 @@ function LoginScreen() {
 
             <form onSubmit={handleSubmit}>
               <div style={{ marginBottom: 14 }}>
-                <label className="fLabel">{t.loginEmail.toUpperCase()}</label>
+                <label>{t.loginEmail.toUpperCase()}</label>
                 <div style={{ position: "relative" }}>
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" width={16} height={16} style={{ position: "absolute", left: 13, top: "50%", transform: "translateY(-50%)", color: "var(--t3)", pointerEvents: "none" }}>
                     <rect x="2" y="4" width="20" height="16" rx="2" /><path d="m2 7 10 6 10-6" />
@@ -4255,12 +4252,12 @@ function LoginScreen() {
                 </div>
               </div>
               <div style={{ marginBottom: 20 }}>
-                <label className="fLabel">{t.loginPassword.toUpperCase()}</label>
+                <label>{t.loginPassword.toUpperCase()}</label>
                 <div style={{ position: "relative" }}>
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" width={16} height={16} style={{ position: "absolute", left: 13, top: "50%", transform: "translateY(-50%)", color: "var(--t3)", pointerEvents: "none" }}>
                     <rect x="5" y="11" width="14" height="10" rx="2" /><path d="M8 11V7a4 4 0 0 1 8 0v4" />
                   </svg>
-                  <input type={showPassword ? "text" : "password"} required value={password} onChange={(e) => setPassword(e.target.value)} className="fInput"  />
+                  <input type={showPassword ? "text" : "password"} required value={password} onChange={(e) => setPassword(e.target.value)} className="fInput" style={{ ...inputStyle, paddingRight: 40 }} />
                   <button
                     type="button"
                     onClick={() => setShowPassword((p) => !p)}
@@ -4474,7 +4471,8 @@ function DriverBudgetTab() {
           {drivers.map((d) => (
             <div key={d.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 0", borderBottom: "1px solid var(--border)" }}>
               <div style={{ flex: 1, fontSize: 12.5, color: "var(--t1)" }}>{d.nama}</div>
-              <select style={{ width: "auto", fontSize: 13, padding: "6px 10px" }}
+              <select
+                style={{ ...inputStyle, width: "auto", fontSize: 13, padding: "6px 10px" }}
                 value={d.tier_id || ""}
                 onChange={(e) => handleAssignTier(d.id, e.target.value)}
               >
@@ -4488,13 +4486,14 @@ function DriverBudgetTab() {
 
       {showForm && (
         <ModalPortal onOverlayClick={() => setShowForm(false)} maxWidth={380}>
-          <div style={{borderRadius:"var(--r2)",overflow:"hidden",background:"var(--surface)",boxShadow:"var(--shadow-lg)"}}><div className="fModalHeader"><span className="fModalTitle">{editing ? (lang === "en" ? "Edit Tier" : "Edit Tier") : (lang === "en" ? "Add Tier" : "Tambah Tier")}</span></div><div style={{padding:24}}>
+          <div style={{ ...cardStyle, padding: 24 }}>
+            <div style={{ fontSize: 16, fontWeight: 800, marginBottom: 18, color: "var(--t1)" }}>{editing ? (lang === "en" ? "Edit Tier" : "Edit Tier") : (lang === "en" ? "Add Tier" : "Tambah Tier")}</div>
             <div style={{ marginBottom: 12 }}>
-              <label className="fLabel">{t.fieldTierName}</label>
+              <label>{t.fieldTierName}</label>
               <input className="fInput" value={formName} onChange={(e) => setFormName(e.target.value)} placeholder="Senior Driver" />
             </div>
             <div style={{ marginBottom: 12 }}>
-              <label className="fLabel">{t.fieldColor}</label>
+              <label>{t.fieldColor}</label>
               <div style={{ display: "flex", gap: 8 }}>
                 {TIER_PALETTE.map((c) => (
                   <div key={c} onClick={() => setFormColor(c)} style={{ width: 26, height: 26, borderRadius: "50%", background: c, cursor: "pointer", border: formColor === c ? "2px solid var(--t1)" : "2px solid transparent" }} />
@@ -4502,7 +4501,7 @@ function DriverBudgetTab() {
               </div>
             </div>
             <div style={{ marginBottom: 18 }}>
-              <label className="fLabel">{t.fieldAmountPerPersonMonth}</label>
+              <label>{t.fieldAmountPerPersonMonth}</label>
               <input className="fInput" value={formAmount} onChange={(e) => setFormAmount(e.target.value)} placeholder="2000000" />
             </div>
             <div style={{ display: "flex", gap: 10 }}>
@@ -4510,13 +4509,12 @@ function DriverBudgetTab() {
               <button className="pillBtn" onClick={handleSave} disabled={!canSaveTier || saving} style={{ flex: 1, justifyContent: "center", opacity: canSaveTier && !saving ? 1 : 0.5 }}>{saving ? t.actionSaving : t.actionSave}</button>
             </div>
           </div>
-          </div>
         </ModalPortal>
       )}
 
       {confirmDelete && (
         <ModalPortal onOverlayClick={() => setConfirmDelete(null)} maxWidth={360}>
-          <div style={{ borderRadius: "var(--r2)", background: "var(--surface)", boxShadow: "var(--shadow-lg)", padding: 28, textAlign: "center" }}>
+          <div style={{ ...cardStyle, padding: 24, textAlign: "center" }}>
             <div style={{ fontSize: 28, marginBottom: 8 }}>⚠️</div>
             <div style={{ fontSize: 15, fontWeight: 800, marginBottom: 8, color: "var(--t1)" }}>{lang === "en" ? "Delete this tier?" : "Hapus tier ini?"}</div>
             <div style={{ fontSize: 13, color: "var(--t3)", marginBottom: 18 }}>
@@ -4699,19 +4697,19 @@ function OpFundTab({ myProfile }: { myProfile: MyProfile | null }) {
           <div style={{ display: "flex", flexDirection: "column", gap: 12, position: "relative", zIndex: 1 }}>
             <div>
               <label className="fLabel" style={labelStyleInit}>{t.fieldTotalCashOp} *</label>
-              <input className="fInput" value={initBudget} onChange={(e) => setInitBudget(e.target.value)} placeholder="48000000" />
+              <input className="fInput" style={inputStyleInit} value={initBudget} onChange={(e) => setInitBudget(e.target.value)} placeholder="48000000" />
             </div>
             <div>
               <label className="fLabel" style={labelStyleInit}>OP DRIVER (A1)</label>
-              <input className="fInput" value={initOpDriver} onChange={(e) => setInitOpDriver(e.target.value)} placeholder="9000000" />
+              <input className="fInput" style={inputStyleInit} value={initOpDriver} onChange={(e) => setInitOpDriver(e.target.value)} placeholder="9000000" />
             </div>
             <div>
               <label className="fLabel" style={labelStyleInit}>EMERGENCY (A2)</label>
-              <input className="fInput" value={initEmergency} onChange={(e) => setInitEmergency(e.target.value)} placeholder="1500000" />
+              <input className="fInput" style={inputStyleInit} value={initEmergency} onChange={(e) => setInitEmergency(e.target.value)} placeholder="1500000" />
             </div>
             <div>
               <label className="fLabel" style={labelStyleInit}>CASH AVAILABLE (A4)</label>
-              <input className="fInput" value={initCash} onChange={(e) => setInitCash(e.target.value)} placeholder="20000000" />
+              <input className="fInput" style={inputStyleInit} value={initCash} onChange={(e) => setInitCash(e.target.value)} placeholder="20000000" />
             </div>
           </div>
           <button
@@ -4917,28 +4915,28 @@ gap: h.allocOpDriver + h.allocEmergency + h.cashAvailable + h.claimSubmitted + h
 
       {showEdit && (
         <ModalPortal onOverlayClick={() => setShowEdit(false)} maxWidth={420}>
-          <div style={{borderRadius:"var(--r2)",overflow:"hidden",background:"var(--surface)",boxShadow:"var(--shadow-lg)"}}><div className="fModalHeader"><span className="fModalTitle">Edit Dana Operasional — {viewPlant}</span></div><div style={{padding:24}}>
+          <div style={{ ...cardStyle, padding: 24 }}>
+            <div style={{ fontSize: 16, fontWeight: 800, marginBottom: 18, color: "var(--t1)" }}>Edit Dana Operasional — {viewPlant}</div>
             <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-              <div><label className="fLabel">{t.fieldTotalCashOp}</label><input className="fInput" value={eBudget} onChange={(e) => setEBudget(e.target.value)} /></div>
-              <div><label className="fLabel">OP DRIVER (A1)</label><input className="fInput" value={eOpDriver} onChange={(e) => setEOpDriver(e.target.value)} /></div>
-              <div><label className="fLabel">EMERGENCY (A2)</label><input className="fInput" value={eEmergency} onChange={(e) => setEEmergency(e.target.value)} /></div>
-              <div><label className="fLabel">CASH AVAILABLE (A4)</label><input className="fInput" value={eCash} onChange={(e) => setECash(e.target.value)} /></div>
-              <div><label className="fLabel">{lang === "en" ? "CLAIM SUBMITTED (A5)" : "CLAIM DIAJUKAN (A5)"}</label><input className="fInput" value={eSubmitted} onChange={(e) => setESubmitted(e.target.value)} /></div>
-             <div><label className="fLabel">{lang === "en" ? "CLAIM PAID (A6)" : "CLAIM DIBAYAR (A6)"}</label><input className="fInput" value={ePaid} onChange={(e) => setEPaid(e.target.value)} /></div>
-              <div><label className="fLabel">{lang === "en" ? "UNSUBMITTED CLAIM (A7)" : "KLAIM BELUM DIAJUKAN (A7)"}</label><input className="fInput" value={eUnsubmittedClaim} onChange={(e) => setEUnsubmittedClaim(e.target.value)} placeholder="0" /></div>
+              <div><label>{t.fieldTotalCashOp}</label><input className="fInput" value={eBudget} onChange={(e) => setEBudget(e.target.value)} /></div>
+              <div><label>OP DRIVER (A1)</label><input className="fInput" value={eOpDriver} onChange={(e) => setEOpDriver(e.target.value)} /></div>
+              <div><label>EMERGENCY (A2)</label><input className="fInput" value={eEmergency} onChange={(e) => setEEmergency(e.target.value)} /></div>
+              <div><label>CASH AVAILABLE (A4)</label><input className="fInput" value={eCash} onChange={(e) => setECash(e.target.value)} /></div>
+              <div><label>{lang === "en" ? "CLAIM SUBMITTED (A5)" : "CLAIM DIAJUKAN (A5)"}</label><input className="fInput" value={eSubmitted} onChange={(e) => setESubmitted(e.target.value)} /></div>
+             <div><label>{lang === "en" ? "CLAIM PAID (A6)" : "CLAIM DIBAYAR (A6)"}</label><input className="fInput" value={ePaid} onChange={(e) => setEPaid(e.target.value)} /></div>
+              <div><label>{lang === "en" ? "UNSUBMITTED CLAIM (A7)" : "KLAIM BELUM DIAJUKAN (A7)"}</label><input className="fInput" value={eUnsubmittedClaim} onChange={(e) => setEUnsubmittedClaim(e.target.value)} placeholder="0" /></div>
             </div>
             <div style={{ display: "flex", gap: 10, marginTop: 18 }}>
               <button onClick={() => setShowEdit(false)} style={{ flex: 1, padding: "10px", borderRadius: 10, border: "1px solid var(--border2)", background: "var(--surface2)", color: "var(--t2)", fontWeight: 700, cursor: "pointer" }}>{t.actionCancel}</button>
               <button className="pillBtn" onClick={handleSaveEdit} disabled={saving} style={{ flex: 1, justifyContent: "center" }}>{saving ? t.actionSaving : t.actionSave}</button>
             </div>
           </div>
-          </div>
         </ModalPortal>
       )}
 
       {showResetConfirm && (
         <ModalPortal onOverlayClick={() => setShowResetConfirm(false)} maxWidth={360}>
-          <div style={{ borderRadius: "var(--r2)", background: "var(--surface)", boxShadow: "var(--shadow-lg)", padding: 28, textAlign: "center" }}>
+          <div style={{ ...cardStyle, padding: 24, textAlign: "center" }}>
             <div style={{ fontSize: 28, marginBottom: 8 }}>🔄</div>
             <div style={{ fontSize: 15, fontWeight: 800, marginBottom: 8, color: "var(--t1)" }}>Reset Periode — {viewPlant}?</div>
             <div style={{ fontSize: 13, color: "var(--t3)", marginBottom: 18 }}>
@@ -5176,23 +5174,23 @@ function ReportsTab({ myProfile }: { myProfile: MyProfile | null }) {
         <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
           {mode === "month" && (
             <>
-              <select className="fSelect"  value={month} onChange={(e) => { setMonth(Number(e.target.value)); setGenerated(false); }}>
+              <select className="fInput" style={{ ...inputStyle, width: "auto" }} value={month} onChange={(e) => { setMonth(Number(e.target.value)); setGenerated(false); }}>
                 {months.map((m, i) => <option key={i} value={i}>{m}</option>)}
               </select>
-              <select className="fSelect"  value={year} onChange={(e) => { setYear(Number(e.target.value)); setGenerated(false); }}>
+              <select className="fInput" style={{ ...inputStyle, width: "auto" }} value={year} onChange={(e) => { setYear(Number(e.target.value)); setGenerated(false); }}>
                 {[now.getFullYear() - 1, now.getFullYear(), now.getFullYear() + 1].map((y) => <option key={y} value={y}>{y}</option>)}
               </select>
             </>
           )}
           {mode === "range" && (
             <>
-              <input className="fInput"  type="date" value={dateFrom} onChange={(e) => { setDateFrom(e.target.value); setGenerated(false); }} />
+              <input className="fInput" style={{ ...inputStyle, width: "auto" }} type="date" value={dateFrom} onChange={(e) => { setDateFrom(e.target.value); setGenerated(false); }} />
               <span style={{ color: "var(--t3)" }}>s/d</span>
-              <input className="fInput"  type="date" value={dateTo} onChange={(e) => { setDateTo(e.target.value); setGenerated(false); }} />
+              <input className="fInput" style={{ ...inputStyle, width: "auto" }} type="date" value={dateTo} onChange={(e) => { setDateTo(e.target.value); setGenerated(false); }} />
             </>
           )}
           {mode === "year" && (
-            <select className="fSelect"  value={year} onChange={(e) => { setYear(Number(e.target.value)); setGenerated(false); }}>
+            <select className="fInput" style={{ ...inputStyle, width: "auto" }} value={year} onChange={(e) => { setYear(Number(e.target.value)); setGenerated(false); }}>
               {[now.getFullYear() - 2, now.getFullYear() - 1, now.getFullYear(), now.getFullYear() + 1].map((y) => <option key={y} value={y}>{y}</option>)}
             </select>
           )}
@@ -5704,21 +5702,22 @@ return (
 
       {showForm && (
         <ModalPortal onOverlayClick={() => setShowForm(false)} maxWidth={460}>
-          <div style={{borderRadius:"var(--r2)",overflow:"hidden",background:"var(--surface)",boxShadow:"var(--shadow-lg)"}}><div className="fModalHeader"><span className="fModalTitle">{editing ? (lang === "en" ? "Edit Station" : "Edit SPBU") : (lang === "en" ? "Add Station" : "Tambah SPBU")}</span></div><div style={{padding:24}}>
+          <div style={{ ...cardStyle, padding: 24 }}>
+            <div style={{ fontSize: 16, fontWeight: 800, marginBottom: 18, color: "var(--t1)" }}>{editing ? (lang === "en" ? "Edit Station" : "Edit SPBU") : (lang === "en" ? "Add Station" : "Tambah SPBU")}</div>
             <div style={{ marginBottom: 12 }}>
-              <label className="fLabel">{t.fieldStationName}</label>
+              <label>{t.fieldStationName}</label>
               <input className="fInput" value={formName} onChange={(e) => setFormName(e.target.value)} />
             </div>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 12 }}>
-              <div><label className="fLabel">{t.fieldLatitude}</label><input className="fInput" value={formLat} onChange={(e) => setFormLat(e.target.value)} placeholder="-6.2607" /></div>
-              <div><label className="fLabel">{t.fieldLongitude}</label><input className="fInput" value={formLng} onChange={(e) => setFormLng(e.target.value)} placeholder="107.1525" /></div>
+              <div><label>{t.fieldLatitude}</label><input className="fInput" value={formLat} onChange={(e) => setFormLat(e.target.value)} placeholder="-6.2607" /></div>
+              <div><label>{t.fieldLongitude}</label><input className="fInput" value={formLng} onChange={(e) => setFormLng(e.target.value)} placeholder="107.1525" /></div>
             </div>
             <div style={{ marginBottom: 14 }}>
-              <label className="fLabel">{t.fieldAddress}</label>
+              <label>{t.fieldAddress}</label>
               <input className="fInput" value={formAddress} onChange={(e) => setFormAddress(e.target.value)} />
             </div>
             <div style={{ marginBottom: 14 }}>
-              <label className="fLabel">{t.fieldFuelsAvailable}</label>
+              <label>{t.fieldFuelsAvailable}</label>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 7 }}>
                 {formFuels.map((f) => (
                   <div
@@ -5733,7 +5732,7 @@ return (
               </div>
             </div>
             <div style={{ marginBottom: 18 }}>
-              <label className="fLabel">{t.fieldNotes}</label>
+              <label>{t.fieldNotes}</label>
               <input className="fInput" value={formNotes} onChange={(e) => setFormNotes(e.target.value)} placeholder="dekat pintu tol, buka 24 jam..." />
             </div>
             <div style={{ display: "flex", gap: 10 }}>
@@ -5741,13 +5740,12 @@ return (
               <button className="pillBtn" onClick={handleSave} disabled={!canSave || saving} style={{ flex: 1, justifyContent: "center", opacity: canSave && !saving ? 1 : 0.5 }}>{saving ? t.actionSaving : t.actionSave}</button>
             </div>
           </div>
-          </div>
         </ModalPortal>
       )}
 
       {confirmDelete && (
         <ModalPortal onOverlayClick={() => setConfirmDelete(null)} maxWidth={360}>
-          <div style={{ borderRadius: "var(--r2)", background: "var(--surface)", boxShadow: "var(--shadow-lg)", padding: 28, textAlign: "center" }}>
+          <div style={{ ...cardStyle, padding: 24, textAlign: "center" }}>
             <div style={{ fontSize: 28, marginBottom: 8 }}>⚠️</div>
             <div style={{ fontSize: 15, fontWeight: 800, marginBottom: 8, color: "var(--t1)" }}>{lang === "en" ? "Delete this station?" : "Hapus SPBU ini?"}</div>
             <div style={{ fontSize: 13, color: "var(--t3)", marginBottom: 18 }}><strong style={{ color: "var(--t1)" }}>{confirmDelete.name}</strong> akan dihapus permanen.</div>
@@ -6133,8 +6131,8 @@ function VehiclesTab({ myProfile }: { myProfile: MyProfile | null }) {
 
       {showForm && (
         <ModalPortal onOverlayClick={() => setShowForm(false)} maxWidth={560}>
-          <div style={{ borderRadius: "var(--r2)", overflow: "hidden", background: "var(--surface)", boxShadow: "var(--shadow-lg)" }}>
-            <div className="fModalHeader">
+          <div style={{ ...cardStyle, padding: 0, overflow: "hidden" }}>
+            <div style={{ padding: "20px 24px", background: "linear-gradient(135deg, var(--brand), var(--brand2))", display: "flex", alignItems: "center", gap: 12 }}>
               <div style={{ width: 40, height: 40, borderRadius: 12, background: "rgba(255,255,255,0.18)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20 }}>🚗</div>
               <div style={{ fontSize: 16, fontWeight: 800, color: "#fff" }}>
                 {editing ? (lang === "en" ? "Edit Vehicle" : "Edit Kendaraan") : (lang === "en" ? "Add Vehicle" : "Tambah Kendaraan")}
@@ -6143,7 +6141,7 @@ function VehiclesTab({ myProfile }: { myProfile: MyProfile | null }) {
             <div style={{ padding: 24 }}>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
                 <div>
-    <label className="fLabel">PLANT *</label>
+    <label>PLANT *</label>
      <div style={{ display: "flex", gap: 6 }}>
       {(["CIK", "PRB"] as Plant[]).map((p) => (
         <button
@@ -6168,36 +6166,36 @@ function VehiclesTab({ myProfile }: { myProfile: MyProfile | null }) {
     </div>
   </div>
                 <div>
-                  <label className="fLabel">{t.fieldPlateNumber} *</label>
+                  <label>{t.fieldPlateNumber} *</label>
                   <input className="fInput" value={form.nopol} onChange={(e) => setForm({ ...form, nopol: e.target.value })} placeholder="B 1234 XY" />
                 </div>
                 <div>
-                  <label className="fLabel">{t.fieldType} *</label>
+                  <label>{t.fieldType} *</label>
                   <input className="fInput" value={form.jenis} onChange={(e) => setForm({ ...form, jenis: e.target.value })} placeholder="Toyota Avanza" />
                 </div>
                 <div>
-                  <label className="fLabel">{t.fieldYear}</label>
+                  <label>{t.fieldYear}</label>
                   <input className="fInput" type="number" value={form.year} onChange={(e) => setForm({ ...form, year: e.target.value })} />
                 </div>
                 <div>
-                  <label className="fLabel">{t.fieldColor}</label>
+                  <label>{t.fieldColor}</label>
                   <input className="fInput" value={form.color} onChange={(e) => setForm({ ...form, color: e.target.value })} />
                 </div>
                 <div>
-                  <label className="fLabel">{t.fieldFuel}</label>
-                  <select className="fSelect" value={form.fuel} onChange={(e) => setForm({ ...form, fuel: e.target.value })}>
+                  <label>{t.fieldFuel}</label>
+                  <select className="fInput" value={form.fuel} onChange={(e) => setForm({ ...form, fuel: e.target.value })}>
                     {FUEL_OPTIONS.map((f) => (
                       <option key={f} value={f}>{f}</option>
                     ))}
                   </select>
                 </div>
                 <div>
-                  <label className="fLabel">{t.fieldOdometer}</label>
+                  <label>{t.fieldOdometer}</label>
                   <input className="fInput" type="number" value={form.odometer} onChange={(e) => setForm({ ...form, odometer: e.target.value })} />
                 </div>
                 <div>
-                  <label className="fLabel">{t.fieldDefaultDriver}</label>
-                  <select className="fSelect" value={form.default_driver_id} onChange={(e) => setForm({ ...form, default_driver_id: e.target.value })}>
+                  <label>{t.fieldDefaultDriver}</label>
+                  <select className="fInput" value={form.default_driver_id} onChange={(e) => setForm({ ...form, default_driver_id: e.target.value })}>
                     <option value="">-</option>
                     {drivers.map((d) => (
                       <option key={d.id} value={d.id}>{d.nama}</option>
@@ -6205,13 +6203,13 @@ function VehiclesTab({ myProfile }: { myProfile: MyProfile | null }) {
                   </select>
                 </div>
                 <div>
-                  <label className="fLabel">{t.fieldDepartment}</label>
+                  <label>{t.fieldDepartment}</label>
                   <input className="fInput" value={form.dept} onChange={(e) => setForm({ ...form, dept: e.target.value })} />
                 </div>
                 <div>
-                  <label className="fLabel">{t.fieldStatus}</label>
+                  <label>{t.fieldStatus}</label>
                   <select
-                    className="fSelect"
+                    className="fInput"
                     value={form.aktif ? "active" : "maintenance"}
                     onChange={(e) => setForm({ ...form, aktif: e.target.value === "active" })}
                   >
@@ -6226,15 +6224,15 @@ function VehiclesTab({ myProfile }: { myProfile: MyProfile | null }) {
                 <div style={{ fontSize: 11, fontWeight: 700, color: "var(--t3)", marginBottom: 10, textTransform: "uppercase", letterSpacing: "0.07em" }}>📋 {lang === "en" ? "Document Schedule" : "Jadwal Dokumen"}</div>
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
                   <div>
-                    <label className="fLabel">{t.fieldScheduleKir}</label>
+                    <label>{t.fieldScheduleKir}</label>
                     <input className="fInput" type="date" value={form.kir_date} onChange={(e) => setForm({ ...form, kir_date: e.target.value })} />
                   </div>
                   <div>
-                    <label className="fLabel">{t.fieldScheduleService}</label>
+                    <label>{t.fieldScheduleService}</label>
                     <input className="fInput" type="date" value={form.service_date} onChange={(e) => setForm({ ...form, service_date: e.target.value })} />
                   </div>
                   <div>
-                    <label className="fLabel">{t.fieldScheduleStnk}</label>
+                    <label>{t.fieldScheduleStnk}</label>
                     <input className="fInput" type="date" value={form.stnk_date} onChange={(e) => setForm({ ...form, stnk_date: e.target.value })} />
                   </div>
                 </div>
@@ -6248,9 +6246,10 @@ function VehiclesTab({ myProfile }: { myProfile: MyProfile | null }) {
                   {t.actionCancel}
                 </button>
                 <button
-                  className="fBtnSubmit" style={{ flex: 2 }} onClick={handleSave}
+                  className="pillBtn"
+                  onClick={handleSave}
                   disabled={!canSave || saving}
-                  
+                  style={{ flex: 2, justifyContent: "center", opacity: canSave && !saving ? 1 : 0.5 }}
                 >
                   {saving ? t.actionSaving : t.actionSave}
                 </button>
@@ -6262,7 +6261,7 @@ function VehiclesTab({ myProfile }: { myProfile: MyProfile | null }) {
 
       {confirmDelete && (
         <ModalPortal onOverlayClick={() => setConfirmDelete(null)} maxWidth={360}>
-          <div style={{ borderRadius: "var(--r2)", background: "var(--surface)", boxShadow: "var(--shadow-lg)", padding: 28, textAlign: "center" }}>
+          <div style={{ ...cardStyle, padding: 24, textAlign: "center" }}>
             <div style={{ fontSize: 28, marginBottom: 8 }}>⚠️</div>
             <div style={{ fontSize: 15, fontWeight: 800, marginBottom: 8, color: "var(--t1)" }}>{lang === "en" ? "Delete this vehicle?" : "Hapus kendaraan?"}</div>
             <div style={{ fontSize: 13, color: "var(--t3)", marginBottom: 18 }}>
@@ -6419,7 +6418,7 @@ function SettingsPanel({ cardStyle }: { cardStyle: CSSProperties }) {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16, maxWidth: 480 }}>
-      <div className="statPop" style={{ borderRadius: "var(--r2)", background: "var(--surface)", boxShadow: "var(--shadow-lg)", padding: 24 }}>
+      <div className="statPop" style={{ ...cardStyle, padding: 24 }}>
         <div style={{ fontSize: 14, fontWeight: 800, color: "var(--t1)", marginBottom: 4 }}>
           📧 {lang === "en" ? "Claim Email Notifications" : "Notifikasi Email Klaim"}
         </div>
@@ -6431,7 +6430,7 @@ function SettingsPanel({ cardStyle }: { cardStyle: CSSProperties }) {
 
         {error && <div style={{ padding: 10, borderRadius: 8, background: "var(--red-soft)", color: "var(--red)", marginBottom: 14, fontSize: 12.5 }}>{error}</div>}
 
-        <label className="fLabel">{lang === "en" ? "MANAGER EMAILS" : "EMAIL MANAGER"}</label>
+        <label>{lang === "en" ? "MANAGER EMAILS" : "EMAIL MANAGER"}</label>
 
         {managerEmails.length > 0 && (
           <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 10 }}>
@@ -6482,7 +6481,7 @@ function SettingsPanel({ cardStyle }: { cardStyle: CSSProperties }) {
         )}
       </div>
 
-      <div className="statPop" style={{ borderRadius: "var(--r2)", background: "var(--surface)", boxShadow: "var(--shadow-lg)", padding: 24 }}>
+      <div className="statPop" style={{ ...cardStyle, padding: 24 }}>
         <div style={{ fontSize: 14, fontWeight: 800, color: "var(--t1)", marginBottom: 4 }}>
           🧾 {lang === "en" ? "Tanda Terima Export — Driver User List" : "Export Tanda Terima — Daftar Driver User"}
         </div>
@@ -6674,8 +6673,8 @@ function DriversMasterPanel({ cardStyle, myProfile = null }: { cardStyle: CSSPro
 
       {showForm && (
         <ModalPortal onOverlayClick={() => setShowForm(false)} maxWidth={440}>
-          <div style={{ borderRadius: "var(--r2)", overflow: "hidden", background: "var(--surface)", boxShadow: "var(--shadow-lg)" }}>
-            <div className="fModalHeader">
+          <div style={{ ...cardStyle, padding: 0, overflow: "hidden" }}>
+            <div style={{ padding: "20px 24px", background: "linear-gradient(135deg, var(--brand), var(--brand2))", display: "flex", alignItems: "center", gap: 12 }}>
               <div style={{ width: 40, height: 40, borderRadius: 12, background: "rgba(255,255,255,0.18)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20 }}>🧑‍✈️</div>
               <div style={{ fontSize: 16, fontWeight: 800, color: "#fff" }}>
                 {editing ? (lang === "en" ? "Edit Driver" : "Edit Driver") : (lang === "en" ? "Add Driver" : "Tambah Driver")}
@@ -6683,7 +6682,7 @@ function DriversMasterPanel({ cardStyle, myProfile = null }: { cardStyle: CSSPro
             </div>
             <div style={{ padding: 24 }}>
               <div style={{ marginBottom: 16 }}>
-                <label className="fLabel">AVATAR</label>
+                <label>AVATAR</label>
                 <div style={{ display: "flex", gap: 8, flexWrap: "wrap", padding: 12, background: "var(--bg2)", borderRadius: 12 }}>
                   {AVATAR_EMOJIS.map((em) => (
                     <button
@@ -6701,7 +6700,7 @@ function DriversMasterPanel({ cardStyle, myProfile = null }: { cardStyle: CSSPro
                 </div>
               </div>
               <div style={{ marginBottom: 14 }}>
-     <label className="fLabel">PLANT *</label>
+     <label>PLANT *</label>
     <div style={{ display: "flex", gap: 8 }}>
       {(["CIK", "PRB"] as Plant[]).map((p) => (
         <button
@@ -6726,16 +6725,16 @@ function DriversMasterPanel({ cardStyle, myProfile = null }: { cardStyle: CSSPro
      </div>
               </div>
               <div style={{ marginBottom: 14 }}>
-                <label className="fLabel">{lang === "en" ? "NAME" : "NAMA"} *</label>
+                <label>{lang === "en" ? "NAME" : "NAMA"} *</label>
                 <input className="fInput" value={formNama} onChange={(e) => setFormNama(e.target.value)} />
               </div>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 14 }}>
                 <div>
-                  <label className="fLabel">{lang === "en" ? "PHONE" : "NO. HP"}</label>
+                  <label>{lang === "en" ? "PHONE" : "NO. HP"}</label>
                   <input className="fInput" value={formPhone} onChange={(e) => setFormPhone(e.target.value)} placeholder="0812xxxxxxx" />
                 </div>
                 <div>
-                  <label className="fLabel">EMAIL</label>
+                  <label>EMAIL</label>
                   <input className="fInput" value={formEmail} onChange={(e) => setFormEmail(e.target.value)} />
                 </div>
               </div>
@@ -6760,7 +6759,7 @@ function DriversMasterPanel({ cardStyle, myProfile = null }: { cardStyle: CSSPro
 
       {pinTarget && (
         <ModalPortal onOverlayClick={() => { if (!credSending) setPinTarget(null); }} maxWidth={420}>
-          <div style={{ borderRadius: "var(--r2)", background: "var(--surface)", boxShadow: "var(--shadow-lg)", padding: 24 }}>
+          <div style={{ ...cardStyle, padding: 24 }}>
             <div style={{ fontSize: 28, marginBottom: 8 }}>🔑</div>
             <div style={{ fontSize: 15, fontWeight: 800, marginBottom: 4, color: "var(--t1)" }}>{lang === "en" ? "Driver Login Access" : "Akses Login Driver"}</div>
             <div style={{ fontSize: 12, color: "var(--t3)", marginBottom: 14 }}>
@@ -6822,7 +6821,7 @@ function DriversMasterPanel({ cardStyle, myProfile = null }: { cardStyle: CSSPro
 
       {confirmDelete && (
         <ModalPortal onOverlayClick={() => setConfirmDelete(null)} maxWidth={360}>
-          <div style={{ borderRadius: "var(--r2)", background: "var(--surface)", boxShadow: "var(--shadow-lg)", padding: 28, textAlign: "center" }}>
+          <div style={{ ...cardStyle, padding: 24, textAlign: "center" }}>
             <div style={{ fontSize: 28, marginBottom: 8 }}>⚠️</div>
             <div style={{ fontSize: 15, fontWeight: 800, marginBottom: 8, color: "var(--t1)" }}>{lang === "en" ? "Delete this driver?" : "Hapus driver ini?"}</div>
             <div style={{ fontSize: 13, color: "var(--t3)", marginBottom: 18 }}><strong style={{ color: "var(--t1)" }}>{confirmDelete.nama}</strong> {lang === "en" ? "will be permanently deleted." : "akan dihapus permanen."}</div>
@@ -6924,13 +6923,14 @@ function EmployeesMasterPanel({ cardStyle }: { cardStyle: CSSProperties }) {
 
       {showForm && (
         <ModalPortal onOverlayClick={() => setShowForm(false)} maxWidth={380}>
-          <div style={{borderRadius:"var(--r2)",overflow:"hidden",background:"var(--surface)",boxShadow:"var(--shadow-lg)"}}><div className="fModalHeader"><span className="fModalTitle">{editing ? (lang === "en" ? "Edit Employee" : "Edit Pegawai") : (lang === "en" ? "Add Employee" : "Tambah Pegawai")}</span></div><div style={{padding:24}}>
+          <div style={{ ...cardStyle, padding: 24 }}>
+            <div style={{ fontSize: 16, fontWeight: 800, marginBottom: 18, color: "var(--t1)" }}>{editing ? (lang === "en" ? "Edit Employee" : "Edit Pegawai") : (lang === "en" ? "Add Employee" : "Tambah Pegawai")}</div>
             <div style={{ marginBottom: 12 }}>
-              <label className="fLabel">{lang === "en" ? "NAME" : "NAMA"} *</label>
+              <label>{lang === "en" ? "NAME" : "NAMA"} *</label>
               <input className="fInput" value={formNama} onChange={(e) => setFormNama(e.target.value)} />
             </div>
             <div style={{ marginBottom: 18 }}>
-              <label className="fLabel">{lang === "en" ? "DEPARTMENT" : "DEPARTEMEN"}</label>
+              <label>{lang === "en" ? "DEPARTMENT" : "DEPARTEMEN"}</label>
               <input className="fInput" value={formDept} onChange={(e) => setFormDept(e.target.value)} />
             </div>
             <div style={{ display: "flex", gap: 10 }}>
@@ -6938,19 +6938,18 @@ function EmployeesMasterPanel({ cardStyle }: { cardStyle: CSSProperties }) {
               <button className="pillBtn" onClick={handleSave} disabled={!canSave || saving} style={{ flex: 1, justifyContent: "center", opacity: canSave && !saving ? 1 : 0.5 }}>{saving ? t.actionSaving : t.actionSave}</button>
             </div>
           </div>
-          </div>
         </ModalPortal>
       )}
 
       {confirmDelete && (
         <ModalPortal onOverlayClick={() => setConfirmDelete(null)} maxWidth={360}>
-          <div style={{borderRadius:"var(--r2)",overflow:"hidden",background:"var(--surface)",boxShadow:"var(--shadow-lg)"}}><div className="fModalHeader"><span className="fModalTitle">{lang === "en" ? "Delete this employee?" : "Hapus pegawai ini?"}</span></div><div style={{padding:24}}>
+          <div style={{ ...cardStyle, padding: 24, textAlign: "center" }}>
+            <div style={{ fontSize: 15, fontWeight: 800, marginBottom: 8, color: "var(--t1)" }}>{lang === "en" ? "Delete this employee?" : "Hapus pegawai ini?"}</div>
             <div style={{ fontSize: 13, color: "var(--t3)", marginBottom: 18 }}><strong style={{ color: "var(--t1)" }}>{confirmDelete.nama}</strong> {lang === "en" ? "will be permanently deleted." : "akan dihapus permanen."}</div>
             <div style={{ display: "flex", gap: 10 }}>
               <button onClick={() => setConfirmDelete(null)} style={{ flex: 1, padding: "10px", borderRadius: 10, border: "1px solid var(--border2)", background: "var(--surface2)", color: "var(--t2)", fontWeight: 700, cursor: "pointer" }}>{t.actionCancel}</button>
               <button onClick={handleDelete} style={{ flex: 1, padding: "10px", borderRadius: 10, border: "none", background: "var(--red)", color: "#fff", fontWeight: 700, cursor: "pointer" }}>{t.actionYesDelete}</button>
             </div>
-          </div>
           </div>
         </ModalPortal>
       )}
@@ -7040,9 +7039,10 @@ function JobTypesMasterPanel({ cardStyle }: { cardStyle: CSSProperties }) {
 
       {showForm && (
         <ModalPortal onOverlayClick={() => setShowForm(false)} maxWidth={360}>
-          <div style={{borderRadius:"var(--r2)",overflow:"hidden",background:"var(--surface)",boxShadow:"var(--shadow-lg)"}}><div className="fModalHeader"><span className="fModalTitle">{editing ? (lang === "en" ? "Edit Job Type" : "Edit Jenis Pekerjaan") : (lang === "en" ? "Add Job Type" : "Tambah Jenis Pekerjaan")}</span></div><div style={{padding:24}}>
+          <div style={{ ...cardStyle, padding: 24 }}>
+            <div style={{ fontSize: 16, fontWeight: 800, marginBottom: 18, color: "var(--t1)" }}>{editing ? (lang === "en" ? "Edit Job Type" : "Edit Jenis Pekerjaan") : (lang === "en" ? "Add Job Type" : "Tambah Jenis Pekerjaan")}</div>
             <div style={{ marginBottom: 18 }}>
-              <label className="fLabel">LABEL *</label>
+              <label>LABEL *</label>
               <input className="fInput" value={formLabel} onChange={(e) => setFormLabel(e.target.value)} placeholder={lang === "en" ? "e.g. Internal Meeting" : "cth: Meeting Internal"} />
             </div>
             <div style={{ display: "flex", gap: 10 }}>
@@ -7050,19 +7050,18 @@ function JobTypesMasterPanel({ cardStyle }: { cardStyle: CSSProperties }) {
               <button className="pillBtn" onClick={handleSave} disabled={!canSave || saving} style={{ flex: 1, justifyContent: "center", opacity: canSave && !saving ? 1 : 0.5 }}>{saving ? t.actionSaving : t.actionSave}</button>
             </div>
           </div>
-          </div>
         </ModalPortal>
       )}
 
       {confirmDelete && (
         <ModalPortal onOverlayClick={() => setConfirmDelete(null)} maxWidth={360}>
-          <div style={{borderRadius:"var(--r2)",overflow:"hidden",background:"var(--surface)",boxShadow:"var(--shadow-lg)"}}><div className="fModalHeader"><span className="fModalTitle">{lang === "en" ? "Delete this job type?" : "Hapus jenis pekerjaan ini?"}</span></div><div style={{padding:24}}>
+          <div style={{ ...cardStyle, padding: 24, textAlign: "center" }}>
+            <div style={{ fontSize: 15, fontWeight: 800, marginBottom: 8, color: "var(--t1)" }}>{lang === "en" ? "Delete this job type?" : "Hapus jenis pekerjaan ini?"}</div>
             <div style={{ fontSize: 13, color: "var(--t3)", marginBottom: 18 }}><strong style={{ color: "var(--t1)" }}>{confirmDelete.label}</strong> {lang === "en" ? "will be permanently deleted." : "akan dihapus permanen."}</div>
             <div style={{ display: "flex", gap: 10 }}>
               <button onClick={() => setConfirmDelete(null)} style={{ flex: 1, padding: "10px", borderRadius: 10, border: "1px solid var(--border2)", background: "var(--surface2)", color: "var(--t2)", fontWeight: 700, cursor: "pointer" }}>{t.actionCancel}</button>
               <button onClick={handleDelete} style={{ flex: 1, padding: "10px", borderRadius: 10, border: "none", background: "var(--red)", color: "#fff", fontWeight: 700, cursor: "pointer" }}>{t.actionYesDelete}</button>
             </div>
-          </div>
           </div>
         </ModalPortal>
       )}
@@ -7153,7 +7152,7 @@ function CanteenEntryPanel({ cardStyle, onSaved }: { cardStyle: CSSProperties; o
           <div key={i} style={{ display: "grid", gridTemplateColumns: "80px 1fr 1fr", gap: 8, marginBottom: 8, alignItems: "center" }}>
             <div style={{ fontSize: 12, color: "var(--t2)", fontWeight: 600 }}>{sh}</div>
             <input className="fInput" type="number" min="0" placeholder="0" value={order[i]} onChange={(e) => { const v = [...order] as [string, string, string]; v[i] = e.target.value; setOrder(v); }} />
-            <input className="fInput"  type="number" min="0" placeholder="0" value={leftover[i]} onChange={(e) => { const v = [...leftover] as [string, string, string]; v[i] = e.target.value; setLeftover(v); }} />
+            <input className="fInput" style={{ ...inputStyle, borderColor: Number(leftover[i]) > Number(order[i]) && Number(order[i]) > 0 ? "var(--red)" : undefined }} type="number" min="0" placeholder="0" value={leftover[i]} onChange={(e) => { const v = [...leftover] as [string, string, string]; v[i] = e.target.value; setLeftover(v); }} />
           </div>
         ))}
       </div>
@@ -7165,12 +7164,12 @@ function CanteenEntryPanel({ cardStyle, onSaved }: { cardStyle: CSSProperties; o
       <div className="statPop" style={{ ...cardStyle, padding: 18, marginBottom: 16 }}>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
           <div>
-            <label className="fLabel">{lang === "en" ? "REPORT DATE" : "TANGGAL LAPORAN"} *</label>
-            <input className="fInput"  type="date" value={reportDate} onChange={(e) => setReportDate(e.target.value)} />
+            <label>{lang === "en" ? "REPORT DATE" : "TANGGAL LAPORAN"} *</label>
+            <input className="fInput" style={{ ...inputStyle, textAlign: "left" }} type="date" value={reportDate} onChange={(e) => setReportDate(e.target.value)} />
           </div>
           <div>
-            <label className="fLabel">{lang === "en" ? "SUBMITTED BY" : "DIINPUT OLEH"}</label>
-            <input className="fInput"  value={submittedBy} onChange={(e) => setSubmittedBy(e.target.value)} placeholder={lang === "en" ? "Canteen Operator" : "Operator Kantin"} />
+            <label>{lang === "en" ? "SUBMITTED BY" : "DIINPUT OLEH"}</label>
+            <input className="fInput" style={{ ...inputStyle, textAlign: "left" }} value={submittedBy} onChange={(e) => setSubmittedBy(e.target.value)} placeholder={lang === "en" ? "Canteen Operator" : "Operator Kantin"} />
           </div>
         </div>
       </div>
@@ -7272,7 +7271,7 @@ function CanteenDashboardPanel({ cardStyle }: { cardStyle: CSSProperties }) {
   return (
     <div>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 18, flexWrap: "wrap", gap: 10 }}>
-        <select className="fSelect" value={month} onChange={(e) => setMonth(e.target.value)} style={{ padding: "9px 14px", borderRadius: "var(--pill)", border: "1px solid var(--border2)", background: "var(--bg2)", color: "var(--t1)", fontSize: 13 }}>
+        <select className="fInput" value={month} onChange={(e) => setMonth(e.target.value)} style={{ padding: "9px 14px", borderRadius: "var(--pill)", border: "1px solid var(--border2)", background: "var(--bg2)", color: "var(--t1)", fontSize: 13 }}>
           {availableMonths.map((m) => (
             <option key={m} value={m}>{new Date(m + "-01").toLocaleDateString(lang === "en" ? "en-GB" : "id-ID", { month: "long", year: "numeric" })}</option>
           ))}
@@ -7368,7 +7367,7 @@ function CanteenDashboardPanel({ cardStyle }: { cardStyle: CSSProperties }) {
 
       {confirmDelete && (
         <ModalPortal onOverlayClick={() => setConfirmDelete(null)} maxWidth={360}>
-          <div style={{ borderRadius: "var(--r2)", background: "var(--surface)", boxShadow: "var(--shadow-lg)", padding: 28, textAlign: "center" }}>
+          <div style={{ ...cardStyle, padding: 24, textAlign: "center" }}>
             <div style={{ fontSize: 28, marginBottom: 8 }}>⚠️</div>
             <div style={{ fontSize: 15, fontWeight: 800, marginBottom: 8, color: "var(--t1)" }}>{lang === "en" ? "Delete this report?" : "Hapus laporan ini?"}</div>
             <div style={{ fontSize: 13, color: "var(--t3)", marginBottom: 18 }}><strong style={{ color: "var(--t1)" }}>{fmtCanteenDate(confirmDelete.reportDate, lang)}</strong> {lang === "en" ? "will be permanently deleted." : "akan dihapus permanen."}</div>
@@ -7386,533 +7385,278 @@ function CanteenDashboardPanel({ cardStyle }: { cardStyle: CSSProperties }) {
 // ════════════════════════════════════════════════════════════════
 //  GIFT DISTRIBUTION MASTER PANEL
 // ════════════════════════════════════════════════════════════════
-// ════════════════════════════════════════════════════════════════
-//  GIFT MASTER PANEL — RFID edition
-// ════════════════════════════════════════════════════════════════
 function GiftMasterPanel({ cardStyle }: { cardStyle: CSSProperties }) {
   const { lang, t } = useLang();
-  type GiftView = "events" | "rfid" | "registrations" | "createEvent" | "editEvent" | "addPeserta";
-  const [view, setView] = useState<GiftView>("events");
-
-  // Events
   const [events, setEvents] = useState<GiftEvent[]>([]);
-  const [loadingEvents, setLoadingEvents] = useState(true);
+  const [loading, setLoading] = useState(true);
+  const [view, setView] = useState<"list" | "create" | "edit" | "registrations">("list");
   const [editTarget, setEditTarget] = useState<GiftEvent | null>(null);
-  const [formName, setFormName] = useState("");
-  const [formDesc, setFormDesc] = useState("");
-  const [formStatus, setFormStatus] = useState<"open"|"closed">("open");
-  const [formItems, setFormItems] = useState<GiftItemDef[]>([{ name: "", variants: [] }]);
-  const [variantInput, setVariantInput] = useState<Record<number,string>>({});
-  const [savingEvent, setSavingEvent] = useState(false);
-  const [confirmDelete, setConfirmDelete] = useState<GiftEvent | null>(null);
-
-  // Registrations
   const [regEvent, setRegEvent] = useState<GiftEvent | null>(null);
   const [regs, setRegs] = useState<GiftRegistration[]>([]);
   const [regsLoading, setRegsLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState<GiftEvent | null>(null);
 
-  // RFID Cards
-  const [rfidCards, setRfidCards] = useState<RfidCard[]>([]);
-  const [rfidLoading, setRfidLoading] = useState(false);
-  const [rfidImportResult, setRfidImportResult] = useState<{imported:number;errors:string[]}|null>(null);
-
-  // Import Excel peserta
-  const [importEventId, setImportEventId] = useState("");
-  const [importPreview, setImportPreview] = useState<GiftImportRow[]>([]);
-  const [importing, setImporting] = useState(false);
-  const [importResult, setImportResult] = useState<{imported:number;skipped:number;errors:string[]}|null>(null);
-
-  // Add single peserta via RFID scan
-  const [addEvent, setAddEvent] = useState<GiftEvent | null>(null);
-  const [scanUid, setScanUid] = useState("");
-  const [scanResult, setScanResult] = useState<{nik:string;nama:string;departemen:string}|null>(null);
-  const [scanLoading, setScanLoading] = useState(false);
-  const [addSelections, setAddSelections] = useState<Record<string,string>>({});
-  const [addEmail, setAddEmail] = useState("");
-  const [addSaving, setAddSaving] = useState(false);
-  const scanInputRef = useRef<HTMLInputElement>(null);
-  const scanBufferRef = useRef("");
-  const scanTimerRef = useRef<ReturnType<typeof setTimeout>|null>(null);
+  // Form
+  const [formName, setFormName] = useState("");
+  const [formDesc, setFormDesc] = useState("");
+  const [formStatus, setFormStatus] = useState<"open" | "closed">("open");
+  const [formItems, setFormItems] = useState<GiftItemDef[]>([{ name: "", variants: [] }]);
+  const [variantInput, setVariantInput] = useState<Record<number, string>>({});
 
   const baseUrl = typeof window !== "undefined" ? window.location.origin : "";
-  const inputSt: CSSProperties = { width:"100%", padding:"10px 12px", borderRadius:10, border:"1.5px solid var(--border2)", background:"var(--bg2)", color:"var(--t1)", fontSize:13, fontFamily:"var(--font)", boxSizing:"border-box" };
 
-  const loadEvents = useCallback(async () => {
-    setLoadingEvents(true);
-    try { setEvents(await getGiftEvents()); } catch {/**/ } finally { setLoadingEvents(false); }
+  const load = useCallback(async () => {
+    setLoading(true);
+    try { setEvents(await getGiftEvents()); } catch { /**/ } finally { setLoading(false); }
   }, []);
 
-  useEffect(() => { loadEvents(); }, [loadEvents]);
+  useEffect(() => { load(); }, [load]);
 
-  // ── Event CRUD ──
   function openCreate() {
     setFormName(""); setFormDesc(""); setFormStatus("open");
-    setFormItems([{ name:"", variants:[] }]); setVariantInput({});
-    setEditTarget(null); setView("createEvent");
-  }
-  function openEdit(ev: GiftEvent) {
-    setFormName(ev.name); setFormDesc(ev.description??""); setFormStatus(ev.status);
-    setFormItems(ev.items.map(i=>({...i,variants:[...i.variants]})));
-    setVariantInput({}); setEditTarget(ev); setView("editEvent");
-  }
-  async function handleSaveEvent() {
-    if (!formName.trim()) { alert("Nama event wajib."); return; }
-    const items = formItems.filter(i=>i.name.trim());
-    if (!items.length) { alert("Minimal satu item."); return; }
-    setSavingEvent(true);
-    try {
-      const payload = { name:formName.trim(), description:formDesc.trim(), items, status:formStatus };
-      if (editTarget) await updateGiftEvent(editTarget.id, payload);
-      else await createGiftEvent(payload);
-      await loadEvents(); setView("events");
-    } catch (e) { alert(e instanceof Error ? e.message : "Gagal"); }
-    finally { setSavingEvent(false); }
-  }
-  async function handleDeleteEvent(ev: GiftEvent) {
-    try { await deleteGiftEvent(ev.id); await loadEvents(); setConfirmDelete(null); }
-    catch (e) { alert(e instanceof Error ? e.message : "Gagal hapus"); }
-  }
-  async function toggleStatus(ev: GiftEvent) {
-    try { await updateGiftEvent(ev.id, { status: ev.status==="open"?"closed":"open" }); await loadEvents(); }
-    catch {/**/ }
+    setFormItems([{ name: "", variants: [] }]); setVariantInput({});
+    setEditTarget(null); setView("create");
   }
 
-  // ── Registrations ──
-  async function openRegs(ev: GiftEvent) {
+  function openEdit(ev: GiftEvent) {
+    setFormName(ev.name); setFormDesc(ev.description ?? "");
+    setFormStatus(ev.status); setFormItems(ev.items.map(i => ({ ...i, variants: [...i.variants] })));
+    setVariantInput({}); setEditTarget(ev); setView("edit");
+  }
+
+  async function openRegistrations(ev: GiftEvent) {
     setRegEvent(ev); setView("registrations"); setRegsLoading(true);
     try { setRegs(await getGiftRegistrations(ev.id)); } catch { setRegs([]); } finally { setRegsLoading(false); }
   }
 
-  // ── RFID Cards ──
-  async function loadRfid() {
-    setRfidLoading(true);
-    try { setRfidCards(await getRfidCards()); } catch {/**/ } finally { setRfidLoading(false); }
+  function addItem() { setFormItems(prev => [...prev, { name: "", variants: [] }]); }
+  function removeItem(i: number) { setFormItems(prev => prev.filter((_, idx) => idx !== i)); }
+  function setItemName(i: number, name: string) { setFormItems(prev => prev.map((it, idx) => idx === i ? { ...it, name } : it)); }
+  function addVariant(i: number) {
+    const v = (variantInput[i] ?? "").trim();
+    if (!v) return;
+    setFormItems(prev => prev.map((it, idx) => idx === i ? { ...it, variants: [...it.variants, v] } : it));
+    setVariantInput(prev => ({ ...prev, [i]: "" }));
   }
-  useEffect(() => { if (view==="rfid") loadRfid(); }, [view]);
-
-  function handleRfidFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0]; if (!file) return;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    import("xlsx").then((XLSX: any) => {
-      const reader = new FileReader();
-      reader.onload = async (ev2) => {
-        const wb = XLSX.read(ev2.target?.result, { type:"binary" });
-        const ws = wb.Sheets[wb.SheetNames[0]];
-        const rows = XLSX.utils.sheet_to_json(ws, { defval:"" }) as Record<string,string>[];
-        // Auto-detect kolom: uid/card_number/no_kartu, nik, nama, departemen
-        const mapped = rows.map((r: Record<string,string>) => {
-          const uid = String(r["UID"]||r["uid"]||r["CARD"]||r["Card Number"]||r["No Kartu"]||r["card_number"]||"").trim();
-          const nik = String(r["NIK"]||r["nik"]||"").trim();
-          const nama = String(r["Nama"]||r["NAMA"]||r["nama"]||"").trim();
-          const dept = String(r["Departemen"]||r["Department"]||r["DEPT"]||r["dept"]||r["departemen"]||"").trim();
-          return { uid, nik, nama, departemen: dept };
-        }).filter(r => r.uid && r.nik);
-        if (!mapped.length) { alert("Tidak ada data valid. Pastikan kolom: UID, NIK, Nama, Departemen."); return; }
-        const res = await importRfidCards(mapped);
-        setRfidImportResult(res);
-        await loadRfid();
-      };
-      reader.readAsBinaryString(file);
-    });
-    e.target.value = "";
+  function removeVariant(itemIdx: number, varIdx: number) {
+    setFormItems(prev => prev.map((it, idx) => idx === itemIdx ? { ...it, variants: it.variants.filter((_, vi) => vi !== varIdx) } : it));
   }
 
-  // ── Import Excel peserta ──
-  function handlePesertaFile(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0]; if (!file) return;
-    const ev = events.find(ev => ev.id === importEventId);
-    if (!ev) { alert("Pilih event dulu."); return; }
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    import("xlsx").then((XLSX: any) => {
-      const reader = new FileReader();
-      reader.onload = (ev2) => {
-        const wb = XLSX.read(ev2.target?.result, { type:"binary" });
-        const ws = wb.Sheets[wb.SheetNames[0]];
-        const rows = XLSX.utils.sheet_to_json(ws, { defval:"" }) as Record<string,string>[];
-        const mapped: GiftImportRow[] = rows.map((r: Record<string,string>) => {
-          const nik = String(r["NIK"]||r["nik"]||"").trim();
-          const nama = String(r["Nama"]||r["NAMA"]||r["nama"]||"").trim();
-          const dept = String(r["Departemen"]||r["Department"]||r["departemen"]||"").trim();
-          const email = String(r["Email"]||r["email"]||"").trim();
-          // Build selections from item columns
-          const selections: GiftSelection[] = ev.items.map(item => {
-            const variant = String(r[item.name]||r[item.name.toLowerCase()]||"").trim();
-            return { item: item.name, variant };
-          }).filter(s => s.variant);
-          return { nik, nama, departemen:dept, email, selections };
-        }).filter(r => r.nik && r.nama);
-        setImportPreview(mapped);
-        setImportResult(null);
-      };
-      reader.readAsBinaryString(file);
-    });
-    e.target.value = "";
-  }
-
-  async function handleImportPeserta() {
-    if (!importEventId || !importPreview.length) return;
-    setImporting(true);
+  async function handleSave() {
+    if (!formName.trim()) { alert("Nama event wajib diisi."); return; }
+    const validItems = formItems.filter(i => i.name.trim());
+    if (validItems.length === 0) { alert("Minimal satu item harus diisi."); return; }
+    setSaving(true);
     try {
-      const res = await importGiftRegistrations(importEventId, importPreview);
-      setImportResult(res);
-      setImportPreview([]);
-    } catch (e) { alert(e instanceof Error ? e.message : "Gagal import"); }
-    finally { setImporting(false); }
+      const payload = { name: formName.trim(), description: formDesc.trim(), items: validItems, status: formStatus };
+      if (editTarget) { await updateGiftEvent(editTarget.id, payload); }
+      else { await createGiftEvent(payload); }
+      await load(); setView("list");
+    } catch (e) { alert(e instanceof Error ? e.message : "Gagal menyimpan."); }
+    finally { setSaving(false); }
   }
 
-  // ── Add single peserta via RFID ──
-  function openAddPeserta(ev: GiftEvent) {
-    setAddEvent(ev);
-    const init: Record<string,string> = {};
-    ev.items.forEach(i => { init[i.name] = i.variants[0]??""; });
-    setAddSelections(init);
-    setAddEmail(""); setScanUid(""); setScanResult(null);
-    setView("addPeserta");
-    setTimeout(() => scanInputRef.current?.focus(), 200);
+  async function handleDelete(ev: GiftEvent) {
+    try { await deleteGiftEvent(ev.id); await load(); setConfirmDelete(null); }
+    catch (e) { alert(e instanceof Error ? e.message : "Gagal menghapus."); }
   }
 
-  function handleScanInput(e: React.ChangeEvent<HTMLInputElement>) {
-    const val = e.target.value;
-    setScanUid(val); scanBufferRef.current = val;
-    if (scanTimerRef.current) clearTimeout(scanTimerRef.current);
-    scanTimerRef.current = setTimeout(async () => {
-      if (scanBufferRef.current.length >= 4) {
-        setScanLoading(true); setScanResult(null);
-        try {
-          const res = await lookupRfid(scanBufferRef.current.trim());
-          if (res) setScanResult(res);
-          else alert("UID tidak ditemukan di database RFID. Import data RFID dulu dari tab Kartu RFID.");
-        } catch { alert("Gagal lookup RFID."); }
-        finally { setScanLoading(false); setScanUid(""); scanBufferRef.current = ""; }
-      }
-    }, 300);
+  async function toggleStatus(ev: GiftEvent) {
+    try { await updateGiftEvent(ev.id, { status: ev.status === "open" ? "closed" : "open" }); await load(); }
+    catch { /**/ }
   }
 
-  async function handleAddSingle() {
-    if (!addEvent || !scanResult) return;
-    setAddSaving(true);
-    try {
-      const sels: GiftSelection[] = addEvent.items.map(i => ({ item:i.name, variant:addSelections[i.name]??"" }));
-      const res = await registerGiftAdmin({ eventId:addEvent.id, nik:scanResult.nik, nama:scanResult.nama, departemen:scanResult.departemen, email:addEmail, selections:sels });
-      if (res.success) {
-        alert(`✅ ${scanResult.nama} berhasil didaftarkan.`);
-        setScanResult(null); setAddEmail("");
-        scanInputRef.current?.focus();
-      } else if (res.errorCode==="ALREADY_REGISTERED") {
-        alert(`⚠️ ${scanResult.nama} (NIK: ${scanResult.nik}) sudah terdaftar untuk event ini.`);
-      } else {
-        alert(`Gagal: ${res.errorCode}`);
-      }
-    } finally { setAddSaving(false); }
-  }
+  const inputSt: CSSProperties = { width: "100%", padding: "10px 12px", borderRadius: 10, border: "1px solid var(--border2)", background: "var(--bg2)", color: "var(--t1)", fontSize: 13, fontFamily: "var(--font)", boxSizing: "border-box" };
 
-  // ── Item form helpers ──
-  const addFormItem = () => setFormItems(p=>[...p,{name:"",variants:[]}]);
-  const removeFormItem = (i:number) => setFormItems(p=>p.filter((_,idx)=>idx!==i));
-  const setItemName = (i:number,n:string) => setFormItems(p=>p.map((it,idx)=>idx===i?{...it,name:n}:it));
-  const addVariant = (i:number) => {
-    const v=(variantInput[i]??"").trim(); if(!v) return;
-    setFormItems(p=>p.map((it,idx)=>idx===i?{...it,variants:[...it.variants,v]}:it));
-    setVariantInput(p=>({...p,[i]:""}));
-  };
-  const removeVariant = (ii:number,vi:number) => setFormItems(p=>p.map((it,idx)=>idx===ii?{...it,variants:it.variants.filter((_,v)=>v!==vi)}:it));
-
-  // ── VIEWS ──────────────────────────────────────────────────────
-
-  // Add Peserta (RFID scan)
-  if (view==="addPeserta" && addEvent) return (
-    <div style={{...cardStyle,padding:24}}>
-      <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:20}}>
-        <button onClick={()=>setView("events")} style={{background:"none",border:"none",cursor:"pointer",color:"var(--t3)",fontSize:13}}>← Kembali</button>
-        <div style={{fontWeight:800,fontSize:16,color:"var(--t1)"}}>Daftarkan Karyawan — {addEvent.name}</div>
+  // ── REGISTRATIONS VIEW ──
+  if (view === "registrations" && regEvent) return (
+    <div style={{ ...cardStyle, padding: 24 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20 }}>
+        <button onClick={() => setView("list")} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--t3)", fontSize: 13 }}>← Kembali</button>
+        <div style={{ fontWeight: 800, fontSize: 16, color: "var(--t1)" }}>
+          Peserta: {regEvent.name}
+        </div>
+        <span style={{ marginLeft: "auto", fontSize: 12, color: "var(--t3)" }}>{regs.length} peserta</span>
       </div>
-      <div style={{background:"var(--bg2)",borderRadius:14,padding:16,marginBottom:16,border:"1.5px solid var(--border2)"}}>
-        <div style={{fontSize:13,fontWeight:700,color:"var(--t2)",marginBottom:10}}>📡 Scan Kartu RFID Karyawan</div>
-        <input ref={scanInputRef} value={scanUid} onChange={handleScanInput} placeholder="Dekatkan kartu ke reader..." style={{...inputSt}} autoComplete="off" />
-        {scanLoading && <div style={{fontSize:12,color:"var(--t3)",marginTop:6}}>Mencari data karyawan...</div>}
-      </div>
-      {scanResult && (
-        <div style={{marginBottom:16}}>
-          <div style={{background:"rgba(34,197,94,0.08)",border:"1.5px solid rgba(34,197,94,0.3)",borderRadius:12,padding:"12px 16px",marginBottom:14}}>
-            <div style={{fontWeight:800,color:"var(--t1)",fontSize:14}}>{scanResult.nama}</div>
-            <div style={{fontSize:12,color:"var(--t3)"}}>NIK: {scanResult.nik} · {scanResult.departemen}</div>
-          </div>
-          {addEvent.items.map(item => (
-            <div key={item.name} style={{marginBottom:12}}>
-              <label className="fLabel">{item.name}</label>
-              {item.variants.length>0 ? (
-                <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
-                  {item.variants.map(v=>(
-                    <button key={v} type="button"
-                      onClick={()=>setAddSelections(s=>({...s,[item.name]:v}))}
-                      style={{padding:"7px 16px",borderRadius:9,border:"2px solid",borderColor:addSelections[item.name]===v?"var(--brand)":"var(--border2)",background:addSelections[item.name]===v?"var(--brand)":"transparent",color:addSelections[item.name]===v?"#fff":"var(--t2)",fontWeight:700,fontSize:13,cursor:"pointer"}}
-                    >{v}</button>
-                  ))}
-                </div>
-              ) : <div style={{fontSize:12,color:"var(--t3)"}}>Semua sama</div>}
-            </div>
-          ))}
-          <div style={{marginBottom:14}}>
-            <label className="fLabel">Email (opsional)</label>
-            <input className="fInput" value={addEmail} onChange={e=>setAddEmail(e.target.value)} placeholder="email@company.com" />
-          </div>
-          <button className="fBtnSubmit" onClick={handleAddSingle} disabled={addSaving} style={{width:"100%"}}>
-            {addSaving?"Mendaftarkan...":"✅ Daftarkan Karyawan Ini"}
-          </button>
+      {regsLoading ? (
+        <div style={{ textAlign: "center", padding: 40, color: "var(--t3)" }}>Memuat...</div>
+      ) : regs.length === 0 ? (
+        <div style={{ textAlign: "center", padding: 40, color: "var(--t3)" }}>
+          <div style={{ fontSize: 32, marginBottom: 10 }}>📋</div>
+          <div>Belum ada yang mendaftar</div>
+        </div>
+      ) : (
+        <div style={{ overflowX: "auto" }}>
+          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+            <thead>
+              <tr style={{ background: "var(--bg2)" }}>
+                {["NIK", "Nama", "Departemen", "Email", "Item", "Status", "Terdaftar"].map(h => (
+                  <th key={h} style={{ padding: "10px 12px", textAlign: "left", fontWeight: 700, color: "var(--t3)", fontSize: 11, textTransform: "uppercase", borderBottom: "1px solid var(--border)" }}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {regs.map(r => (
+                <tr key={r.id} style={{ borderBottom: "1px solid var(--border)" }}>
+                  <td style={{ padding: "10px 12px", fontFamily: "var(--mono)", color: "var(--t2)" }}>{r.nik}</td>
+                  <td style={{ padding: "10px 12px", fontWeight: 600, color: "var(--t1)" }}>{r.nama}</td>
+                  <td style={{ padding: "10px 12px", color: "var(--t2)" }}>{r.departemen}</td>
+                  <td style={{ padding: "10px 12px", color: "var(--t3)", fontSize: 12 }}>{r.email}</td>
+                  <td style={{ padding: "10px 12px" }}>
+                    {r.selections.map(s => (
+                      <span key={s.item} style={{ fontSize: 11, background: "var(--bg2)", borderRadius: 6, padding: "2px 8px", marginRight: 4, whiteSpace: "nowrap" }}>
+                        {s.item}{s.variant ? ` (${s.variant})` : ""}
+                      </span>
+                    ))}
+                  </td>
+                  <td style={{ padding: "10px 12px" }}>
+                    <span style={{ fontSize: 11, fontWeight: 700, padding: "3px 10px", borderRadius: 999, background: r.claimed ? "rgba(34,197,94,0.12)" : "rgba(234,179,8,0.12)", color: r.claimed ? "var(--green)" : "#eab308" }}>
+                      {r.claimed ? "✅ Diambil" : "⏳ Belum"}
+                    </span>
+                  </td>
+                  <td style={{ padding: "10px 12px", color: "var(--t3)", fontSize: 11 }}>
+                    {new Date(r.registeredAt).toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" })}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       )}
     </div>
   );
 
-  // Create/Edit Event
-  if (view==="createEvent"||view==="editEvent") return (
-    <div style={{...cardStyle,padding:24}}>
-      <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:20}}>
-        <button onClick={()=>setView("events")} style={{background:"none",border:"none",cursor:"pointer",color:"var(--t3)",fontSize:13}}>← Batal</button>
-        <div style={{fontWeight:800,fontSize:16,color:"var(--t1)"}}>{view==="createEvent"?"Buat Event Baru":`Edit: ${editTarget?.name}`}</div>
+  // ── CREATE / EDIT FORM ──
+  if (view === "create" || view === "edit") return (
+    <div style={{ ...cardStyle, padding: 24 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 22 }}>
+        <button onClick={() => setView("list")} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--t3)", fontSize: 13 }}>← Batal</button>
+        <div style={{ fontWeight: 800, fontSize: 16, color: "var(--t1)" }}>
+          {view === "create" ? "Buat Event Baru" : `Edit: ${editTarget?.name}`}
+        </div>
       </div>
-      <div style={{display:"grid",gap:14,marginBottom:14}}>
-        <div><label className="fLabel">Nama Event</label><input className="fInput" value={formName} onChange={e=>setFormName(e.target.value)} placeholder="Pembagian Seragam 2026" /></div>
-        <div><label className="fLabel">Deskripsi (opsional)</label><input className="fInput" value={formDesc} onChange={e=>setFormDesc(e.target.value)} /></div>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginBottom: 14 }}>
+        <div style={{ gridColumn: "1/-1" }}>
+          <label className="fLabel" style={{ fontSize: 12, fontWeight: 700, color: "var(--t3)", display: "block", marginBottom: 6 }}>NAMA EVENT</label>
+          <input value={formName} onChange={e => setFormName(e.target.value)} placeholder="Contoh: Pembagian Seragam 2026" style={inputSt} />
+        </div>
+        <div style={{ gridColumn: "1/-1" }}>
+          <label className="fLabel" style={{ fontSize: 12, fontWeight: 700, color: "var(--t3)", display: "block", marginBottom: 6 }}>DESKRIPSI (opsional)</label>
+          <input value={formDesc} onChange={e => setFormDesc(e.target.value)} placeholder="Informasi tambahan untuk karyawan" style={inputSt} />
+        </div>
         <div>
-          <label className="fLabel">Status</label>
-          <select className="fSelect" value={formStatus} onChange={e=>setFormStatus(e.target.value as "open"|"closed")} style={{width:"auto"}}>
-            <option value="open">🟢 Buka</option>
+          <label className="fLabel" style={{ fontSize: 12, fontWeight: 700, color: "var(--t3)", display: "block", marginBottom: 6 }}>STATUS</label>
+          <select value={formStatus} onChange={e => setFormStatus(e.target.value as "open" | "closed")} style={{ ...inputSt, width: "auto" }}>
+            <option value="open">🟢 Buka (karyawan bisa daftar)</option>
             <option value="closed">🔴 Tutup</option>
           </select>
         </div>
       </div>
-      <div style={{fontWeight:700,fontSize:13,color:"var(--t2)",marginBottom:10}}>Item yang Dibagikan</div>
-      {formItems.map((item,i)=>(
-        <div key={i} style={{background:"var(--bg2)",borderRadius:12,padding:14,marginBottom:10,border:"1px solid var(--border2)"}}>
-          <div style={{display:"flex",gap:8,marginBottom:8,alignItems:"center"}}>
-            <input className="fInput" value={item.name} onChange={e=>setItemName(i,e.target.value)} placeholder="Nama item (Seragam, Topi, dll)" style={{flex:1}} />
-            {formItems.length>1 && <button onClick={()=>removeFormItem(i)} style={{background:"rgba(239,68,68,0.1)",border:"none",borderRadius:8,padding:"8px 12px",color:"var(--red)",cursor:"pointer",fontSize:16}}>×</button>}
+
+      {/* Items */}
+      <div style={{ fontWeight: 700, fontSize: 13, color: "var(--t2)", marginBottom: 12 }}>Item yang Dibagikan</div>
+      {formItems.map((item, i) => (
+        <div key={i} style={{ background: "var(--bg2)", borderRadius: 14, padding: "16px", marginBottom: 10, border: "1px solid var(--border2)" }}>
+          <div style={{ display: "flex", gap: 10, marginBottom: 10, alignItems: "center" }}>
+            <input value={item.name} onChange={e => setItemName(i, e.target.value)} placeholder="Nama item (contoh: Seragam)" style={{ ...inputSt, flex: 1 }} />
+            {formItems.length > 1 && (
+              <button onClick={() => removeItem(i)} style={{ background: "rgba(239,68,68,0.1)", border: "none", borderRadius: 8, padding: "8px 12px", color: "var(--red)", cursor: "pointer", fontSize: 16 }}>×</button>
+            )}
           </div>
-          <div style={{fontSize:12,color:"var(--t3)",marginBottom:6}}>Varian/Ukuran (kosongkan jika semua sama):</div>
-          <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:8}}>
-            {item.variants.map((v,vi)=>(
-              <span key={vi} style={{fontSize:12,background:"var(--surface)",border:"1px solid var(--border2)",borderRadius:8,padding:"4px 10px",display:"flex",alignItems:"center",gap:6}}>
-                {v}<button onClick={()=>removeVariant(i,vi)} style={{background:"none",border:"none",cursor:"pointer",color:"var(--t3)",fontSize:14}}>×</button>
+          <div style={{ fontSize: 12, color: "var(--t3)", marginBottom: 8 }}>Varian/Ukuran (kosongkan jika semua sama):</div>
+          <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 8 }}>
+            {item.variants.map((v, vi) => (
+              <span key={vi} style={{ fontSize: 12, background: "var(--surface)", border: "1px solid var(--border2)", borderRadius: 8, padding: "4px 10px", display: "flex", alignItems: "center", gap: 6 }}>
+                {v}
+                <button onClick={() => removeVariant(i, vi)} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--t3)", fontSize: 14, lineHeight: 1 }}>×</button>
               </span>
             ))}
           </div>
-          <div style={{display:"flex",gap:8}}>
-            <input className="fInput" value={variantInput[i]??""} onChange={e=>setVariantInput(p=>({...p,[i]:e.target.value}))}
-              onKeyDown={e=>{if(e.key==="Enter"){e.preventDefault();addVariant(i);}}}
-              placeholder="Ketik ukuran lalu Enter" style={{flex:1,padding:"8px 12px"}} />
-            <button onClick={()=>addVariant(i)} style={{background:"var(--brand)",border:"none",borderRadius:10,padding:"8px 14px",color:"#fff",cursor:"pointer",fontWeight:700,fontSize:13}}>+ Tambah</button>
+          <div style={{ display: "flex", gap: 8 }}>
+            <input value={variantInput[i] ?? ""} onChange={e => setVariantInput(p => ({ ...p, [i]: e.target.value }))}
+              onKeyDown={e => e.key === "Enter" && (e.preventDefault(), addVariant(i))}
+              placeholder="Ketik ukuran lalu Enter" style={{ ...inputSt, flex: 1, padding: "8px 12px" }} />
+            <button onClick={() => addVariant(i)} style={{ background: "var(--brand)", border: "none", borderRadius: 10, padding: "8px 14px", color: "#fff", cursor: "pointer", fontWeight: 700, fontSize: 13 }}>+ Tambah</button>
           </div>
         </div>
       ))}
-      <button onClick={addFormItem} style={{background:"none",border:"1.5px dashed var(--border2)",borderRadius:12,padding:"10px 16px",color:"var(--t3)",cursor:"pointer",fontSize:13,width:"100%",marginBottom:20}}>+ Tambah Item Lain</button>
-      <button onClick={handleSaveEvent} disabled={savingEvent} className="fBtnSubmit" style={{width:"100%"}}>
-        {savingEvent?"Menyimpan...":view==="createEvent"?"Buat Event":"Simpan Perubahan"}
+      <button onClick={addItem} style={{ background: "none", border: "1.5px dashed var(--border2)", borderRadius: 12, padding: "10px 16px", color: "var(--t3)", cursor: "pointer", fontSize: 13, width: "100%", marginBottom: 20 }}>
+        + Tambah Item Lain
+      </button>
+
+      <button onClick={handleSave} disabled={saving} style={{ width: "100%", padding: 13, borderRadius: 12, border: "none", background: "var(--brand)", color: "#fff", fontWeight: 800, fontSize: 15, cursor: saving ? "default" : "pointer", opacity: saving ? 0.65 : 1 }}>
+        {saving ? "Menyimpan..." : view === "create" ? "Buat Event" : "Simpan Perubahan"}
       </button>
     </div>
   );
 
-  // Registrations list
-  if (view==="registrations" && regEvent) return (
-    <div style={{...cardStyle,padding:24}}>
-      <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:18}}>
-        <button onClick={()=>setView("events")} style={{background:"none",border:"none",cursor:"pointer",color:"var(--t3)",fontSize:13}}>← Kembali</button>
-        <div style={{fontWeight:800,fontSize:15,color:"var(--t1)"}}>Peserta: {regEvent.name}</div>
-        <span style={{marginLeft:"auto",fontSize:12,color:"var(--t3)"}}>{regs.length} peserta</span>
-      </div>
-      {regsLoading ? <div style={{textAlign:"center",padding:40,color:"var(--t3)"}}>Memuat...</div>
-      : regs.length===0 ? <div style={{textAlign:"center",padding:40,color:"var(--t3)"}}>Belum ada peserta</div>
-      : (
-        <div style={{overflowX:"auto"}}>
-          <table style={{width:"100%",borderCollapse:"collapse",fontSize:13}}>
-            <thead>
-              <tr style={{background:"var(--bg2)"}}>
-                {["NIK","Nama","Departemen","Item","Status","Terdaftar"].map(h=>(
-                  <th key={h} style={{padding:"10px 12px",textAlign:"left",fontWeight:700,color:"var(--t3)",fontSize:11,textTransform:"uppercase",borderBottom:"1px solid var(--border)"}}>{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {regs.map(r=>(
-                <tr key={r.id} style={{borderBottom:"1px solid var(--border)"}}>
-                  <td style={{padding:"10px 12px",fontFamily:"var(--mono)",color:"var(--t2)"}}>{r.nik}</td>
-                  <td style={{padding:"10px 12px",fontWeight:600,color:"var(--t1)"}}>{r.nama}</td>
-                  <td style={{padding:"10px 12px",color:"var(--t2)"}}>{r.departemen}</td>
-                  <td style={{padding:"10px 12px"}}>
-                    {r.selections.map(s=>(
-                      <span key={s.item} style={{fontSize:11,background:"var(--bg2)",borderRadius:6,padding:"2px 8px",marginRight:4,whiteSpace:"nowrap"}}>{s.item}{s.variant?` (${s.variant})`:""}</span>
-                    ))}
-                  </td>
-                  <td style={{padding:"10px 12px"}}>
-                    <span style={{fontSize:11,fontWeight:700,padding:"3px 10px",borderRadius:999,background:r.claimed?"rgba(34,197,94,0.12)":"rgba(234,179,8,0.12)",color:r.claimed?"var(--green)":"#eab308"}}>
-                      {r.claimed?"✅ Diambil":"⏳ Belum"}
-                    </span>
-                  </td>
-                  <td style={{padding:"10px 12px",color:"var(--t3)",fontSize:11}}>
-                    {new Date(r.registeredAt).toLocaleDateString("id-ID",{day:"numeric",month:"short",year:"numeric"})}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
-    </div>
-  );
-
-  // RFID Cards tab
-  if (view==="rfid") return (
-    <div style={{...cardStyle,padding:24}}>
-      <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:20}}>
-        <button onClick={()=>setView("events")} style={{background:"none",border:"none",cursor:"pointer",color:"var(--t3)",fontSize:13}}>← Kembali</button>
-        <div style={{fontWeight:800,fontSize:16,color:"var(--t1)"}}>📡 Kartu RFID Karyawan</div>
-        <span style={{marginLeft:"auto",fontSize:12,color:"var(--t3)"}}>{rfidCards.length} kartu</span>
-      </div>
-
-      {/* Import dari IT */}
-      <div style={{background:"var(--bg2)",borderRadius:14,padding:16,marginBottom:20,border:"1.5px solid var(--border2)"}}>
-        <div style={{fontWeight:700,fontSize:13,color:"var(--t2)",marginBottom:6}}>Import dari IT (Excel/CSV)</div>
-        <div style={{fontSize:12,color:"var(--t3)",marginBottom:10}}>Kolom yang dikenali: UID / Card Number / No Kartu, NIK, Nama, Departemen</div>
-        <label style={{display:"inline-block",padding:"9px 16px",borderRadius:10,background:"var(--brand)",color:"#fff",fontWeight:700,fontSize:13,cursor:"pointer"}}>
-          📂 Pilih File Excel/CSV
-          <input type="file" accept=".xlsx,.xls,.csv" onChange={handleRfidFileUpload} style={{display:"none"}} />
-        </label>
-        {rfidImportResult && (
-          <div style={{marginTop:10,fontSize:12,color:rfidImportResult.errors.length?"var(--red)":"var(--green)"}}>
-            ✅ {rfidImportResult.imported} kartu berhasil diimport
-            {rfidImportResult.errors.length>0 && <div style={{color:"var(--red)"}}>⚠️ {rfidImportResult.errors.join(", ")}</div>}
-          </div>
-        )}
-      </div>
-
-      {/* List kartu */}
-      {rfidLoading ? <div style={{textAlign:"center",padding:40,color:"var(--t3)"}}>Memuat...</div>
-      : rfidCards.length===0 ? <div style={{textAlign:"center",padding:40,color:"var(--t3)"}}>Belum ada data RFID. Import dari IT dulu.</div>
-      : (
-        <div style={{overflowX:"auto"}}>
-          <table style={{width:"100%",borderCollapse:"collapse",fontSize:13}}>
-            <thead>
-              <tr style={{background:"var(--bg2)"}}>
-                {["UID","NIK","Nama","Departemen"].map(h=>(
-                  <th key={h} style={{padding:"10px 12px",textAlign:"left",fontWeight:700,color:"var(--t3)",fontSize:11,textTransform:"uppercase",borderBottom:"1px solid var(--border)"}}>{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {rfidCards.map(c=>(
-                <tr key={c.id} style={{borderBottom:"1px solid var(--border)"}}>
-                  <td style={{padding:"10px 12px",fontFamily:"var(--mono)",fontSize:12,color:"var(--t3)"}}>{c.uid}</td>
-                  <td style={{padding:"10px 12px",fontFamily:"var(--mono)",color:"var(--t2)"}}>{c.nik}</td>
-                  <td style={{padding:"10px 12px",fontWeight:600,color:"var(--t1)"}}>{c.nama}</td>
-                  <td style={{padding:"10px 12px",color:"var(--t2)"}}>{c.departemen}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
-    </div>
-  );
-
-  // ── MAIN LIST VIEW ──
+  // ── LIST VIEW ──
   return (
-    <div style={{...cardStyle,padding:24}}>
-      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:18}}>
+    <div style={{ ...cardStyle, padding: 24 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 18 }}>
         <div>
-          <div style={{fontWeight:800,fontSize:16,color:"var(--t1)"}}>🎁 Pembagian Gift / Seragam</div>
-          <div style={{fontSize:12,color:"var(--t3)",marginTop:2}}>Kelola program pembagian dengan RFID</div>
+          <div style={{ fontWeight: 800, fontSize: 16, color: "var(--t1)" }}>🎁 Pembagian Gift / Seragam</div>
+          <div style={{ fontSize: 12, color: "var(--t3)", marginTop: 2 }}>Kelola program pembagian dan pantau peserta</div>
         </div>
-        <div style={{display:"flex",gap:8}}>
-          <button onClick={()=>setView("rfid")} style={{background:"var(--bg2)",border:"1px solid var(--border2)",borderRadius:10,padding:"8px 14px",color:"var(--t2)",fontWeight:700,fontSize:13,cursor:"pointer"}}>📡 Kartu RFID</button>
-          <button onClick={openCreate} className="fBtnSubmit" style={{flex:"none",padding:"8px 16px"}}>+ Event Baru</button>
-        </div>
+        <button onClick={openCreate} style={{ background: "var(--brand)", border: "none", borderRadius: 10, padding: "9px 16px", color: "#fff", fontWeight: 700, fontSize: 13, cursor: "pointer" }}>
+          + Event Baru
+        </button>
       </div>
 
       {/* Links */}
-      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:20}}>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 20 }}>
         {[
-          {label:"🔑 Link Verifikasi Petugas",url:`${baseUrl}/gift/verify`,desc:"Petugas scan RFID saat pengambilan"},
-        ].map(l=>(
-          <div key={l.url} style={{background:"var(--bg2)",borderRadius:12,padding:"12px 14px",border:"1px solid var(--border2)",gridColumn:"1/-1"}}>
-            <div style={{fontSize:12,fontWeight:700,color:"var(--t2)",marginBottom:4}}>{l.label}</div>
-            <div style={{fontSize:11,color:"var(--t3)",marginBottom:8}}>{l.desc}</div>
-            <div style={{display:"flex",gap:6}}>
-              <input readOnly value={l.url} style={{flex:1,fontSize:11,padding:"6px 10px",borderRadius:8,border:"1px solid var(--border2)",background:"var(--surface)",color:"var(--t2)",fontFamily:"var(--mono)"}} />
-              <button onClick={()=>navigator.clipboard.writeText(l.url)} style={{background:"var(--brand)",border:"none",borderRadius:8,padding:"6px 10px",color:"#fff",fontSize:11,cursor:"pointer"}}>Salin</button>
+          { label: "🔗 Link Pendaftaran Karyawan", url: `${baseUrl}/gift`, desc: "Bagikan ke karyawan" },
+          { label: "🔑 Link Verifikasi Petugas", url: `${baseUrl}/gift/verify`, desc: "Khusus petugas pengambilan" },
+        ].map(l => (
+          <div key={l.url} style={{ background: "var(--bg2)", borderRadius: 12, padding: "12px 14px", border: "1px solid var(--border2)" }}>
+            <div style={{ fontSize: 12, fontWeight: 700, color: "var(--t2)", marginBottom: 6 }}>{l.label}</div>
+            <div style={{ fontSize: 11, color: "var(--t3)", marginBottom: 8 }}>{l.desc}</div>
+            <div style={{ display: "flex", gap: 6 }}>
+              <input readOnly value={l.url} style={{ flex: 1, fontSize: 11, padding: "6px 10px", borderRadius: 8, border: "1px solid var(--border2)", background: "var(--surface)", color: "var(--t2)", fontFamily: "var(--mono)" }} />
+              <button onClick={() => navigator.clipboard.writeText(l.url)} style={{ background: "var(--brand)", border: "none", borderRadius: 8, padding: "6px 10px", color: "#fff", fontSize: 11, cursor: "pointer" }}>Salin</button>
             </div>
           </div>
         ))}
       </div>
 
-      {/* Import Excel Peserta */}
-      <div style={{background:"var(--bg2)",borderRadius:14,padding:16,marginBottom:20,border:"1.5px solid var(--border2)"}}>
-        <div style={{fontWeight:700,fontSize:13,color:"var(--t2)",marginBottom:10}}>📥 Import Peserta dari Excel (Markom)</div>
-        <div style={{display:"flex",gap:10,marginBottom:10}}>
-          <select className="fSelect" value={importEventId} onChange={e=>{setImportEventId(e.target.value);setImportPreview([]);setImportResult(null);}} style={{flex:1}}>
-            <option value="">Pilih event...</option>
-            {events.filter(ev=>ev.status==="open").map(ev=>(
-              <option key={ev.id} value={ev.id}>{ev.name}</option>
-            ))}
-          </select>
-          <label style={{display:"flex",alignItems:"center",padding:"0 16px",borderRadius:10,background:importEventId?"var(--brand)":"var(--surface2)",color:importEventId?"#fff":"var(--t3)",fontWeight:700,fontSize:13,cursor:importEventId?"pointer":"default",border:"1px solid var(--border2)"}}>
-            📂 Pilih Excel
-            <input type="file" accept=".xlsx,.xls" onChange={handlePesertaFile} disabled={!importEventId} style={{display:"none"}} />
-          </label>
-        </div>
-        {importPreview.length>0 && (
-          <div style={{marginBottom:10}}>
-            <div style={{fontSize:12,color:"var(--t3)",marginBottom:6}}>Preview: {importPreview.length} baris siap diimport</div>
-            <div style={{maxHeight:120,overflowY:"auto",fontSize:11,color:"var(--t2)"}}>
-              {importPreview.slice(0,5).map((r,i)=>(
-                <div key={i}>{r.nik} — {r.nama} — {r.departemen} {r.selections.map(s=>`${s.item}:${s.variant}`).join(", ")}</div>
-              ))}
-              {importPreview.length>5 && <div style={{color:"var(--t3)"}}>...dan {importPreview.length-5} lainnya</div>}
-            </div>
-            <button onClick={handleImportPeserta} disabled={importing} className="fBtnSubmit" style={{width:"100%",marginTop:8}}>
-              {importing?"Mengimport...":"✅ Import Sekarang"}
-            </button>
-          </div>
-        )}
-        {importResult && (
-          <div style={{fontSize:12,padding:"8px 12px",borderRadius:8,background:importResult.errors.length?"rgba(239,68,68,0.08)":"rgba(34,197,94,0.08)",color:importResult.errors.length?"var(--red)":"var(--green)"}}>
-            ✅ {importResult.imported} berhasil · ⏭️ {importResult.skipped} duplikat dilewati
-            {importResult.errors.length>0 && <div>⚠️ Error: {importResult.errors.slice(0,3).join(", ")}</div>}
-          </div>
-        )}
-      </div>
-
-      {/* Event list */}
-      {loadingEvents ? <div style={{textAlign:"center",padding:40,color:"var(--t3)"}}>Memuat...</div>
-      : events.length===0 ? (
-        <div style={{textAlign:"center",padding:40,color:"var(--t3)"}}>
-          <div style={{fontSize:36,marginBottom:10}}>🎁</div>
-          <div style={{fontWeight:700,color:"var(--t2)"}}>Belum ada event. Buat event baru.</div>
+      {loading ? (
+        <div style={{ textAlign: "center", padding: 40, color: "var(--t3)" }}>{t.actionLoading}</div>
+      ) : events.length === 0 ? (
+        <div style={{ textAlign: "center", padding: 40, color: "var(--t3)" }}>
+          <div style={{ fontSize: 40, marginBottom: 12 }}>🎁</div>
+          <div style={{ fontWeight: 700, color: "var(--t2)", marginBottom: 4 }}>Belum ada event</div>
+          <div style={{ fontSize: 13 }}>Buat event baru untuk mulai pembagian.</div>
         </div>
       ) : (
-        <div style={{display:"flex",flexDirection:"column",gap:12}}>
-          {events.map(ev=>(
-            <div key={ev.id} style={{border:"1px solid var(--border2)",borderRadius:16,overflow:"hidden"}}>
-              <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",padding:"14px 16px",background:"var(--bg2)"}}>
-                <div style={{flex:1}}>
-                  <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:4}}>
-                    <span style={{fontWeight:800,fontSize:14,color:"var(--t1)"}}>{ev.name}</span>
-                    <span style={{fontSize:11,fontWeight:700,padding:"2px 10px",borderRadius:999,background:ev.status==="open"?"rgba(34,197,94,0.12)":"rgba(239,68,68,0.1)",color:ev.status==="open"?"var(--green)":"var(--red)"}}>{ev.status==="open"?"BUKA":"TUTUP"}</span>
+        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          {events.map(ev => (
+            <div key={ev.id} style={{ border: "1px solid var(--border2)", borderRadius: 16, overflow: "hidden" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", padding: "16px 18px", background: "var(--bg2)" }}>
+                <div style={{ flex: 1 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4 }}>
+                    <span style={{ fontWeight: 800, fontSize: 15, color: "var(--t1)" }}>{ev.name}</span>
+                    <span style={{ fontSize: 11, fontWeight: 700, padding: "2px 10px", borderRadius: 999, background: ev.status === "open" ? "rgba(34,197,94,0.12)" : "rgba(239,68,68,0.1)", color: ev.status === "open" ? "var(--green)" : "var(--red)" }}>
+                      {ev.status === "open" ? "BUKA" : "TUTUP"}
+                    </span>
                   </div>
-                  {ev.description && <div style={{fontSize:12,color:"var(--t3)",marginBottom:6}}>{ev.description}</div>}
-                  <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
-                    {ev.items.map(item=>(
-                      <span key={item.name} style={{fontSize:11,background:"var(--surface)",border:"1px solid var(--border2)",borderRadius:8,padding:"2px 10px",color:"var(--t2)"}}>
-                        {item.name}{item.variants.length>0?` (${item.variants.join(", ")})`:""}
+                  {ev.description && <div style={{ fontSize: 12, color: "var(--t3)", marginBottom: 6 }}>{ev.description}</div>}
+                  <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                    {ev.items.map(item => (
+                      <span key={item.name} style={{ fontSize: 11, background: "var(--surface)", border: "1px solid var(--border2)", borderRadius: 8, padding: "2px 10px", color: "var(--t2)" }}>
+                        {item.name}{item.variants.length > 0 ? ` (${item.variants.join(", ")})` : ""}
                       </span>
                     ))}
                   </div>
                 </div>
-                <div style={{display:"flex",gap:6,marginLeft:12}}>
-                  <button onClick={()=>openAddPeserta(ev)} title="Daftarkan via RFID" style={{background:"rgba(61,111,242,0.1)",border:"none",borderRadius:8,padding:"7px 10px",cursor:"pointer",fontSize:13}}>📡</button>
-                  <button onClick={()=>openRegs(ev)} title="Lihat peserta" style={{background:"rgba(61,111,242,0.1)",border:"none",borderRadius:8,padding:"7px 10px",cursor:"pointer",fontSize:13}}>👥</button>
-                  <button onClick={()=>toggleStatus(ev)} title={ev.status==="open"?"Tutup":"Buka"} style={{background:ev.status==="open"?"rgba(239,68,68,0.1)":"rgba(34,197,94,0.1)",border:"none",borderRadius:8,padding:"7px 10px",cursor:"pointer",fontSize:13}}>{ev.status==="open"?"🔒":"🔓"}</button>
-                  <button onClick={()=>openEdit(ev)} style={{background:"var(--bg2)",border:"1px solid var(--border2)",borderRadius:8,padding:"7px 10px",cursor:"pointer",fontSize:13}}>✏️</button>
-                  <button onClick={()=>setConfirmDelete(ev)} style={{background:"rgba(239,68,68,0.1)",border:"none",borderRadius:8,padding:"7px 10px",cursor:"pointer",fontSize:13}}>🗑️</button>
+                <div style={{ display: "flex", gap: 6, flexShrink: 0, marginLeft: 14 }}>
+                  <button onClick={() => openRegistrations(ev)} title="Lihat peserta" style={{ background: "rgba(61,111,242,0.1)", border: "none", borderRadius: 8, padding: "7px 11px", cursor: "pointer", fontSize: 14 }}>👥</button>
+                  <button onClick={() => toggleStatus(ev)} title={ev.status === "open" ? "Tutup pendaftaran" : "Buka pendaftaran"} style={{ background: ev.status === "open" ? "rgba(239,68,68,0.1)" : "rgba(34,197,94,0.1)", border: "none", borderRadius: 8, padding: "7px 11px", cursor: "pointer", fontSize: 14 }}>
+                    {ev.status === "open" ? "🔒" : "🔓"}
+                  </button>
+                  <button onClick={() => openEdit(ev)} title="Edit" style={{ background: "var(--bg2)", border: "1px solid var(--border2)", borderRadius: 8, padding: "7px 11px", cursor: "pointer", fontSize: 14 }}>✏️</button>
+                  <button onClick={() => setConfirmDelete(ev)} title="Hapus" style={{ background: "rgba(239,68,68,0.1)", border: "none", borderRadius: 8, padding: "7px 11px", cursor: "pointer", fontSize: 14 }}>🗑️</button>
                 </div>
               </div>
             </div>
@@ -7920,16 +7664,17 @@ function GiftMasterPanel({ cardStyle }: { cardStyle: CSSProperties }) {
         </div>
       )}
 
-      {/* Confirm delete */}
       {confirmDelete && (
-        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.4)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:9999}}>
-          <div style={{background:"var(--surface)",borderRadius:20,padding:28,maxWidth:380,width:"90%",textAlign:"center"}}>
-            <div style={{fontSize:36,marginBottom:12}}>⚠️</div>
-            <div style={{fontWeight:800,fontSize:16,color:"var(--t1)",marginBottom:8}}>Hapus Event?</div>
-            <div style={{fontSize:13,color:"var(--t3)",marginBottom:20}}>Event "<strong>{confirmDelete.name}</strong>" dan semua data pesertanya akan dihapus permanen.</div>
-            <div style={{display:"flex",gap:10}}>
-              <button onClick={()=>setConfirmDelete(null)} className="fBtnCancel" style={{flex:1}}>Batal</button>
-              <button onClick={()=>handleDeleteEvent(confirmDelete)} style={{flex:1,padding:11,borderRadius:10,border:"none",background:"var(--red)",color:"#fff",fontWeight:700,cursor:"pointer"}}>Hapus</button>
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 9999 }}>
+          <div style={{ background: "var(--surface)", borderRadius: 20, padding: 28, maxWidth: 380, width: "90%", textAlign: "center" }}>
+            <div style={{ fontSize: 36, marginBottom: 12 }}>⚠️</div>
+            <div style={{ fontWeight: 800, fontSize: 16, color: "var(--t1)", marginBottom: 8 }}>Hapus Event?</div>
+            <div style={{ fontSize: 13, color: "var(--t3)", marginBottom: 20 }}>
+              Event "<strong>{confirmDelete.name}</strong>" dan semua data pendaftarannya akan dihapus permanen.
+            </div>
+            <div style={{ display: "flex", gap: 10 }}>
+              <button onClick={() => setConfirmDelete(null)} style={{ flex: 1, padding: 11, borderRadius: 10, border: "1px solid var(--border2)", background: "var(--bg2)", color: "var(--t2)", fontWeight: 700, cursor: "pointer" }}>Batal</button>
+              <button onClick={() => handleDelete(confirmDelete)} style={{ flex: 1, padding: 11, borderRadius: 10, border: "none", background: "var(--red)", color: "#fff", fontWeight: 700, cursor: "pointer" }}>Hapus</button>
             </div>
           </div>
         </div>
