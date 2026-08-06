@@ -115,11 +115,11 @@ export default function CanteenPublicPage() {
               <div className="staggerItem statPop" style={{ ...cardStyle, padding: 18, marginBottom: 16, animationDelay: "0.08s" }}>
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
                   <div>
-                    <label className="fLabel">{lang === "en" ? "REPORT DATE" : "TANGGAL LAPORAN"} *</label>
+                    <label>{lang === "en" ? "REPORT DATE" : "TANGGAL LAPORAN"} *</label>
                     <input className="fInput" style={{ ...inputStyle, textAlign: "left" }} type="date" value={reportDate} onChange={(e) => setReportDate(e.target.value)} />
                   </div>
                   <div>
-                    <label className="fLabel">{lang === "en" ? "SUBMITTED BY" : "DIINPUT OLEH"}</label>
+                    <label>{lang === "en" ? "SUBMITTED BY" : "DIINPUT OLEH"}</label>
                     <input className="fInput" style={{ ...inputStyle, textAlign: "left" }} value={submittedBy} onChange={(e) => setSubmittedBy(e.target.value)} placeholder={lang === "en" ? "Canteen Operator" : "Operator Kantin"} />
                   </div>
                 </div>

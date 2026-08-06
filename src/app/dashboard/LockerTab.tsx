@@ -279,7 +279,8 @@ function LockerOverviewPanel() {
       <div style={{ display: "flex", gap: 10, marginBottom: 18, flexWrap: "wrap" }}>
         <div style={{ flex: 1, position: "relative", minWidth: 220 }}>
           <input
-            className="fInput"
+            className="premiumInput"
+            style={inputStyle}
             placeholder={lang === "en" ? "Search name or locker number..." : "Cari nama atau nomor locker..."}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
@@ -669,14 +670,14 @@ function LockerManagePanel() {
     <div>
       <div style={{ display: "flex", gap: 10, marginBottom: 16, flexWrap: "wrap", alignItems: "center" }}>
         <input
-          className="fInput"
+          className="premiumInput"
           style={{ ...inputStyle, flex: 1, minWidth: 180 }}
           placeholder={lang === "en" ? "Search number / name..." : "Cari nomor / nama..."}
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
         <select
-          className="fInput"
+          className="premiumInput"
           style={{ ...inputStyle, width: "auto" }}
           value={filterStatus}
           onChange={(e) => setFilterStatus(e.target.value as "all" | LockerStatus)}
@@ -738,14 +739,15 @@ function LockerManagePanel() {
 
       {showForm && (
         <ModalPortal onOverlayClick={() => setShowForm(false)} maxWidth={460}>
-          <div style={{ ...cardStyle, padding: 0, overflow: "hidden" }}>
-            <div style={{ padding: "20px 24px", background: "linear-gradient(135deg, var(--brand), var(--brand2))" }}>
-              <div style={{ fontSize: 16, fontWeight: 800, color: "#fff" }}>
+          <div style={{ borderRadius: "var(--r2)", overflow: "hidden", background: "var(--surface)", boxShadow: "var(--shadow-lg)" }}>
+            <div className="fModalHeader">
+              <span className="fModalTitle">
                 {editing ? (lang === "en" ? "Edit Locker" : "Edit Locker") : (lang === "en" ? "Add Locker" : "Tambah Locker")}
-              </div>
+              </span>
+              <button className="fModalClose" onClick={() => setShowForm(false)}>✕</button>
             </div>
             <div style={{ padding: 24 }}>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 14 }}>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginBottom: 14 }}>
                 <div>
                   <label className="fLabel">{lang === "en" ? "Locker Number" : "Nomor Locker"} *</label>
                   <input className="fInput" value={form.number} onChange={(e) => setForm({ ...form, number: e.target.value })} placeholder="12" />
@@ -758,7 +760,7 @@ function LockerManagePanel() {
 
               <div style={{ marginBottom: 14 }}>
                 <label className="fLabel">Status</label>
-                <select className="fInput" value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value as LockerStatus })}>
+                <select className="fSelect" value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value as LockerStatus })}>
                   <option value="Available">Available</option>
                   <option value="Terisi">Terisi</option>
                 </select>
@@ -770,7 +772,7 @@ function LockerManagePanel() {
                     <label className="fLabel">Nama</label>
                     <input className="fInput" value={form.nama} onChange={(e) => setForm({ ...form, nama: e.target.value })} />
                   </div>
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 14 }}>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginBottom: 14 }}>
                     <div>
                       <label className="fLabel">No. HP</label>
                       <input className="fInput" value={form.noHp} onChange={(e) => setForm({ ...form, noHp: e.target.value })} placeholder="08xxxxxxxxxx" />
@@ -780,7 +782,7 @@ function LockerManagePanel() {
                       <input className="fInput" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} placeholder="nama@email.com" />
                     </div>
                   </div>
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 14 }}>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginBottom: 14 }}>
                     <div>
                       <label className="fLabel">Periode</label>
                       <input className="fInput" value={form.periode} onChange={(e) => setForm({ ...form, periode: e.target.value })} placeholder="Employee / Jul-Des 2026" />
@@ -797,9 +799,9 @@ function LockerManagePanel() {
                 </>
               )}
 
-              <div style={{ display: "flex", gap: 10 }}>
-                <button onClick={() => setShowForm(false)} style={{ flex: 1, padding: "11px", borderRadius: 10, border: "1px solid var(--border2)", background: "var(--surface2)", color: "var(--t2)", fontWeight: 700, cursor: "pointer" }}>{t.actionCancel}</button>
-                <button className="pillBtn" onClick={handleSave} disabled={!canSave || saving} style={{ flex: 2, justifyContent: "center", opacity: canSave && !saving ? 1 : 0.5 }}>
+              <div className="fActions">
+                <button className="fBtnCancel" onClick={() => setShowForm(false)}>{t.actionCancel}</button>
+                <button className="fBtnSubmit" onClick={handleSave} disabled={!canSave || saving}>
                   {saving ? t.actionSaving : t.actionSave}
                 </button>
               </div>
