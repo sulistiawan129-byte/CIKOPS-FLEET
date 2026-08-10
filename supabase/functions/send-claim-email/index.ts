@@ -77,6 +77,11 @@ function fmtDate(d: string, lang: "id" | "en"): string {
     return d;
   }
 }
+function minify(html: string): string {
+  return html.replace(/>\s+</g, "><").replace(/\s{2,}/g, " ").trim();
+}
+
+
 
 function categorySummaryRows(items: ClaimItem[]): string {
   const buckets: Record<string, number> = { Gasoline: 0, Toll: 0, Parking: 0, Other: 0 };
@@ -105,7 +110,7 @@ function driverTemplate(p: ClaimEmailPayload): { subject: string; html: string }
     ? `Klaim Anda Telah Diterima - ${fmtDate(p.periodDate, "id")}`
     : `Your Claim Has Been Received - ${fmtDate(p.periodDate, "en")}`;
 
-  const html = `
+  const html = minify(`
   <div style="font-family:-apple-system,'Segoe UI',Roboto,Arial,sans-serif;max-width:520px;margin:0 auto;background:#f3f8fd;padding:24px;">
     <div style="background:linear-gradient(135deg,#3d6ff2,#2a52d6);border-radius:16px 16px 0 0;padding:24px;text-align:center;">
       <div style="font-size:28px;margin-bottom:6px;">🧾</div>
@@ -145,7 +150,7 @@ function driverTemplate(p: ClaimEmailPayload): { subject: string; html: string }
       </p>
       <p style="font-size:11px;color:#9ba3be;margin-top:20px;">${id ? "Email otomatis dari" : "Automated email from"} CIKOPS Fleet Ops</p>
     </div>
-  </div>`;
+  </div>`;)
 
   return { subject, html };
 }
@@ -159,7 +164,7 @@ function managerTemplate(p: ClaimEmailPayload): { subject: string; html: string 
     ? `[Notifikasi Klaim] ${driverName} - ${fmtDate(p.periodDate, "id")}`
     : `[Claim Notification] ${driverName} - ${fmtDate(p.periodDate, "en")}`;
 
-  const html = `
+  const html = minify(`
   <div style="font-family:Georgia,'Times New Roman',serif;max-width:560px;margin:0 auto;background:#ffffff;padding:0;border:1px solid #d1d5e6;">
     <div style="background:#14315c;padding:20px 28px;">
       <div style="color:#fff;font-size:15px;font-weight:700;letter-spacing:0.02em;">CIKOPS FLEET OPS</div>
@@ -213,7 +218,7 @@ function managerTemplate(p: ClaimEmailPayload): { subject: string; html: string 
     <div style="background:#f7f8fb;border-top:1px solid #d1d5e6;padding:12px 28px;">
       <p style="font-size:10px;color:#9ba3be;">${id ? "Dokumen ini dibuat otomatis dan sah tanpa tanda tangan." : "This document is system-generated and valid without a signature."}</p>
     </div>
-  </div>`;
+  </div>`;)
 
   return { subject, html };
 }

@@ -71,7 +71,7 @@ function requestorTemplate(p: TaskBatchEmailPayload): { subject: string; html: s
   const isSameDay = p.dateFrom === p.dateTo;
   const dateFrom = fmtDate(p.dateFrom);
   const dateTo = fmtDate(p.dateTo);
-  const dateLabel = isSameDay ? dateFrom : `${dateFrom} – ${dateTo}`;
+  const dateLabel = isSameDay ? dateFrom : `${dateFrom} - ${dateTo}`;
 
   const subject = `Konfirmasi Penugasan Driver : ${dateLabel} | ${p.tujuan}`;
 
@@ -85,9 +85,9 @@ function managerTemplate(p: TaskBatchEmailPayload): { subject: string; html: str
   const isSameDay = p.dateFrom === p.dateTo;
   const dateFrom = fmtDate(p.dateFrom);
   const dateTo = fmtDate(p.dateTo);
-  const dateLabel = isSameDay ? dateFrom : `${dateFrom} – ${dateTo}`;
+  const dateLabel = isSameDay ? dateFrom : `${dateFrom} - ${dateTo}`;
 
-  const subject = `[Notifikasi Penugasan] ${p.driverName} → ${p.tujuan} | ${dateLabel}`;
+  const subject = `[Notifikasi Penugasan] ${p.driverName} -> ${p.tujuan} | ${dateLabel}`;
 
   const html = minify(`<!DOCTYPE html><html lang="id"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head><body style="margin:0;padding:0;background:#f0f4fb;font-family:-apple-system,'Segoe UI',Roboto,Arial,sans-serif;"><div style="max-width:560px;margin:32px auto;background:#f0f4fb;padding:0 16px 32px;">${HEADER("Notifikasi Penugasan Driver")}<div style="background:#ffffff;border-radius:0 0 16px 16px;padding:28px;"><p style="font-size:14px;color:#1a2540;line-height:1.7;margin:0 0 14px;">Yth. Bapak/Ibu,</p><p style="font-size:14px;color:#2d3d6b;line-height:1.7;margin:0 0 20px;">Dengan hormat, berikut kami sampaikan informasi penugasan driver yang telah dijadwalkan oleh tim GA:</p>${detailTable(p, isSameDay, dateFrom, dateTo)}<div style="background:#fef3c7;border-left:4px solid #f59e0b;border-radius:0 10px 10px 0;padding:14px 16px;margin-bottom:24px;"><p style="margin:0;font-size:13px;color:#92400e;line-height:1.7;"><strong>Informasi untuk Tim Manajemen:</strong> Penugasan ini telah dikonfirmasi dan driver telah mendapatkan notifikasi. Apabila diperlukan penyesuaian, segera koordinasikan dengan tim GA.</p></div><p style="font-size:13px;color:#2d3d6b;line-height:1.7;margin:0 0 8px;">Demikian informasi ini kami sampaikan untuk diketahui. Atas perhatiannya, kami ucapkan terima kasih.</p><p style="font-size:13px;color:#2d3d6b;margin:0;">Hormat kami,<br><strong>Tim GA — Fleet Management</strong><br><span style="color:#7a86aa;font-size:12px;">PT. Frisian Flag Indonesia</span></p></div>${FOOTER}</div></body></html>`);
 

@@ -44,7 +44,7 @@ serve(async (req) => {
       `<tr><td style="padding:8px 14px;border-bottom:1px solid #edf0f7;font-size:13.5px;color:#2d3d6b;">${esc(s.item)}</td><td style="padding:8px 14px;border-bottom:1px solid #edf0f7;font-size:13.5px;font-weight:700;color:#1c3e82;text-align:right;">${esc(s.variant) || "—"}</td></tr>`
     ).join("");
 
-    const subject = `Passcode Pengambilan – ${eventName}`;
+    const subject = `Passcode Pengambilan - ${eventName}`;
 
     const html = minify(`<!DOCTYPE html><html lang="id"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head><body style="margin:0;padding:0;background:#f0f4fb;font-family:-apple-system,'Segoe UI',Roboto,Arial,sans-serif;">
 <div style="max-width:520px;margin:32px auto;background:#f0f4fb;padding:0 16px 32px;">

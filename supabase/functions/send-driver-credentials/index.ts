@@ -50,6 +50,11 @@ function escapeHtml(value: unknown): string {
     }
   });
 }
+function minify(html: string): string {
+  return html.replace(/>\s+</g, "><").replace(/\s{2,}/g, " ").trim();
+}
+
+
 
 /** Password sementara 10 karakter dari huruf/angka yang tidak ambigu
  *  (tanpa 0/O, 1/l/I) — gampang diketik dari layar HP. */
@@ -77,7 +82,7 @@ function template(p: {
     ? "Akun Aplikasi Driver CIKOPS Fleet — Password Sementara"
     : "CIKOPS Fleet Driver App Account — Temporary Password";
 
-  const html = `
+  const html = minify(`
   <div style="font-family:Arial,Helvetica,sans-serif;max-width:520px;margin:0 auto;color:#1c2b4a">
     <div style="background:linear-gradient(135deg,#3d6ff2,#1c3e82);border-radius:14px 14px 0 0;padding:22px 26px">
       <div style="color:#fff;font-size:19px;font-weight:bold">CIKOPS Fleet</div>
@@ -113,7 +118,7 @@ function template(p: {
       }</p>
     </div>
     <p style="text-align:center;font-size:11px;color:#9aa7c2;margin-top:14px">CIKOPS-FM SYSTEM</p>
-  </div>`;
+  </div>`;)
 
   return { subject, html };
 }
