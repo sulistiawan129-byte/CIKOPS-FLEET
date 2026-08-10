@@ -604,8 +604,8 @@ const [masterDataInitialSub, setMasterDataInitialSub] = useState<"drivers" | "em
               <span style={{ position: "absolute", left: 13, top: "50%", transform: "translateY(-50%)", color: "var(--t3)", fontSize: 13 }}>🔍</span>
               <input
                 placeholder={lang === "en" ? "Search menu, data, or module..." : "Cari menu, data, atau modul..."}
-                className="fInput"
-                style={{ width: "100%", padding: "9px 14px 9px 36px", borderRadius: "var(--pill)", border: "1px solid var(--border2)", background: "var(--bg2)", fontSize: 13, color: "var(--t1)" }}
+                className={styles.formInput}
+                style={{ borderRadius: "var(--pill)", paddingLeft: 36 }}
               />
             </div>
           )}
@@ -2980,10 +2980,10 @@ function ActivityLogTab() {
 
       <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 18 }}>
         <select
-          className="fInput"
+          className={styles.formSelect}
           value={tableFilter}
           onChange={(e) => setTableFilter(e.target.value)}
-          style={{ padding: "9px 12px", borderRadius: 10, border: "1px solid var(--border2)", background: "var(--bg2)", color: "var(--t1)", fontSize: 13, fontFamily: "var(--font)" }}
+          style={{ width: "auto" }}
         >
           {TABLE_OPTIONS.map((t) => (
             <option key={t} value={t}>{TABLE_LABEL[t]}</option>
@@ -3332,16 +3332,7 @@ function ClaimsTab({ myProfile = null }: { myProfile?: MyProfile | null }) {
   }
 
   const cardStyle: CSSProperties = { borderRadius: "var(--r2)" };
-  const inputStyle: CSSProperties = {
-    width: "100%",
-    padding: "9px 12px",
-    borderRadius: 10,
-    border: "1px solid var(--border2)",
-    background: "var(--bg2)",
-    color: "var(--t1)",
-    fontSize: 13,
-    fontFamily: "var(--font)",
-  };
+  const inputStyle: CSSProperties = {};
   const labelStyle: CSSProperties = {
     fontSize: 13,
     fontWeight: 700,
@@ -3366,7 +3357,7 @@ function ClaimsTab({ myProfile = null }: { myProfile?: MyProfile | null }) {
           <select
             value={driverFilter}
             onChange={(e) => setDriverFilter(e.target.value)}
-            className="fInput"
+            className={styles.formSelect}
             style={{ ...inputStyle, width: "auto", minWidth: 160 }}
           >
             <option value="all">{lang === "en" ? "All Drivers" : "Semua Driver"}</option>
@@ -3400,7 +3391,7 @@ function ClaimsTab({ myProfile = null }: { myProfile?: MyProfile | null }) {
           {periodMode !== "all" && (
             <input
               type="date"
-              className="fInput"
+              className={styles.formInput}
               style={{ ...inputStyle, width: "auto" }}
               value={filterDate}
               onChange={(e) => setFilterDate(e.target.value)}
@@ -3657,17 +3648,17 @@ function ClaimsTab({ myProfile = null }: { myProfile?: MyProfile | null }) {
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 14 }}>
                 <div>
                   <label>{lang === "en" ? "SUBMISSION DATE" : "TANGGAL PENGAJUAN"}</label>
-                  <input className="fInput" type="date" value={submissionDate} onChange={(e) => setSubmissionDate(e.target.value)} />
+                  <input className={styles.formInput} type="date" value={submissionDate} onChange={(e) => setSubmissionDate(e.target.value)} />
                 </div>
                 <div>
                   <label>{lang === "en" ? "PERIOD DATE" : "TANGGAL PERIODE"}</label>
-                  <input className="fInput" type="date" value={periodDate} onChange={(e) => setPeriodDate(e.target.value)} />
+                  <input className={styles.formInput} type="date" value={periodDate} onChange={(e) => setPeriodDate(e.target.value)} />
                 </div>
               </div>
 
               <div style={{ marginBottom: 14 }}>
                 <label>{t.fieldDriver} *</label>
-                <select className="fInput" value={formDriverId} onChange={(e) => setFormDriverId(e.target.value)}>
+                <select className={styles.formSelect} value={formDriverId} onChange={(e) => setFormDriverId(e.target.value)}>
                   <option value="">{lang === "en" ? "Select driver" : "Pilih driver"}</option>
                   {drivers.map((d) => (
                     <option key={d.id} value={d.id}>{d.nama}</option>
@@ -3688,13 +3679,13 @@ function ClaimsTab({ myProfile = null }: { myProfile?: MyProfile | null }) {
                     return (
                       <div key={line.id} style={{ background: "var(--surface)", borderRadius: 10, padding: 8, border: "1px solid var(--border2)" }}>
                         <div style={{ display: "grid", gridTemplateColumns: "120px 1fr 28px", gap: 8 }}>
-                          <select className="fInput" style={{ ...inputStyle, fontSize: 12 }} value={line.type} onChange={(e) => updateLine(line.id, "type", e.target.value)}>
+                          <select className={styles.formSelect} style={{ ...inputStyle, fontSize: 12 }} value={line.type} onChange={(e) => updateLine(line.id, "type", e.target.value)}>
                             {CLAIM_TYPES.map((ct) => (
                               <option key={ct} value={ct}>{ct}</option>
                             ))}
                           </select>
                           <input
-                            className="fInput"
+                            className={styles.formInput}
                             style={{ ...inputStyle, fontFamily: "var(--mono)" }}
                             placeholder="50000+30000"
                             value={line.expr}
@@ -3732,7 +3723,7 @@ function ClaimsTab({ myProfile = null }: { myProfile?: MyProfile | null }) {
 
               <div style={{ marginBottom: 16 }}>
                 <label>{lang === "en" ? "NOTE (optional)" : "CATATAN (opsional)"}</label>
-                <input className="fInput" value={note} onChange={(e) => setNote(e.target.value)} />
+                <input className={styles.formInput} value={note} onChange={(e) => setNote(e.target.value)} />
               </div>
 
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "14px 16px", background: "var(--gold-soft)", border: "1px solid var(--gold)", borderRadius: 12, marginBottom: 18 }}>
@@ -3916,7 +3907,7 @@ function OvertimeTab({ myProfile }: { myProfile: MyProfile | null }) {
   }
 
   const cardStyle: CSSProperties = { borderRadius: "var(--r2)" };
-  const inputStyle: CSSProperties = { width: "100%", padding: "9px 12px", borderRadius: 10, border: "1px solid var(--border2)", background: "var(--bg2)", color: "var(--t1)", fontSize: 13, fontFamily: "var(--font)" };
+  const inputStyle: CSSProperties = {};
   const labelStyle: CSSProperties = { fontSize: 13, fontWeight: 700, color: "var(--t2)", marginBottom: 5, display: "block" };
 
   return (
@@ -4047,17 +4038,17 @@ function OvertimeTab({ myProfile }: { myProfile: MyProfile | null }) {
             <div style={{ fontSize: 16, fontWeight: 800, marginBottom: 18, color: "var(--t1)" }}>{lang === "en" ? "Add Overtime" : "Tambah Overtime"}</div>
 
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 12 }}>
-              <select className="fInput" value={formMonth} onChange={(e) => setFormMonth(Number(e.target.value))}>
+              <select className={styles.formSelect} value={formMonth} onChange={(e) => setFormMonth(Number(e.target.value))}>
                 {months.map((m, i) => <option key={i} value={i}>{m}</option>)}
               </select>
-              <select className="fInput" value={formYear} onChange={(e) => setFormYear(Number(e.target.value))}>
+              <select className={styles.formSelect} value={formYear} onChange={(e) => setFormYear(Number(e.target.value))}>
                 {[now.getFullYear() - 1, now.getFullYear(), now.getFullYear() + 1].map((y) => <option key={y} value={y}>{y}</option>)}
               </select>
             </div>
 
             <div style={{ marginBottom: 12 }}>
               <label>{t.fieldDriver} *</label>
-              <select className="fInput" value={formDriverId} onChange={(e) => setFormDriverId(e.target.value)}>
+              <select className={styles.formSelect} value={formDriverId} onChange={(e) => setFormDriverId(e.target.value)}>
                 <option value="">{lang === "en" ? "Select driver" : "Pilih driver"}</option>
                 {drivers.map((d) => <option key={d.id} value={d.id}>{d.nama}</option>)}
               </select>
@@ -4087,17 +4078,17 @@ function OvertimeTab({ myProfile }: { myProfile: MyProfile | null }) {
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 12 }}>
               <div>
                 <label>{lang === "en" ? "HOURS *" : "TOTAL JAM OT *"}</label>
-                <input className="fInput" type="number" step="0.5" value={formHours} onChange={(e) => setFormHours(e.target.value)} placeholder="4" />
+                <input className={styles.formInput} type="number" step="0.5" value={formHours} onChange={(e) => setFormHours(e.target.value)} placeholder="4" />
               </div>
               <div>
                 <label>{lang === "en" ? "AMOUNT *" : "TOTAL NOMINAL *"}</label>
-                <input className="fInput" value={formAmount} onChange={(e) => setFormAmount(e.target.value)} placeholder="150000" />
+                <input className={styles.formInput} value={formAmount} onChange={(e) => setFormAmount(e.target.value)} placeholder="150000" />
               </div>
             </div>
 
             <div style={{ marginBottom: 18 }}>
               <label>{lang === "en" ? "REASON" : "ALASAN OT"}</label>
-              <input className="fInput" value={formReason} onChange={(e) => setFormReason(e.target.value)} placeholder="Lembur closing bulanan" />
+              <input className={styles.formInput} value={formReason} onChange={(e) => setFormReason(e.target.value)} placeholder="Lembur closing bulanan" />
             </div>
 
             <div style={{ display: "flex", gap: 10 }}>
@@ -4160,7 +4151,7 @@ function LoginScreen() {
     if (err) setError(t.loginErrorGeneric);
   }
 
-  const inputStyle: CSSProperties = { width: "100%", padding: "11px 14px 11px 40px", borderRadius: 10, border: "1px solid var(--border2)", background: "var(--bg2)", color: "var(--t1)", fontSize: 14 };
+  const inputStyle: CSSProperties = { paddingLeft: 40 };
   const labelStyle: CSSProperties = { fontSize: 11, fontWeight: 700, color: "var(--t3)", marginBottom: 6, display: "block", textTransform: "uppercase", letterSpacing: "0.06em" };
 
   return (
@@ -4248,7 +4239,7 @@ function LoginScreen() {
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" width={16} height={16} style={{ position: "absolute", left: 13, top: "50%", transform: "translateY(-50%)", color: "var(--t3)", pointerEvents: "none" }}>
                     <rect x="2" y="4" width="20" height="16" rx="2" /><path d="m2 7 10 6 10-6" />
                   </svg>
-                  <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} className="fInput" />
+                  <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} className={styles.formInput} style={inputStyle} />
                 </div>
               </div>
               <div style={{ marginBottom: 20 }}>
@@ -4257,7 +4248,7 @@ function LoginScreen() {
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" width={16} height={16} style={{ position: "absolute", left: 13, top: "50%", transform: "translateY(-50%)", color: "var(--t3)", pointerEvents: "none" }}>
                     <rect x="5" y="11" width="14" height="10" rx="2" /><path d="M8 11V7a4 4 0 0 1 8 0v4" />
                   </svg>
-                  <input type={showPassword ? "text" : "password"} required value={password} onChange={(e) => setPassword(e.target.value)} className="fInput" style={{ ...inputStyle, paddingRight: 40 }} />
+                  <input type={showPassword ? "text" : "password"} required value={password} onChange={(e) => setPassword(e.target.value)} className={styles.formInput} style={{ ...inputStyle, paddingRight: 40 }} />
                   <button
                     type="button"
                     onClick={() => setShowPassword((p) => !p)}
@@ -4399,7 +4390,7 @@ function DriverBudgetTab({ myProfile = null }: { myProfile?: MyProfile | null })
   }
 
   const cardStyle: CSSProperties = { borderRadius: "var(--r2)" };
-  const inputStyle: CSSProperties = { width: "100%", padding: "9px 12px", borderRadius: 10, border: "1px solid var(--border2)", background: "var(--bg2)", color: "var(--t1)", fontSize: 13, fontFamily: "var(--font)" };
+  const inputStyle: CSSProperties = {};
   const labelStyle: CSSProperties = { fontSize: 13, fontWeight: 700, color: "var(--t2)", marginBottom: 5, display: "block" };
 
   return (
@@ -4490,7 +4481,7 @@ function DriverBudgetTab({ myProfile = null }: { myProfile?: MyProfile | null })
             <div style={{ fontSize: 16, fontWeight: 800, marginBottom: 18, color: "var(--t1)" }}>{editing ? (lang === "en" ? "Edit Tier" : "Edit Tier") : (lang === "en" ? "Add Tier" : "Tambah Tier")}</div>
             <div style={{ marginBottom: 12 }}>
               <label>{t.fieldTierName}</label>
-              <input className="fInput" value={formName} onChange={(e) => setFormName(e.target.value)} placeholder="Senior Driver" />
+              <input className={styles.formInput} value={formName} onChange={(e) => setFormName(e.target.value)} placeholder="Senior Driver" />
             </div>
             <div style={{ marginBottom: 12 }}>
               <label>{t.fieldColor}</label>
@@ -4502,7 +4493,7 @@ function DriverBudgetTab({ myProfile = null }: { myProfile?: MyProfile | null })
             </div>
             <div style={{ marginBottom: 18 }}>
               <label>{t.fieldAmountPerPersonMonth}</label>
-              <input className="fInput" value={formAmount} onChange={(e) => setFormAmount(e.target.value)} placeholder="2000000" />
+              <input className={styles.formInput} value={formAmount} onChange={(e) => setFormAmount(e.target.value)} placeholder="2000000" />
             </div>
             <div style={{ display: "flex", gap: 10 }}>
               <button onClick={() => setShowForm(false)} style={{ flex: 1, padding: "10px", borderRadius: 10, border: "1px solid var(--border2)", background: "var(--surface2)", color: "var(--t2)", fontWeight: 700, cursor: "pointer" }}>{t.actionCancel}</button>
@@ -4612,7 +4603,7 @@ function OpFundTab({ myProfile }: { myProfile: MyProfile | null }) {
     setGaugeReady(false);
   }, [loading, kantong]);
 
-  const inputStyleInit: CSSProperties = { width: "100%", padding: "9px 12px", borderRadius: 10, border: "1px solid var(--border2)", background: "var(--bg2)", color: "var(--t1)", fontSize: 13, fontFamily: "var(--font)" };
+  const inputStyleInit: CSSProperties = {};
   const labelStyleInit: CSSProperties = { fontSize: 13, fontWeight: 700, color: "var(--t2)", marginBottom: 5, display: "block" };
 
   const PlantSwitcher = !lockedPlant ? (
@@ -4697,19 +4688,19 @@ function OpFundTab({ myProfile }: { myProfile: MyProfile | null }) {
           <div style={{ display: "flex", flexDirection: "column", gap: 12, position: "relative", zIndex: 1 }}>
             <div>
               <label className="fLabel" style={labelStyleInit}>{t.fieldTotalCashOp} *</label>
-              <input className="fInput" style={inputStyleInit} value={initBudget} onChange={(e) => setInitBudget(e.target.value)} placeholder="48000000" />
+              <input className={styles.formInput} style={inputStyleInit} value={initBudget} onChange={(e) => setInitBudget(e.target.value)} placeholder="48000000" />
             </div>
             <div>
               <label className="fLabel" style={labelStyleInit}>OP DRIVER (A1)</label>
-              <input className="fInput" style={inputStyleInit} value={initOpDriver} onChange={(e) => setInitOpDriver(e.target.value)} placeholder="9000000" />
+              <input className={styles.formInput} style={inputStyleInit} value={initOpDriver} onChange={(e) => setInitOpDriver(e.target.value)} placeholder="9000000" />
             </div>
             <div>
               <label className="fLabel" style={labelStyleInit}>EMERGENCY (A2)</label>
-              <input className="fInput" style={inputStyleInit} value={initEmergency} onChange={(e) => setInitEmergency(e.target.value)} placeholder="1500000" />
+              <input className={styles.formInput} style={inputStyleInit} value={initEmergency} onChange={(e) => setInitEmergency(e.target.value)} placeholder="1500000" />
             </div>
             <div>
               <label className="fLabel" style={labelStyleInit}>CASH AVAILABLE (A4)</label>
-              <input className="fInput" style={inputStyleInit} value={initCash} onChange={(e) => setInitCash(e.target.value)} placeholder="20000000" />
+              <input className={styles.formInput} style={inputStyleInit} value={initCash} onChange={(e) => setInitCash(e.target.value)} placeholder="20000000" />
             </div>
           </div>
           <button
@@ -4771,7 +4762,7 @@ function OpFundTab({ myProfile }: { myProfile: MyProfile | null }) {
   }
 
   const cardStyle: CSSProperties = { borderRadius: "var(--r2)" };
-  const inputStyle: CSSProperties = { width: "100%", padding: "9px 12px", borderRadius: 10, border: "1px solid var(--border2)", background: "var(--bg2)", color: "var(--t1)", fontSize: 13, fontFamily: "var(--font)" };
+  const inputStyle: CSSProperties = {};
   const labelStyle: CSSProperties = { fontSize: 13, fontWeight: 700, color: "var(--t2)", marginBottom: 5, display: "block" };
 
   const composition = [
@@ -4918,13 +4909,13 @@ gap: h.allocOpDriver + h.allocEmergency + h.cashAvailable + h.claimSubmitted + h
           <div style={{ ...cardStyle, padding: 24 }}>
             <div style={{ fontSize: 16, fontWeight: 800, marginBottom: 18, color: "var(--t1)" }}>Edit Dana Operasional — {viewPlant}</div>
             <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-              <div><label>{t.fieldTotalCashOp}</label><input className="fInput" value={eBudget} onChange={(e) => setEBudget(e.target.value)} /></div>
-              <div><label>OP DRIVER (A1)</label><input className="fInput" value={eOpDriver} onChange={(e) => setEOpDriver(e.target.value)} /></div>
-              <div><label>EMERGENCY (A2)</label><input className="fInput" value={eEmergency} onChange={(e) => setEEmergency(e.target.value)} /></div>
-              <div><label>CASH AVAILABLE (A4)</label><input className="fInput" value={eCash} onChange={(e) => setECash(e.target.value)} /></div>
-              <div><label>{lang === "en" ? "CLAIM SUBMITTED (A5)" : "CLAIM DIAJUKAN (A5)"}</label><input className="fInput" value={eSubmitted} onChange={(e) => setESubmitted(e.target.value)} /></div>
-             <div><label>{lang === "en" ? "CLAIM PAID (A6)" : "CLAIM DIBAYAR (A6)"}</label><input className="fInput" value={ePaid} onChange={(e) => setEPaid(e.target.value)} /></div>
-              <div><label>{lang === "en" ? "UNSUBMITTED CLAIM (A7)" : "KLAIM BELUM DIAJUKAN (A7)"}</label><input className="fInput" value={eUnsubmittedClaim} onChange={(e) => setEUnsubmittedClaim(e.target.value)} placeholder="0" /></div>
+              <div><label>{t.fieldTotalCashOp}</label><input className={styles.formInput} value={eBudget} onChange={(e) => setEBudget(e.target.value)} /></div>
+              <div><label>OP DRIVER (A1)</label><input className={styles.formInput} value={eOpDriver} onChange={(e) => setEOpDriver(e.target.value)} /></div>
+              <div><label>EMERGENCY (A2)</label><input className={styles.formInput} value={eEmergency} onChange={(e) => setEEmergency(e.target.value)} /></div>
+              <div><label>CASH AVAILABLE (A4)</label><input className={styles.formInput} value={eCash} onChange={(e) => setECash(e.target.value)} /></div>
+              <div><label>{lang === "en" ? "CLAIM SUBMITTED (A5)" : "CLAIM DIAJUKAN (A5)"}</label><input className={styles.formInput} value={eSubmitted} onChange={(e) => setESubmitted(e.target.value)} /></div>
+             <div><label>{lang === "en" ? "CLAIM PAID (A6)" : "CLAIM DIBAYAR (A6)"}</label><input className={styles.formInput} value={ePaid} onChange={(e) => setEPaid(e.target.value)} /></div>
+              <div><label>{lang === "en" ? "UNSUBMITTED CLAIM (A7)" : "KLAIM BELUM DIAJUKAN (A7)"}</label><input className={styles.formInput} value={eUnsubmittedClaim} onChange={(e) => setEUnsubmittedClaim(e.target.value)} placeholder="0" /></div>
             </div>
             <div style={{ display: "flex", gap: 10, marginTop: 18 }}>
               <button onClick={() => setShowEdit(false)} style={{ flex: 1, padding: "10px", borderRadius: 10, border: "1px solid var(--border2)", background: "var(--surface2)", color: "var(--t2)", fontWeight: 700, cursor: "pointer" }}>{t.actionCancel}</button>
@@ -5089,7 +5080,7 @@ function ReportsTab({ myProfile }: { myProfile: MyProfile | null }) {
   }
 
   const cardStyle: CSSProperties = { borderRadius: "var(--r2)" };
-  const inputStyle: CSSProperties = { width: "100%", padding: "9px 12px", borderRadius: 10, border: "1px solid var(--border2)", background: "var(--bg2)", color: "var(--t1)", fontSize: 13, fontFamily: "var(--font)" };
+  const inputStyle: CSSProperties = {};
 
   // ── Derived views of reportData (only meaningful once generated) ──
   const totalClaims = reportData?.claims.reduce((s, c) => s + c.total, 0) ?? 0;
@@ -5174,23 +5165,23 @@ function ReportsTab({ myProfile }: { myProfile: MyProfile | null }) {
         <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
           {mode === "month" && (
             <>
-              <select className="fInput" style={{ ...inputStyle, width: "auto" }} value={month} onChange={(e) => { setMonth(Number(e.target.value)); setGenerated(false); }}>
+              <select className={styles.formSelect} style={{ ...inputStyle, width: "auto" }} value={month} onChange={(e) => { setMonth(Number(e.target.value)); setGenerated(false); }}>
                 {months.map((m, i) => <option key={i} value={i}>{m}</option>)}
               </select>
-              <select className="fInput" style={{ ...inputStyle, width: "auto" }} value={year} onChange={(e) => { setYear(Number(e.target.value)); setGenerated(false); }}>
+              <select className={styles.formSelect} style={{ ...inputStyle, width: "auto" }} value={year} onChange={(e) => { setYear(Number(e.target.value)); setGenerated(false); }}>
                 {[now.getFullYear() - 1, now.getFullYear(), now.getFullYear() + 1].map((y) => <option key={y} value={y}>{y}</option>)}
               </select>
             </>
           )}
           {mode === "range" && (
             <>
-              <input className="fInput" style={{ ...inputStyle, width: "auto" }} type="date" value={dateFrom} onChange={(e) => { setDateFrom(e.target.value); setGenerated(false); }} />
+              <input className={styles.formInput} style={{ ...inputStyle, width: "auto" }} type="date" value={dateFrom} onChange={(e) => { setDateFrom(e.target.value); setGenerated(false); }} />
               <span style={{ color: "var(--t3)" }}>s/d</span>
-              <input className="fInput" style={{ ...inputStyle, width: "auto" }} type="date" value={dateTo} onChange={(e) => { setDateTo(e.target.value); setGenerated(false); }} />
+              <input className={styles.formInput} style={{ ...inputStyle, width: "auto" }} type="date" value={dateTo} onChange={(e) => { setDateTo(e.target.value); setGenerated(false); }} />
             </>
           )}
           {mode === "year" && (
-            <select className="fInput" style={{ ...inputStyle, width: "auto" }} value={year} onChange={(e) => { setYear(Number(e.target.value)); setGenerated(false); }}>
+            <select className={styles.formSelect} style={{ ...inputStyle, width: "auto" }} value={year} onChange={(e) => { setYear(Number(e.target.value)); setGenerated(false); }}>
               {[now.getFullYear() - 2, now.getFullYear() - 1, now.getFullYear(), now.getFullYear() + 1].map((y) => <option key={y} value={y}>{y}</option>)}
             </select>
           )}
@@ -5487,7 +5478,7 @@ function GasStationsTab() {
   }
 
   const cardStyle: CSSProperties = { borderRadius: "var(--r2)" };
-  const inputStyle: CSSProperties = { width: "100%", padding: "9px 12px", borderRadius: 10, border: "1px solid var(--border2)", background: "var(--bg2)", color: "var(--t1)", fontSize: 13, fontFamily: "var(--font)" };
+  const inputStyle: CSSProperties = {};
   const labelStyle: CSSProperties = { fontSize: 13, fontWeight: 700, color: "var(--t2)", marginBottom: 5, display: "block" };
 
   // ── Derived analytics for the stat cards / charts below ──
@@ -5706,15 +5697,15 @@ return (
             <div style={{ fontSize: 16, fontWeight: 800, marginBottom: 18, color: "var(--t1)" }}>{editing ? (lang === "en" ? "Edit Station" : "Edit SPBU") : (lang === "en" ? "Add Station" : "Tambah SPBU")}</div>
             <div style={{ marginBottom: 12 }}>
               <label>{t.fieldStationName}</label>
-              <input className="fInput" value={formName} onChange={(e) => setFormName(e.target.value)} />
+              <input className={styles.formInput} value={formName} onChange={(e) => setFormName(e.target.value)} />
             </div>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 12 }}>
-              <div><label>{t.fieldLatitude}</label><input className="fInput" value={formLat} onChange={(e) => setFormLat(e.target.value)} placeholder="-6.2607" /></div>
-              <div><label>{t.fieldLongitude}</label><input className="fInput" value={formLng} onChange={(e) => setFormLng(e.target.value)} placeholder="107.1525" /></div>
+              <div><label>{t.fieldLatitude}</label><input className={styles.formInput} value={formLat} onChange={(e) => setFormLat(e.target.value)} placeholder="-6.2607" /></div>
+              <div><label>{t.fieldLongitude}</label><input className={styles.formInput} value={formLng} onChange={(e) => setFormLng(e.target.value)} placeholder="107.1525" /></div>
             </div>
             <div style={{ marginBottom: 14 }}>
               <label>{t.fieldAddress}</label>
-              <input className="fInput" value={formAddress} onChange={(e) => setFormAddress(e.target.value)} />
+              <input className={styles.formInput} value={formAddress} onChange={(e) => setFormAddress(e.target.value)} />
             </div>
             <div style={{ marginBottom: 14 }}>
               <label>{t.fieldFuelsAvailable}</label>
@@ -5733,7 +5724,7 @@ return (
             </div>
             <div style={{ marginBottom: 18 }}>
               <label>{t.fieldNotes}</label>
-              <input className="fInput" value={formNotes} onChange={(e) => setFormNotes(e.target.value)} placeholder="dekat pintu tol, buka 24 jam..." />
+              <input className={styles.formInput} value={formNotes} onChange={(e) => setFormNotes(e.target.value)} placeholder="dekat pintu tol, buka 24 jam..." />
             </div>
             <div style={{ display: "flex", gap: 10 }}>
               <button onClick={() => setShowForm(false)} style={{ flex: 1, padding: "10px", borderRadius: 10, border: "1px solid var(--border2)", background: "var(--surface2)", color: "var(--t2)", fontWeight: 700, cursor: "pointer" }}>{t.actionCancel}</button>
@@ -5905,16 +5896,7 @@ function VehiclesTab({ myProfile }: { myProfile: MyProfile | null }) {
   }
 
  const cardStyle: CSSProperties = { borderRadius: "var(--r2)" };
-  const inputStyle: CSSProperties = {
-    width: "100%",
-    padding: "9px 12px",
-    borderRadius: 10,
-    border: "1px solid var(--border2)",
-    background: "var(--bg2)",
-    color: "var(--t1)",
-    fontSize: 13,
-    fontFamily: "var(--font)",
-  };
+  const inputStyle: CSSProperties = {};
   const labelStyle: CSSProperties = {
     fontSize: 13,
     fontWeight: 700,
@@ -6167,23 +6149,23 @@ function VehiclesTab({ myProfile }: { myProfile: MyProfile | null }) {
   </div>
                 <div>
                   <label>{t.fieldPlateNumber} *</label>
-                  <input className="fInput" value={form.nopol} onChange={(e) => setForm({ ...form, nopol: e.target.value })} placeholder="B 1234 XY" />
+                  <input className={styles.formInput} value={form.nopol} onChange={(e) => setForm({ ...form, nopol: e.target.value })} placeholder="B 1234 XY" />
                 </div>
                 <div>
                   <label>{t.fieldType} *</label>
-                  <input className="fInput" value={form.jenis} onChange={(e) => setForm({ ...form, jenis: e.target.value })} placeholder="Toyota Avanza" />
+                  <input className={styles.formInput} value={form.jenis} onChange={(e) => setForm({ ...form, jenis: e.target.value })} placeholder="Toyota Avanza" />
                 </div>
                 <div>
                   <label>{t.fieldYear}</label>
-                  <input className="fInput" type="number" value={form.year} onChange={(e) => setForm({ ...form, year: e.target.value })} />
+                  <input className={styles.formInput} type="number" value={form.year} onChange={(e) => setForm({ ...form, year: e.target.value })} />
                 </div>
                 <div>
                   <label>{t.fieldColor}</label>
-                  <input className="fInput" value={form.color} onChange={(e) => setForm({ ...form, color: e.target.value })} />
+                  <input className={styles.formInput} value={form.color} onChange={(e) => setForm({ ...form, color: e.target.value })} />
                 </div>
                 <div>
                   <label>{t.fieldFuel}</label>
-                  <select className="fInput" value={form.fuel} onChange={(e) => setForm({ ...form, fuel: e.target.value })}>
+                  <select className={styles.formSelect} value={form.fuel} onChange={(e) => setForm({ ...form, fuel: e.target.value })}>
                     {FUEL_OPTIONS.map((f) => (
                       <option key={f} value={f}>{f}</option>
                     ))}
@@ -6191,11 +6173,11 @@ function VehiclesTab({ myProfile }: { myProfile: MyProfile | null }) {
                 </div>
                 <div>
                   <label>{t.fieldOdometer}</label>
-                  <input className="fInput" type="number" value={form.odometer} onChange={(e) => setForm({ ...form, odometer: e.target.value })} />
+                  <input className={styles.formInput} type="number" value={form.odometer} onChange={(e) => setForm({ ...form, odometer: e.target.value })} />
                 </div>
                 <div>
                   <label>{t.fieldDefaultDriver}</label>
-                  <select className="fInput" value={form.default_driver_id} onChange={(e) => setForm({ ...form, default_driver_id: e.target.value })}>
+                  <select className={styles.formSelect} value={form.default_driver_id} onChange={(e) => setForm({ ...form, default_driver_id: e.target.value })}>
                     <option value="">-</option>
                     {drivers.map((d) => (
                       <option key={d.id} value={d.id}>{d.nama}</option>
@@ -6204,12 +6186,12 @@ function VehiclesTab({ myProfile }: { myProfile: MyProfile | null }) {
                 </div>
                 <div>
                   <label>{t.fieldDepartment}</label>
-                  <input className="fInput" value={form.dept} onChange={(e) => setForm({ ...form, dept: e.target.value })} />
+                  <input className={styles.formInput} value={form.dept} onChange={(e) => setForm({ ...form, dept: e.target.value })} />
                 </div>
                 <div>
                   <label>{t.fieldStatus}</label>
                   <select
-                    className="fInput"
+                    className={styles.formSelect}
                     value={form.aktif ? "active" : "maintenance"}
                     onChange={(e) => setForm({ ...form, aktif: e.target.value === "active" })}
                   >
@@ -6225,15 +6207,15 @@ function VehiclesTab({ myProfile }: { myProfile: MyProfile | null }) {
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
                   <div>
                     <label>{t.fieldScheduleKir}</label>
-                    <input className="fInput" type="date" value={form.kir_date} onChange={(e) => setForm({ ...form, kir_date: e.target.value })} />
+                    <input className={styles.formInput} type="date" value={form.kir_date} onChange={(e) => setForm({ ...form, kir_date: e.target.value })} />
                   </div>
                   <div>
                     <label>{t.fieldScheduleService}</label>
-                    <input className="fInput" type="date" value={form.service_date} onChange={(e) => setForm({ ...form, service_date: e.target.value })} />
+                    <input className={styles.formInput} type="date" value={form.service_date} onChange={(e) => setForm({ ...form, service_date: e.target.value })} />
                   </div>
                   <div>
                     <label>{t.fieldScheduleStnk}</label>
-                    <input className="fInput" type="date" value={form.stnk_date} onChange={(e) => setForm({ ...form, stnk_date: e.target.value })} />
+                    <input className={styles.formInput} type="date" value={form.stnk_date} onChange={(e) => setForm({ ...form, stnk_date: e.target.value })} />
                   </div>
                 </div>
               </div>
@@ -6411,7 +6393,7 @@ function SettingsPanel({ cardStyle }: { cardStyle: CSSProperties }) {
     }
   }
 
-  const inputStyle: CSSProperties = { width: "100%", padding: "9px 12px", borderRadius: 10, border: "1px solid var(--border2)", background: "var(--bg2)", color: "var(--t1)", fontSize: 13, fontFamily: "var(--font)" };
+  const inputStyle: CSSProperties = {};
   const labelStyle: CSSProperties = { fontSize: 11, fontWeight: 700, color: "var(--t2)", marginBottom: 5, display: "block" };
 
   if (loading) return <div style={{ padding: 40, textAlign: "center", color: "var(--t3)" }}>{t.actionLoading}</div>;
@@ -6458,7 +6440,7 @@ function SettingsPanel({ cardStyle }: { cardStyle: CSSProperties }) {
 
         <div style={{ display: "flex", gap: 8 }}>
           <input
-            className="fInput"
+            className={styles.formInput}
             type="email"
             value={newManagerEmail}
             onChange={(e) => setNewManagerEmail(e.target.value)}
@@ -6620,7 +6602,7 @@ function DriversMasterPanel({ cardStyle, myProfile = null }: { cardStyle: CSSPro
     }
   }
 
-  const inputStyle: CSSProperties = { width: "100%", padding: "9px 12px", borderRadius: 10, border: "1px solid var(--border2)", background: "var(--bg2)", color: "var(--t1)", fontSize: 13, fontFamily: "var(--font)" };
+  const inputStyle: CSSProperties = {};
   const labelStyle: CSSProperties = { fontSize: 13, fontWeight: 700, color: "var(--t2)", marginBottom: 5, display: "block" };
 
   return (
@@ -6726,22 +6708,22 @@ function DriversMasterPanel({ cardStyle, myProfile = null }: { cardStyle: CSSPro
               </div>
               <div style={{ marginBottom: 14 }}>
                 <label>{lang === "en" ? "NAME" : "NAMA"} *</label>
-                <input className="fInput" value={formNama} onChange={(e) => setFormNama(e.target.value)} />
+                <input className={styles.formInput} value={formNama} onChange={(e) => setFormNama(e.target.value)} />
               </div>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 14 }}>
                 <div>
                   <label>{lang === "en" ? "PHONE" : "NO. HP"}</label>
-                  <input className="fInput" value={formPhone} onChange={(e) => setFormPhone(e.target.value)} placeholder="0812xxxxxxx" />
+                  <input className={styles.formInput} value={formPhone} onChange={(e) => setFormPhone(e.target.value)} placeholder="0812xxxxxxx" />
                 </div>
                 <div>
                   <label>EMAIL</label>
-                  <input className="fInput" value={formEmail} onChange={(e) => setFormEmail(e.target.value)} />
+                  <input className={styles.formInput} value={formEmail} onChange={(e) => setFormEmail(e.target.value)} />
                 </div>
               </div>
               {!editing && (
                 <div style={{ marginBottom: 14, padding: 14, background: "var(--gold-soft)", borderRadius: 12, border: "1px solid var(--gold)" }}>
                   <label className="fLabel" style={{ ...labelStyle, color: "var(--gold2)" }}>🔑 {lang === "en" ? "INITIAL PIN (min. 4 digits)" : "PIN AWAL (min. 4 digit)"} *</label>
-                  <input className="fInput" type="password" inputMode="numeric" value={formPin} onChange={(e) => setFormPin(e.target.value.replace(/\D/g, ""))} placeholder="1234" />
+                  <input className={styles.formInput} type="password" inputMode="numeric" value={formPin} onChange={(e) => setFormPin(e.target.value.replace(/\D/g, ""))} placeholder="1234" />
                 </div>
               )}
               <div style={{ marginBottom: 18, display: "flex", alignItems: "center", gap: 8 }}>
@@ -6892,7 +6874,7 @@ function EmployeesMasterPanel({ cardStyle }: { cardStyle: CSSProperties }) {
     }
   }
 
-  const inputStyle: CSSProperties = { width: "100%", padding: "9px 12px", borderRadius: 10, border: "1px solid var(--border2)", background: "var(--bg2)", color: "var(--t1)", fontSize: 13, fontFamily: "var(--font)" };
+  const inputStyle: CSSProperties = {};
   const labelStyle: CSSProperties = { fontSize: 13, fontWeight: 700, color: "var(--t2)", marginBottom: 5, display: "block" };
 
   return (
@@ -6927,11 +6909,11 @@ function EmployeesMasterPanel({ cardStyle }: { cardStyle: CSSProperties }) {
             <div style={{ fontSize: 16, fontWeight: 800, marginBottom: 18, color: "var(--t1)" }}>{editing ? (lang === "en" ? "Edit Employee" : "Edit Pegawai") : (lang === "en" ? "Add Employee" : "Tambah Pegawai")}</div>
             <div style={{ marginBottom: 12 }}>
               <label>{lang === "en" ? "NAME" : "NAMA"} *</label>
-              <input className="fInput" value={formNama} onChange={(e) => setFormNama(e.target.value)} />
+              <input className={styles.formInput} value={formNama} onChange={(e) => setFormNama(e.target.value)} />
             </div>
             <div style={{ marginBottom: 18 }}>
               <label>{lang === "en" ? "DEPARTMENT" : "DEPARTEMEN"}</label>
-              <input className="fInput" value={formDept} onChange={(e) => setFormDept(e.target.value)} />
+              <input className={styles.formInput} value={formDept} onChange={(e) => setFormDept(e.target.value)} />
             </div>
             <div style={{ display: "flex", gap: 10 }}>
               <button onClick={() => setShowForm(false)} style={{ flex: 1, padding: "10px", borderRadius: 10, border: "1px solid var(--border2)", background: "var(--surface2)", color: "var(--t2)", fontWeight: 700, cursor: "pointer" }}>{t.actionCancel}</button>
@@ -7011,7 +6993,7 @@ function JobTypesMasterPanel({ cardStyle }: { cardStyle: CSSProperties }) {
     }
   }
 
-  const inputStyle: CSSProperties = { width: "100%", padding: "9px 12px", borderRadius: 10, border: "1px solid var(--border2)", background: "var(--bg2)", color: "var(--t1)", fontSize: 13, fontFamily: "var(--font)" };
+  const inputStyle: CSSProperties = {};
   const labelStyle: CSSProperties = { fontSize: 13, fontWeight: 700, color: "var(--t2)", marginBottom: 5, display: "block" };
 
   return (
@@ -7043,7 +7025,7 @@ function JobTypesMasterPanel({ cardStyle }: { cardStyle: CSSProperties }) {
             <div style={{ fontSize: 16, fontWeight: 800, marginBottom: 18, color: "var(--t1)" }}>{editing ? (lang === "en" ? "Edit Job Type" : "Edit Jenis Pekerjaan") : (lang === "en" ? "Add Job Type" : "Tambah Jenis Pekerjaan")}</div>
             <div style={{ marginBottom: 18 }}>
               <label>LABEL *</label>
-              <input className="fInput" value={formLabel} onChange={(e) => setFormLabel(e.target.value)} placeholder={lang === "en" ? "e.g. Internal Meeting" : "cth: Meeting Internal"} />
+              <input className={styles.formInput} value={formLabel} onChange={(e) => setFormLabel(e.target.value)} placeholder={lang === "en" ? "e.g. Internal Meeting" : "cth: Meeting Internal"} />
             </div>
             <div style={{ display: "flex", gap: 10 }}>
               <button onClick={() => setShowForm(false)} style={{ flex: 1, padding: "10px", borderRadius: 10, border: "1px solid var(--border2)", background: "var(--surface2)", color: "var(--t2)", fontWeight: 700, cursor: "pointer" }}>{t.actionCancel}</button>
@@ -7133,7 +7115,7 @@ function CanteenEntryPanel({ cardStyle, onSaved }: { cardStyle: CSSProperties; o
     }
   }
 
-  const inputStyle: CSSProperties = { width: "100%", padding: "9px 10px", borderRadius: 10, border: "1px solid var(--border2)", background: "var(--bg2)", color: "var(--t1)", fontSize: 13, fontFamily: "var(--font)", textAlign: "center" };
+  const inputStyle: CSSProperties = { textAlign: "center" };
   const labelStyle: CSSProperties = { fontSize: 11, fontWeight: 700, color: "var(--t2)", marginBottom: 5, display: "block" };
 
   function ShiftGrid({ category, order, leftover, setOrder, setLeftover, color }: {
@@ -7151,8 +7133,8 @@ function CanteenEntryPanel({ cardStyle, onSaved }: { cardStyle: CSSProperties; o
         {SHIFT_LABELS.map((sh, i) => (
           <div key={i} style={{ display: "grid", gridTemplateColumns: "80px 1fr 1fr", gap: 8, marginBottom: 8, alignItems: "center" }}>
             <div style={{ fontSize: 12, color: "var(--t2)", fontWeight: 600 }}>{sh}</div>
-            <input className="fInput" type="number" min="0" placeholder="0" value={order[i]} onChange={(e) => { const v = [...order] as [string, string, string]; v[i] = e.target.value; setOrder(v); }} />
-            <input className="fInput" style={{ ...inputStyle, borderColor: Number(leftover[i]) > Number(order[i]) && Number(order[i]) > 0 ? "var(--red)" : undefined }} type="number" min="0" placeholder="0" value={leftover[i]} onChange={(e) => { const v = [...leftover] as [string, string, string]; v[i] = e.target.value; setLeftover(v); }} />
+            <input className={styles.formInput} type="number" min="0" placeholder="0" value={order[i]} onChange={(e) => { const v = [...order] as [string, string, string]; v[i] = e.target.value; setOrder(v); }} />
+            <input className={styles.formInput} style={{ ...inputStyle, borderColor: Number(leftover[i]) > Number(order[i]) && Number(order[i]) > 0 ? "var(--red)" : undefined }} type="number" min="0" placeholder="0" value={leftover[i]} onChange={(e) => { const v = [...leftover] as [string, string, string]; v[i] = e.target.value; setLeftover(v); }} />
           </div>
         ))}
       </div>
@@ -7165,11 +7147,11 @@ function CanteenEntryPanel({ cardStyle, onSaved }: { cardStyle: CSSProperties; o
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
           <div>
             <label>{lang === "en" ? "REPORT DATE" : "TANGGAL LAPORAN"} *</label>
-            <input className="fInput" style={{ ...inputStyle, textAlign: "left" }} type="date" value={reportDate} onChange={(e) => setReportDate(e.target.value)} />
+            <input className={styles.formInput} style={{ ...inputStyle, textAlign: "left" }} type="date" value={reportDate} onChange={(e) => setReportDate(e.target.value)} />
           </div>
           <div>
             <label>{lang === "en" ? "SUBMITTED BY" : "DIINPUT OLEH"}</label>
-            <input className="fInput" style={{ ...inputStyle, textAlign: "left" }} value={submittedBy} onChange={(e) => setSubmittedBy(e.target.value)} placeholder={lang === "en" ? "Canteen Operator" : "Operator Kantin"} />
+            <input className={styles.formInput} style={{ ...inputStyle, textAlign: "left" }} value={submittedBy} onChange={(e) => setSubmittedBy(e.target.value)} placeholder={lang === "en" ? "Canteen Operator" : "Operator Kantin"} />
           </div>
         </div>
       </div>
@@ -7271,7 +7253,7 @@ function CanteenDashboardPanel({ cardStyle }: { cardStyle: CSSProperties }) {
   return (
     <div>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 18, flexWrap: "wrap", gap: 10 }}>
-        <select className="fInput" value={month} onChange={(e) => setMonth(e.target.value)} style={{ padding: "9px 14px", borderRadius: "var(--pill)", border: "1px solid var(--border2)", background: "var(--bg2)", color: "var(--t1)", fontSize: 13 }}>
+        <select className={styles.formSelect} value={month} onChange={(e) => setMonth(e.target.value)} style={{ borderRadius: "var(--pill)" }}>
           {availableMonths.map((m) => (
             <option key={m} value={m}>{new Date(m + "-01").toLocaleDateString(lang === "en" ? "en-GB" : "id-ID", { month: "long", year: "numeric" })}</option>
           ))}
@@ -7467,7 +7449,6 @@ function GiftMasterPanel({ cardStyle }: { cardStyle: CSSProperties }) {
     catch { /**/ }
   }
 
-  const inputSt: CSSProperties = { width: "100%", padding: "10px 12px", borderRadius: 10, border: "1px solid var(--border2)", background: "var(--bg2)", color: "var(--t1)", fontSize: 13, fontFamily: "var(--font)", boxSizing: "border-box" };
 
   // ── REGISTRATIONS VIEW ──
   if (view === "registrations" && regEvent) return (
@@ -7539,15 +7520,15 @@ function GiftMasterPanel({ cardStyle }: { cardStyle: CSSProperties }) {
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginBottom: 14 }}>
         <div style={{ gridColumn: "1/-1" }}>
           <label className="fLabel" style={{ fontSize: 12, fontWeight: 700, color: "var(--t3)", display: "block", marginBottom: 6 }}>NAMA EVENT</label>
-          <input value={formName} onChange={e => setFormName(e.target.value)} placeholder="Contoh: Pembagian Seragam 2026" style={inputSt} />
+          <input value={formName} onChange={e => setFormName(e.target.value)} placeholder="Contoh: Pembagian Seragam 2026" className={styles.formInput} />
         </div>
         <div style={{ gridColumn: "1/-1" }}>
           <label className="fLabel" style={{ fontSize: 12, fontWeight: 700, color: "var(--t3)", display: "block", marginBottom: 6 }}>DESKRIPSI (opsional)</label>
-          <input value={formDesc} onChange={e => setFormDesc(e.target.value)} placeholder="Informasi tambahan untuk karyawan" style={inputSt} />
+          <input value={formDesc} onChange={e => setFormDesc(e.target.value)} placeholder="Informasi tambahan untuk karyawan" className={styles.formInput} />
         </div>
         <div>
           <label className="fLabel" style={{ fontSize: 12, fontWeight: 700, color: "var(--t3)", display: "block", marginBottom: 6 }}>STATUS</label>
-          <select value={formStatus} onChange={e => setFormStatus(e.target.value as "open" | "closed")} style={{ ...inputSt, width: "auto" }}>
+          <select value={formStatus} onChange={e => setFormStatus(e.target.value as "open" | "closed")} className={styles.formSelect} style={{ width: "auto" }}>
             <option value="open">🟢 Buka (karyawan bisa daftar)</option>
             <option value="closed">🔴 Tutup</option>
           </select>
@@ -7559,7 +7540,7 @@ function GiftMasterPanel({ cardStyle }: { cardStyle: CSSProperties }) {
       {formItems.map((item, i) => (
         <div key={i} style={{ background: "var(--bg2)", borderRadius: 14, padding: "16px", marginBottom: 10, border: "1px solid var(--border2)" }}>
           <div style={{ display: "flex", gap: 10, marginBottom: 10, alignItems: "center" }}>
-            <input value={item.name} onChange={e => setItemName(i, e.target.value)} placeholder="Nama item (contoh: Seragam)" style={{ ...inputSt, flex: 1 }} />
+            <input value={item.name} onChange={e => setItemName(i, e.target.value)} placeholder="Nama item (contoh: Seragam)" className={styles.formInput} style={{ flex: 1 }} />
             {formItems.length > 1 && (
               <button onClick={() => removeItem(i)} style={{ background: "rgba(239,68,68,0.1)", border: "none", borderRadius: 8, padding: "8px 12px", color: "var(--red)", cursor: "pointer", fontSize: 16 }}>×</button>
             )}
@@ -7576,7 +7557,7 @@ function GiftMasterPanel({ cardStyle }: { cardStyle: CSSProperties }) {
           <div style={{ display: "flex", gap: 8 }}>
             <input value={variantInput[i] ?? ""} onChange={e => setVariantInput(p => ({ ...p, [i]: e.target.value }))}
               onKeyDown={e => e.key === "Enter" && (e.preventDefault(), addVariant(i))}
-              placeholder="Ketik ukuran lalu Enter" style={{ ...inputSt, flex: 1, padding: "8px 12px" }} />
+              placeholder="Ketik ukuran lalu Enter" className={styles.formInput} style={{ flex: 1, padding: "8px 12px" }} />
             <button onClick={() => addVariant(i)} style={{ background: "var(--brand)", border: "none", borderRadius: 10, padding: "8px 14px", color: "#fff", cursor: "pointer", fontWeight: 700, fontSize: 13 }}>+ Tambah</button>
           </div>
         </div>
