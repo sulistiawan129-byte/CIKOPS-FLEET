@@ -342,14 +342,14 @@ const [masterDataInitialSub, setMasterDataInitialSub] = useState<"drivers" | "em
     setLoading(true);
     setError(null);
     try {
-      const data = await getTasksByDate(dateFilter);
+      const data = await getTasksByDate(dateFilter, myProfile?.plantScope ?? null);
       setTasks(data);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Gagal memuat data tugas");
     } finally {
       setLoading(false);
     }
-  }, [dateFilter]);
+  }, [dateFilter, myProfile?.plantScope]);
 
   useEffect(() => {
     loadTasks();
@@ -367,8 +367,8 @@ const [masterDataInitialSub, setMasterDataInitialSub] = useState<"drivers" | "em
     (async () => {
       try {
         const [d, v, e, j] = await Promise.all([
-          getDrivers(),
-          getVehicles(),
+          getDrivers(myProfile?.plantScope ?? null),
+          getVehicles(myProfile?.plantScope ?? null),
           getEmployees(),
           getJobTypes(),
         ]);
@@ -383,7 +383,8 @@ const [masterDataInitialSub, setMasterDataInitialSub] = useState<"drivers" | "em
         );
       }
     })();
-  }, []);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [myProfile?.plantScope]);
 
   const stats = useMemo(() => computeStats(tasks), [tasks]);
 
@@ -782,9 +783,9 @@ const [masterDataInitialSub, setMasterDataInitialSub] = useState<"drivers" | "em
         <div key={activeTab} className="tabContent">
           {activeTab === "overview" && <OverviewTab setActiveTab={setActiveTab} myProfile={myProfile} />}
           {activeTab === "vehicles" && <VehiclesTab myProfile={myProfile} />}
-          {activeTab === "claims" && <ClaimsTab />}
+          {activeTab === "claims" && <ClaimsTab myProfile={myProfile} />}
          {activeTab === "overtime" && <OvertimeTab myProfile={myProfile} />}
-          {activeTab === "driverbudget" && <DriverBudgetTab />}
+          {activeTab === "driverbudget" && <DriverBudgetTab myProfile={myProfile} />}
           {activeTab === "opfund" && <OpFundTab myProfile={myProfile} />}
           {activeTab === "gasstations" && <GasStationsTab />}
           {activeTab === "reports" && <ReportsTab myProfile={myProfile} />}
@@ -824,6 +825,7 @@ const [masterDataInitialSub, setMasterDataInitialSub] = useState<"drivers" | "em
       {reportModalOpen && (
         <ReportModal
           drivers={drivers}
+          myProfile={myProfile}
           onClose={() => setReportModalOpen(false)}
           onError={(msg) => showToast(msg, true)}
           onSuccess={(msg) => showToast(msg)}
@@ -1076,11 +1078,13 @@ function quickRangeToDates(range: QuickRange): { from: string; to: string } {
 
 function ReportModal({
   drivers,
+  myProfile,
   onClose,
   onError,
   onSuccess,
 }: {
   drivers: Driver[];
+  myProfile: MyProfile | null;
   onClose: () => void;
   onError: (msg: string) => void;
   onSuccess: (msg: string) => void;
@@ -1096,8 +1100,7 @@ function ReportModal({
     if (!dateFrom || !dateTo) return;
     setLoadingPreview(true);
     try {
-      const data = await getTasksByRange(dateFrom, dateTo);
-      setReportTasks(data);
+      const data = await getTasksByRange(dateFrom, dateTo, myProfile?.plantScope ?? null);
     } catch (e) {
       onError(e instanceof Error ? e.message : "Gagal memuat data laporan");
     } finally {
@@ -1131,7 +1134,7 @@ function ReportModal({
       const tasks =
         reportTasks.length > 0 || !loadingPreview
           ? reportTasks
-          : await getTasksByRange(dateFrom, dateTo);
+          : await getTasksByRange(dateFrom, dateTo, myProfile?.plantScope ?? null);
       if (format === "csv") {
         exportTasksToCsv(tasks, dateFrom, dateTo);
       } else {
@@ -2090,14 +2093,14 @@ function OverviewTab({ setActiveTab, myProfile }: { setActiveTab: (t: DashboardT
       try {
         const [v, c, ot, d, kCik, kPrb, t, g, tt, canteen, lockers] = await Promise.all([
           getAllVehiclesFull(),
-          getClaims(),
-          getOvertimes(),
-          getDrivers(),
+          getClaims(myProfile?.plantScope ?? null),
+          getOvertimes(myProfile?.plantScope ?? null),
+          getDrivers(myProfile?.plantScope ?? null),
           getCurrentKantong("CIK"),
           getCurrentKantong("PRB"),
           getDriverTiers(),
           getGasStations(),
-          getTasksByRange(toLocalISODate(from30d), todayStr()),
+          getTasksByRange(toLocalISODate(from30d), todayStr(), myProfile?.plantScope ?? null),
           getCanteenReportsForMonth(monthStr).catch(() => []),
           getLockerStatusGrid().catch(() => []),
         ]);
@@ -3127,7 +3130,7 @@ function computeWeeklyRecap(claims: Claim[]): {
   return { rows, grandTotal };
 }
 
-function ClaimsTab() {
+function ClaimsTab({ myProfile = null }: { myProfile?: MyProfile | null }) {
   const { lang, t } = useLang();
   const isMobileClaims = useIsMobile(768);
   const [claims, setClaims] = useState<Claim[]>([]);
@@ -3158,7 +3161,7 @@ function ClaimsTab() {
     setLoading(true);
     setError(null);
     try {
-      const [c, d, du] = await Promise.all([getClaims(), getDrivers(), getAppSetting("driver_user_ids")]);
+      const [c, d, du] = await Promise.all([getClaims(myProfile?.plantScope ?? null), getDrivers(myProfile?.plantScope ?? null), getAppSetting("driver_user_ids")]);
       setClaims(c);
       setDrivers(d);
       setDriverUserIds(du ? du.split(",").filter(Boolean) : []);
@@ -3820,7 +3823,7 @@ function OvertimeTab({ myProfile }: { myProfile: MyProfile | null }) {
     setLoading(true);
     setError(null);
     try {
-      const [ot, d] = await Promise.all([getOvertimes(), getDrivers()]);
+      const [ot, d] = await Promise.all([getOvertimes(myProfile?.plantScope ?? null), getDrivers(myProfile?.plantScope ?? null)]);
       setOvertimes(ot);
       setDrivers(d);
     } catch (e) {
@@ -4300,7 +4303,7 @@ function LoginScreen() {
   );
 }
 
-function DriverBudgetTab() {
+function DriverBudgetTab({ myProfile = null }: { myProfile?: MyProfile | null }) {
   const { lang, t } = useLang();
   const [tiers, setTiers] = useState<DriverTier[]>([]);
   const [drivers, setDrivers] = useState<Driver[]>([]);
@@ -4319,7 +4322,7 @@ function DriverBudgetTab() {
     setLoading(true);
     setError(null);
     try {
-      const [t, d] = await Promise.all([getDriverTiers(), getDrivers()]);
+      const [t, d] = await Promise.all([getDriverTiers(), getDrivers(myProfile?.plantScope ?? null)]);
       setTiers(t);
       setDrivers(d);
     } catch (e) {
@@ -4996,13 +4999,13 @@ function ReportsTab({ myProfile }: { myProfile: MyProfile | null }) {
     setError(null);
     try {
       const [c, ot, v, kCik, kPrb, t, d] = await Promise.all([
-        getClaims(),
-        getOvertimes(),
+        getClaims(myProfile?.plantScope ?? null),
+        getOvertimes(myProfile?.plantScope ?? null),
         getAllVehiclesFull(),
         getCurrentKantong("CIK"),
         getCurrentKantong("PRB"),
         getDriverTiers(),
-        getDrivers(),
+        getDrivers(myProfile?.plantScope ?? null),
       ]);
       setAllClaims(c);
       setAllOvertimes(ot);
@@ -5038,7 +5041,7 @@ function ReportsTab({ myProfile }: { myProfile: MyProfile | null }) {
 
       const period: ReportPeriod = { mode, month, year, dateFrom, dateTo };
       const { from, to } = getPeriodDateRange(period);
-      const tasks = await getTasksByRange(from, to);
+      const tasks = await getTasksByRange(from, to, myProfile?.plantScope ?? null);
 
       const data = buildFleetReportData(period, freshClaims, freshOt, freshVehicles, myKantongForReport, freshTiers, tasks);
       // Previous-period data, for trend insights — silently skipped if it
@@ -5047,7 +5050,7 @@ function ReportsTab({ myProfile }: { myProfile: MyProfile | null }) {
       try {
         const prevPeriod = getPreviousPeriod(period);
         const prevRange = getPeriodDateRange(prevPeriod);
-        const prevTasks = await getTasksByRange(prevRange.from, prevRange.to);
+        const prevTasks = await getTasksByRange(prevRange.from, prevRange.to, myProfile?.plantScope ?? null);
         prevData = buildFleetReportData(prevPeriod, freshClaims, freshOt, freshVehicles, myKantongForReport, freshTiers, prevTasks);
       } catch {
         prevData = null;
@@ -5811,7 +5814,7 @@ function VehiclesTab({ myProfile }: { myProfile: MyProfile | null }) {
     setLoading(true);
     setError(null);
     try {
-      const [v, d] = await Promise.all([getAllVehiclesFull(), getDrivers()]);
+      const [v, d] = await Promise.all([getAllVehiclesFull(), getDrivers(myProfile?.plantScope ?? null)]);
       setVehicles(v);
       setDrivers(d);
     } catch (e) {

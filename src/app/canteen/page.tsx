@@ -115,12 +115,12 @@ export default function CanteenPublicPage() {
               <div className="staggerItem statPop" style={{ ...cardStyle, padding: 18, marginBottom: 16, animationDelay: "0.08s" }}>
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
                   <div>
-                    <label>{lang === "en" ? "REPORT DATE" : "TANGGAL LAPORAN"} *</label>
-                    <input className="fInput" style={{ ...inputStyle, textAlign: "left" }} type="date" value={reportDate} onChange={(e) => setReportDate(e.target.value)} />
+                    <label style={labelStyle}>{lang === "en" ? "REPORT DATE" : "TANGGAL LAPORAN"} *</label>
+                    <input className="premiumInput" style={{ ...inputStyle, textAlign: "left" }} type="date" value={reportDate} onChange={(e) => setReportDate(e.target.value)} />
                   </div>
                   <div>
-                    <label>{lang === "en" ? "SUBMITTED BY" : "DIINPUT OLEH"}</label>
-                    <input className="fInput" style={{ ...inputStyle, textAlign: "left" }} value={submittedBy} onChange={(e) => setSubmittedBy(e.target.value)} placeholder={lang === "en" ? "Canteen Operator" : "Operator Kantin"} />
+                    <label style={labelStyle}>{lang === "en" ? "SUBMITTED BY" : "DIINPUT OLEH"}</label>
+                    <input className="premiumInput" style={{ ...inputStyle, textAlign: "left" }} value={submittedBy} onChange={(e) => setSubmittedBy(e.target.value)} placeholder={lang === "en" ? "Canteen Operator" : "Operator Kantin"} />
                   </div>
                 </div>
               </div>
@@ -298,12 +298,12 @@ function ShiftGrid({
         <div key={i} style={{ display: "grid", gridTemplateColumns: "70px 1fr 1fr", gap: 8, marginBottom: 8, alignItems: "center" }}>
           <div style={{ fontSize: 12, color: "var(--t2)", fontWeight: 600 }}>{sh}</div>
           <input
-            className="fInput" style={{ ...inputStyle, textAlign: "center" }} type="number" min="0" placeholder="0"
+            className="premiumInput" style={{ ...inputStyle, textAlign: "center" }} type="number" min="0" placeholder="0"
             value={order[i]}
             onChange={(e) => { const v = [...order] as [string, string, string]; v[i] = e.target.value; setOrder(v); }}
           />
           <input
-            className="fInput"
+            className="premiumInput"
             style={{ ...inputStyle, textAlign: "center", borderColor: Number(leftover[i]) > Number(order[i]) && Number(order[i]) > 0 ? "var(--red)" : undefined }}
             type="number" min="0" placeholder="0" value={leftover[i]}
             onChange={(e) => { const v = [...leftover] as [string, string, string]; v[i] = e.target.value; setLeftover(v); }}

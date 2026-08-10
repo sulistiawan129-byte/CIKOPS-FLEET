@@ -739,28 +739,27 @@ function LockerManagePanel() {
 
       {showForm && (
         <ModalPortal onOverlayClick={() => setShowForm(false)} maxWidth={460}>
-          <div style={{ borderRadius: "var(--r2)", overflow: "hidden", background: "var(--surface)", boxShadow: "var(--shadow-lg)" }}>
-            <div className="fModalHeader">
-              <span className="fModalTitle">
+          <div style={{ ...cardStyle, padding: 0, overflow: "hidden" }}>
+            <div style={{ padding: "20px 24px", background: "linear-gradient(135deg, var(--brand), var(--brand2))" }}>
+              <div style={{ fontSize: 16, fontWeight: 800, color: "#fff" }}>
                 {editing ? (lang === "en" ? "Edit Locker" : "Edit Locker") : (lang === "en" ? "Add Locker" : "Tambah Locker")}
-              </span>
-              <button className="fModalClose" onClick={() => setShowForm(false)}>✕</button>
+              </div>
             </div>
             <div style={{ padding: 24 }}>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginBottom: 14 }}>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 14 }}>
                 <div>
-                  <label className="fLabel">{lang === "en" ? "Locker Number" : "Nomor Locker"} *</label>
-                  <input className="fInput" value={form.number} onChange={(e) => setForm({ ...form, number: e.target.value })} placeholder="12" />
+                  <label style={labelStyle}>{lang === "en" ? "Locker Number" : "Nomor Locker"} *</label>
+                  <input className="premiumInput" style={inputStyle} value={form.number} onChange={(e) => setForm({ ...form, number: e.target.value })} placeholder="12" />
                 </div>
                 <div>
-                  <label className="fLabel">PIN</label>
-                  <input className="fInput" value={form.pin} onChange={(e) => setForm({ ...form, pin: e.target.value })} placeholder={lang === "en" ? "Blank = auto" : "Kosong = acak otomatis"} />
+                  <label style={labelStyle}>PIN</label>
+                  <input className="premiumInput" style={inputStyle} value={form.pin} onChange={(e) => setForm({ ...form, pin: e.target.value })} placeholder={lang === "en" ? "Blank = auto" : "Kosong = acak otomatis"} />
                 </div>
               </div>
 
               <div style={{ marginBottom: 14 }}>
-                <label className="fLabel">Status</label>
-                <select className="fSelect" value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value as LockerStatus })}>
+                <label style={labelStyle}>Status</label>
+                <select className="premiumInput" style={inputStyle} value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value as LockerStatus })}>
                   <option value="Available">Available</option>
                   <option value="Terisi">Terisi</option>
                 </select>
@@ -769,39 +768,39 @@ function LockerManagePanel() {
               {form.status === "Terisi" && (
                 <>
                   <div style={{ marginBottom: 14 }}>
-                    <label className="fLabel">Nama</label>
-                    <input className="fInput" value={form.nama} onChange={(e) => setForm({ ...form, nama: e.target.value })} />
+                    <label style={labelStyle}>Nama</label>
+                    <input className="premiumInput" style={inputStyle} value={form.nama} onChange={(e) => setForm({ ...form, nama: e.target.value })} />
                   </div>
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginBottom: 14 }}>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 14 }}>
                     <div>
-                      <label className="fLabel">No. HP</label>
-                      <input className="fInput" value={form.noHp} onChange={(e) => setForm({ ...form, noHp: e.target.value })} placeholder="08xxxxxxxxxx" />
+                      <label style={labelStyle}>No. HP</label>
+                      <input className="premiumInput" style={inputStyle} value={form.noHp} onChange={(e) => setForm({ ...form, noHp: e.target.value })} placeholder="08xxxxxxxxxx" />
                     </div>
                     <div>
-                      <label className="fLabel">Email</label>
-                      <input className="fInput" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} placeholder="nama@email.com" />
+                      <label style={labelStyle}>Email</label>
+                      <input className="premiumInput" style={inputStyle} value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} placeholder="nama@email.com" />
                     </div>
                   </div>
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginBottom: 14 }}>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 14 }}>
                     <div>
-                      <label className="fLabel">Periode</label>
-                      <input className="fInput" value={form.periode} onChange={(e) => setForm({ ...form, periode: e.target.value })} placeholder="Employee / Jul-Des 2026" />
+                      <label style={labelStyle}>Periode</label>
+                      <input className="premiumInput" style={inputStyle} value={form.periode} onChange={(e) => setForm({ ...form, periode: e.target.value })} placeholder="Employee / Jul-Des 2026" />
                     </div>
                     <div>
-                      <label className="fLabel">Dept / Universitas</label>
-                      <input className="fInput" value={form.extra} onChange={(e) => setForm({ ...form, extra: e.target.value })} />
+                      <label style={labelStyle}>Dept / Universitas</label>
+                      <input className="premiumInput" style={inputStyle} value={form.extra} onChange={(e) => setForm({ ...form, extra: e.target.value })} />
                     </div>
                   </div>
                   <div style={{ marginBottom: 18 }}>
-                    <label className="fLabel">{lang === "en" ? "End Date (interns only)" : "Tanggal Selesai (khusus intern)"}</label>
-                    <input className="fInput" type="date" value={form.endDate} onChange={(e) => setForm({ ...form, endDate: e.target.value })} />
+                    <label style={labelStyle}>{lang === "en" ? "End Date (interns only)" : "Tanggal Selesai (khusus intern)"}</label>
+                    <input className="premiumInput" style={inputStyle} type="date" value={form.endDate} onChange={(e) => setForm({ ...form, endDate: e.target.value })} />
                   </div>
                 </>
               )}
 
-              <div className="fActions">
-                <button className="fBtnCancel" onClick={() => setShowForm(false)}>{t.actionCancel}</button>
-                <button className="fBtnSubmit" onClick={handleSave} disabled={!canSave || saving}>
+              <div style={{ display: "flex", gap: 10 }}>
+                <button onClick={() => setShowForm(false)} style={{ flex: 1, padding: "11px", borderRadius: 10, border: "1px solid var(--border2)", background: "var(--surface2)", color: "var(--t2)", fontWeight: 700, cursor: "pointer" }}>{t.actionCancel}</button>
+                <button className="pillBtn" onClick={handleSave} disabled={!canSave || saving} style={{ flex: 2, justifyContent: "center", opacity: canSave && !saving ? 1 : 0.5 }}>
                   {saving ? t.actionSaving : t.actionSave}
                 </button>
               </div>
