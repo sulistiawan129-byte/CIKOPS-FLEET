@@ -4,8 +4,8 @@
   "description": "Driver Task Management & Fleet Operations System",
   "start_url": "/driver",
   "display": "standalone",
-  "background_color": "#f3f8fd",
-  "theme_color": "#00aeef",
+  "background_color": "#f6f8fc",
+  "theme_color": "#2f5fe0",
   "icons": [
     {
       "src": "/icon-192.png",
