@@ -885,14 +885,18 @@ export async function createKantong(input: {
     cash_available: input.cashAvailable,
     claim_submitted: 0,
     claim_paid: 0,
+    unsubmitted_claim: 0,
     last_reset: todayLocalISODate(),
   });
   if (error) throw error;
 }
 
-/** Starts a fresh period row, carrying budget/allocations/cash forward and
- *  zeroing claimSubmitted/claimPaid — preserves history unlike the old
- *  single mutable sheet row. */
+/** Starts a fresh period row, carrying budget/allocations/cash/unsubmitted
+ *  claims forward and zeroing claimSubmitted/claimPaid — preserves history
+ *  unlike the old single mutable sheet row. unsubmittedClaim carries over
+ *  because an unsubmitted claim is still a pending liability regardless of
+ *  which period it's viewed from — it doesn't disappear at rollover the
+ *  way that period's processed claim activity does. */
 export async function resetKantong(
   plant: Plant,
   newPeriod: string,
@@ -909,6 +913,7 @@ export async function resetKantong(
       cash_available: current?.cashAvailable ?? 0,
       claim_submitted: 0,
       claim_paid: 0,
+      unsubmitted_claim: current?.unsubmittedClaim ?? 0,
       last_reset: lastReset,
     },
    { onConflict: "period,plant" }
