@@ -1,4 +1,4 @@
-import type { Driver, TaskDetail } from "./types";
+import type { Driver, TaskDetail, Wreath } from "./types";
 import { computeReportAnalytics, formatMinutes } from "./analytics";
 import type { RankedEntry } from "./analytics";
 
@@ -505,4 +505,47 @@ export async function exportTasksToPdf(
   }
 
   doc.save(`CIKOPS_Report_${dateFrom}_to_${dateTo}.pdf`);
+}
+
+/* ════════════════════════════════════════════════════════════
+   KARANGAN BUNGA DUKA CITA — laporan khusus, terpisah dari
+   laporan klaim reguler karena bukan pengeluaran per-driver.
+════════════════════════════════════════════════════════════ */
+
+export function exportWreathsToCsv(
+  wreaths: Wreath[],
+  plantLabel: string
+): void {
+  const headers = ["Tanggal", "Atas Nama", "Status Klaim", "Keterangan"];
+
+  const rows = wreaths.map((w) => [
+    formatDateOnly(w.tanggal),
+    w.atasNama,
+    w.claimed ? "Sudah Diajukan" : "Belum Diajukan",
+    w.keterangan || "-",
+  ]);
+
+  const csvLines = [
+    headers.map(escapeCsvField).join(","),
+    ...rows.map((row) => row.map(escapeCsvField).join(",")),
+  ];
+
+  const csvContent = "\uFEFF" + csvLines.join("\r\n");
+  const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `CIKOPS_KarangaBunga_${plantLabel}_${todayForFilename()}.csv`;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+}
+
+function todayForFilename(): string {
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
 }

@@ -16,6 +16,7 @@ import type {
   TaskStatus,
   Vehicle,
   CanteenReport,
+  Wreath,
 } from "./types";
 
 /* ════════════════════════════════════════════════════════════
@@ -632,6 +633,69 @@ export async function addClaim(input: AddClaimInput): Promise<void> {
 
 export async function deleteClaim(id: string): Promise<void> {
   const { error } = await supabase.from("claims").delete().eq("id", id);
+  if (error) throw error;
+}
+
+/* ════════════════════════════════════════════════════════════
+   KARANGAN BUNGA DUKA CITA (Condolence Wreaths)
+════════════════════════════════════════════════════════════ */
+
+interface WreathRow {
+  id: string;
+  plant: Plant;
+  tanggal: string;
+  atas_nama: string;
+  keterangan: string | null;
+  claimed: boolean;
+  created_at: string;
+}
+
+function mapWreathRow(r: WreathRow): Wreath {
+  return {
+    id: r.id,
+    plant: r.plant,
+    tanggal: r.tanggal,
+    atasNama: r.atas_nama,
+    keterangan: r.keterangan ?? "",
+    claimed: r.claimed,
+    createdAt: r.created_at,
+  };
+}
+
+export async function getWreaths(plant?: Plant | null): Promise<Wreath[]> {
+  let q = supabase.from("condolence_wreaths").select("*").order("tanggal", { ascending: false });
+  if (plant) q = q.eq("plant", plant);
+  const { data, error } = await q;
+  if (error) throw error;
+  return (data as WreathRow[] ?? []).map(mapWreathRow);
+}
+
+export interface AddWreathInput {
+  plant: Plant;
+  tanggal: string;
+  atasNama: string;
+  keterangan?: string;
+  claimed?: boolean;
+}
+
+export async function addWreath(input: AddWreathInput): Promise<void> {
+  const { error } = await supabase.from("condolence_wreaths").insert({
+    plant: input.plant,
+    tanggal: input.tanggal,
+    atas_nama: input.atasNama,
+    keterangan: input.keterangan || "",
+    claimed: input.claimed ?? false,
+  });
+  if (error) throw error;
+}
+
+export async function setWreathClaimed(id: string, claimed: boolean): Promise<void> {
+  const { error } = await supabase.from("condolence_wreaths").update({ claimed }).eq("id", id);
+  if (error) throw error;
+}
+
+export async function deleteWreath(id: string): Promise<void> {
+  const { error } = await supabase.from("condolence_wreaths").delete().eq("id", id);
   if (error) throw error;
 }
 

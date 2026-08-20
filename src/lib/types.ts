@@ -64,6 +64,20 @@ export interface Claim {
   plant: Plant;
 }
 
+/** Karangan Bunga Duka Cita — condolence flower wreath record, tracked
+ *  separately from regular expense claims since it's a one-off event
+ *  (not tied to a driver or a Rp amount) that still needs its own
+ *  claim-submitted status and its own report. */
+export interface Wreath {
+  id: string;
+  plant: Plant;
+  tanggal: string;
+  atasNama: string;
+  keterangan: string;
+  claimed: boolean;
+  createdAt: string;
+}
+
 export interface Overtime {
   id: string;
   driver_id: string;
