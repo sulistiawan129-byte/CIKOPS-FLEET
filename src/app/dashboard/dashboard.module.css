@@ -808,6 +808,37 @@
 }
 
 /* ── Inputs ── */
+/* ── Live/realtime pulse indicator ── */
+@keyframes livePulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.35; transform: scale(0.6); }
+}
+.livePulseDot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--green);
+  animation: livePulse 1.8s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .livePulseDot { animation: none; }
+}
+
+/* ── Skeleton loading (shimmer) ── */
+@keyframes skeletonShimmer {
+  0% { background-position: -300px 0; }
+  100% { background-position: 300px 0; }
+}
+.skeletonBar {
+  border-radius: 8px;
+  background-image: linear-gradient(90deg, var(--bg2) 0%, var(--border2) 50%, var(--bg2) 100%);
+  background-size: 600px 100%;
+  animation: skeletonShimmer 1.4s linear infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .skeletonBar { animation: none; }
+}
+
 .formInput,
 .formSelect,
 .formTextarea {
