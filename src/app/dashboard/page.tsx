@@ -57,6 +57,10 @@ import {
   getClaims,
   addClaim,
   deleteClaim,
+  getWreaths,
+  addWreath,
+  setWreathClaimed,
+  deleteWreath,
   sendClaimNotificationEmails,
   getAppSetting,
   setAppSetting,
@@ -78,7 +82,7 @@ import {
   updateGasStation,
   deleteGasStation,
 } from "@/lib/api";
-import type { Claim, ClaimItem, Overtime, Plant, Kantong, DriverTier, GasStation, FuelEntry, CanteenReport, GiftEvent, GiftItemDef, GiftRegistration } from "@/lib/types";
+import type { Claim, ClaimItem, Overtime, Plant, Kantong, DriverTier, GasStation, FuelEntry, CanteenReport, GiftEvent, GiftItemDef, GiftRegistration, Wreath } from "@/lib/types";
 import { computeCanteenKPI } from "@/lib/types";
 import { exportTandaTerima } from "@/lib/tandaTerima";
 import { buildRincianRows } from "@/lib/claimRecap";
@@ -105,7 +109,7 @@ const GasStationMap = dynamic(() => import("./GasStationMap"), {
     </div>
   ),
 });
-import { exportTasksToCsv, exportTasksToPdf } from "@/lib/report";
+import { exportTasksToCsv, exportTasksToPdf, exportWreathsToCsv } from "@/lib/report";
 import { computeReportAnalytics, formatMinutes } from "@/lib/analytics";
 import type {
   Driver,
@@ -117,6 +121,7 @@ import type {
 } from "@/lib/types";
 import { computeStats } from "@/lib/types";
 import { useLang, useTheme } from "@/lib/providers";
+import { BRAND } from "@/lib/brand";
 import LockerTab from "./LockerTab";
 import { getLockerStatusGrid } from "@/lib/lockerApi";
 import CanteenTab from "./CanteenTab";
@@ -542,10 +547,10 @@ const [masterDataInitialSub, setMasterDataInitialSub] = useState<"drivers" | "em
         }}
       >
         <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "18px" }}>
-          <img src="/logo.png" alt="CIKOPS" style={{ width: 38, height: 38, filter: "drop-shadow(0 4px 10px rgba(61,111,242,0.35))" }} />
+          <img src="/logo.png" alt={BRAND.name} style={{ width: 38, height: 38, filter: "drop-shadow(0 4px 10px rgba(47,95,224,0.35))" }} />
           <div>
             <div style={{ fontSize: 14, fontWeight: 800, color: "var(--t1)" }}>{t.appName}</div>
-            <div style={{ fontSize: 12, color: "var(--t3)" }}>CIKOPS-FM System</div>
+            <div style={{ fontSize: 12, color: "var(--t3)" }}>{BRAND.fullName}</div>
           </div>
         </div>
        <nav style={{ flex: 1, overflowY: "auto", padding: "10px 10px" }}>
@@ -1155,7 +1160,7 @@ function ReportModal({
       <div className={styles.reportPanel}>
         <div className={styles.reportTopbar}>
           <div className={styles.reportTitleWrap}>
-            <div className={styles.topbarEyebrow}>CIKOPS</div>
+            <div className={styles.topbarEyebrow}>{BRAND.name}</div>
             <div className={styles.topbarTitle}>Laporan & Analytics</div>
           </div>
           <button className={styles.modalClose} onClick={onClose}>
@@ -1489,7 +1494,7 @@ function buildTaskWhatsAppMessage(params: {
   if (params.perihal.trim()) {
     lines.push(`📝 *Perihal* : ${params.perihal.trim()}`);
   }
-  lines.push("", "Mohon dapat ditindaklanjuti. Terima kasih 🙏", "", "_Pesan otomatis — CIKOPS Fleet Ops_");
+  lines.push("", "Mohon dapat ditindaklanjuti. Terima kasih 🙏", "", `_Pesan otomatis — ${BRAND.name}_`);
 
   return lines.join("\n");
 }
@@ -2011,13 +2016,60 @@ function evalExpr(raw: string): number | null {
   }
 }
 
-/** Monday-based week-of-month, matching the original FleetOS grouping. */
+/** Computes the 4 Monday–Friday-anchored week boundaries (day-of-month
+ *  numbers) for the month containing `dateStr`.
+ *
+ *  Business rule: a "week" here means a work week (Mon–Fri), and every
+ *  month is always divided into exactly 4 of them for Claims reporting —
+ *  never 5, even though a calendar month rarely divides evenly into
+ *  4 full Mon–Fri blocks.
+ *
+ *  Week 1 always starts on the 1st, whatever weekday that is, and runs
+ *  through the nearest Friday on/after it — EXCEPT if the 1st itself
+ *  falls on a Friday, Saturday, or Sunday, in which case it runs through
+ *  the *following* Friday instead. That's what folds a weekend sitting
+ *  right at the start of the month into Week 1 (rather than that
+ *  weekend becoming its own tiny "week 0"), and avoids a degenerate
+ *  1-day Week 1 when the 1st happens to be a Friday:
+ *    1st = Mon → Week 1 = day 1–5     1st = Fri → Week 1 = day 1–8
+ *    1st = Tue → Week 1 = day 1–4     1st = Sat → Week 1 = day 1–7
+ *    1st = Wed → Week 1 = day 1–3     1st = Sun → Week 1 = day 1–6
+ *    1st = Thu → Week 1 = day 1–2
+ *
+ *  Weeks 2 and 3 are then standard 7-day blocks following on. Week 4
+ *  absorbs everything through the end of the month (so it's often
+ *  longer than 7 days — that's expected, it's the 4th bucket by design,
+ *  not a 5th week). */
+function monthWeekBoundaries(dateStr: string): { start: number; end: number }[] {
+  const d = new Date(dateStr);
+  const year = d.getFullYear();
+  const month = d.getMonth();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const day1Weekday = new Date(year, month, 1).getDay(); // 0=Sun..6=Sat
+  let toFriday = (5 - day1Weekday + 7) % 7;
+  if (toFriday === 0) toFriday = 7; // 1st is a Friday — push to next Friday, not a same-day week
+  const w1End = Math.min(1 + toFriday, daysInMonth);
+  const w2End = Math.min(w1End + 7, daysInMonth);
+  const w3End = Math.min(w2End + 7, daysInMonth);
+  return [
+    { start: 1, end: w1End },
+    { start: Math.min(w1End + 1, daysInMonth), end: w2End },
+    { start: Math.min(w2End + 1, daysInMonth), end: w3End },
+    { start: Math.min(w3End + 1, daysInMonth), end: daysInMonth },
+  ];
+}
+
+/** Which of the month's 4 work-weeks (1–4) a date falls into — see
+ *  monthWeekBoundaries() above for the exact rule. */
 function weekOfMonth(dateStr: string): number {
   const d = new Date(dateStr);
   if (isNaN(d.getTime())) return 1;
-  const first = new Date(d.getFullYear(), d.getMonth(), 1);
-  const startDay = first.getDay() === 0 ? 6 : first.getDay() - 1;
-  return Math.floor((d.getDate() + startDay - 1) / 7) + 1;
+  const dNum = d.getDate();
+  const bounds = monthWeekBoundaries(dateStr);
+  for (let i = 0; i < bounds.length; i++) {
+    if (dNum <= bounds[i].end) return i + 1;
+  }
+  return 4;
 }
 
 /** Shared placeholder for tabs not yet ported in this pass. */
@@ -2895,19 +2947,22 @@ const CLAIM_TYPE_COLOR: Record<string, string> = {
 
 type ClaimLineDraft = { id: number; type: string; expr: string };
 
-/** Monday–Sunday range (as formatted "D Mon" strings) containing the given
- *  date — used both for the Claims table's "Period: X – Y" display and for
- *  the per-week filter. */
+/** The month-anchored work-week (Mon–Fri, Week 1–4) containing the given
+ *  date — used both for the Claims table's "Period: X – Y" display and
+ *  for the per-week filter. Shares monthWeekBoundaries()'s rule with
+ *  weekOfMonth() so the filter and the Weekly Recap report always agree
+ *  on where each week starts and ends. */
 function weekRangeOf(dateStr: string, lang: string): { from: Date; to: Date; label: string } {
   const d = new Date(dateStr);
-  const day = d.getDay();
-  const diffToMonday = day === 0 ? -6 : 1 - day;
-  const monday = new Date(d);
-  monday.setDate(d.getDate() + diffToMonday);
-  const sunday = new Date(monday);
-  sunday.setDate(monday.getDate() + 6);
+  const year = d.getFullYear();
+  const month = d.getMonth();
+  const wk = weekOfMonth(dateStr);
+  const bounds = monthWeekBoundaries(dateStr)[wk - 1];
+  const from = new Date(year, month, bounds.start);
+  const to = new Date(year, month, bounds.end);
   const fmt = (dt: Date) => dt.toLocaleDateString(lang === "en" ? "en-GB" : "id-ID", { day: "numeric", month: "short" });
-  return { from: monday, to: sunday, label: `${fmt(monday)} – ${fmt(sunday)}` };
+  const weekLabel = lang === "en" ? `Week ${wk}` : `Minggu ${wk}`;
+  return { from, to, label: `${weekLabel} · ${fmt(from)} – ${fmt(to)}` };
 }
 
 function ActivityLogTab() {
@@ -3155,7 +3210,97 @@ function ClaimsTab({ myProfile = null }: { myProfile?: MyProfile | null }) {
   const [driverUserIds, setDriverUserIds] = useState<string[]>([]);
   const [exportingRecap, setExportingRecap] = useState(false);
   const [exportingWeeklyRecap, setExportingWeeklyRecap] = useState<"excel" | "pdf" | null>(null);
-  const [viewMode, setViewMode] = useState<"list" | "weekly">("list");
+  const [viewMode, setViewMode] = useState<"list" | "weekly" | "wreath">("list");
+
+  // ── Karangan Bunga Duka Cita ──
+  const [wreaths, setWreaths] = useState<Wreath[]>([]);
+  const [loadingWreaths, setLoadingWreaths] = useState(false);
+  const [showWreathForm, setShowWreathForm] = useState(false);
+  const [wreathTanggal, setWreathTanggal] = useState(todayStr());
+  const [wreathAtasNama, setWreathAtasNama] = useState("");
+  const [wreathKeterangan, setWreathKeterangan] = useState("");
+  const [wreathPlant, setWreathPlant] = useState<Plant>(myProfile?.plantScope ?? "CIK");
+  const [savingWreath, setSavingWreath] = useState(false);
+  const [confirmDeleteWreath, setConfirmDeleteWreath] = useState<Wreath | null>(null);
+  const [wreathStatusFilter, setWreathStatusFilter] = useState<"all" | "submitted" | "pending">("all");
+
+  const loadWreaths = useCallback(async () => {
+    setLoadingWreaths(true);
+    try {
+      const w = await getWreaths(myProfile?.plantScope ?? null);
+      setWreaths(w);
+    } catch (e) {
+      console.warn("Gagal memuat data karangan bunga:", e);
+    } finally {
+      setLoadingWreaths(false);
+    }
+  }, [myProfile?.plantScope]);
+
+  useEffect(() => {
+    if (viewMode === "wreath") loadWreaths();
+  }, [viewMode, loadWreaths]);
+
+  const filteredWreaths = useMemo(() => {
+    if (wreathStatusFilter === "submitted") return wreaths.filter((w) => w.claimed);
+    if (wreathStatusFilter === "pending") return wreaths.filter((w) => !w.claimed);
+    return wreaths;
+  }, [wreaths, wreathStatusFilter]);
+
+  function openAddWreath() {
+    setWreathTanggal(todayStr());
+    setWreathAtasNama("");
+    setWreathKeterangan("");
+    setWreathPlant(myProfile?.plantScope ?? "CIK");
+    setShowWreathForm(true);
+  }
+
+  const canSaveWreath = wreathTanggal.trim() !== "" && wreathAtasNama.trim() !== "";
+
+  async function handleSaveWreath() {
+    if (!canSaveWreath || savingWreath) return;
+    setSavingWreath(true);
+    try {
+      await addWreath({
+        plant: wreathPlant,
+        tanggal: wreathTanggal,
+        atasNama: wreathAtasNama.trim(),
+        keterangan: wreathKeterangan.trim(),
+      });
+      setShowWreathForm(false);
+      await loadWreaths();
+    } catch (e) {
+      alert(e instanceof Error ? e.message : "Gagal menyimpan data karangan bunga");
+    } finally {
+      setSavingWreath(false);
+    }
+  }
+
+  async function handleToggleWreathClaimed(w: Wreath) {
+    // optimistic update — table stays snappy, revert on failure
+    setWreaths((prev) => prev.map((x) => (x.id === w.id ? { ...x, claimed: !x.claimed } : x)));
+    try {
+      await setWreathClaimed(w.id, !w.claimed);
+    } catch (e) {
+      setWreaths((prev) => prev.map((x) => (x.id === w.id ? { ...x, claimed: w.claimed } : x)));
+      alert(e instanceof Error ? e.message : "Gagal mengubah status klaim");
+    }
+  }
+
+  async function handleDeleteWreath() {
+    if (!confirmDeleteWreath) return;
+    try {
+      await deleteWreath(confirmDeleteWreath.id);
+      setConfirmDeleteWreath(null);
+      await loadWreaths();
+    } catch (e) {
+      alert(e instanceof Error ? e.message : "Gagal menghapus data karangan bunga");
+    }
+  }
+
+  function handleExportWreaths() {
+    const plantLabel = myProfile?.plantScope ?? "Semua-Plant";
+    exportWreathsToCsv(filteredWreaths, plantLabel);
+  }
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -3352,7 +3497,7 @@ function ClaimsTab({ myProfile = null }: { myProfile?: MyProfile | null }) {
   });
    return (
     <div style={{ padding: 20 }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 18, gap: 10, flexWrap: "wrap" }}>
+      <div style={{ display: viewMode === "wreath" ? "none" : "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 18, gap: 10, flexWrap: "wrap" }}>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
           <select
             value={driverFilter}
@@ -3433,6 +3578,12 @@ function ClaimsTab({ myProfile = null }: { myProfile?: MyProfile | null }) {
         >
           {lang === "en" ? "Weekly Recap" : "Rekap Mingguan"}
         </button>
+        <button
+          onClick={() => setViewMode("wreath")}
+          style={{ padding: "7px 16px", borderRadius: "var(--pill)", border: "1px solid var(--border2)", cursor: "pointer", fontSize: 12.5, fontWeight: 700, background: viewMode === "wreath" ? "linear-gradient(135deg, var(--brand), var(--brand2))" : "transparent", color: viewMode === "wreath" ? "#fff" : "var(--t2)" }}
+        >
+          💐 {lang === "en" ? "Condolence Wreaths" : "Karangan Bunga Duka Cita"}
+        </button>
       </div>
 
       {viewMode === "weekly" && (
@@ -3494,6 +3645,102 @@ function ClaimsTab({ myProfile = null }: { myProfile?: MyProfile | null }) {
                     <td style={{ textAlign: "right", fontFamily: "var(--mono)", fontWeight: 800, color: "var(--brand)" }}>Rp {fmtRp(weeklyRecap.grandTotal.total)}</td>
                   </tr>
                 </tfoot>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
+
+      {viewMode === "wreath" && (
+        <div className="neonCard" style={{ padding: 0, overflow: "hidden", marginBottom: 18 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 10, padding: "16px 18px" }}>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              {([
+                ["all", lang === "en" ? "All" : "Semua"],
+                ["submitted", lang === "en" ? "Submitted" : "Sudah Diajukan"],
+                ["pending", lang === "en" ? "Not Yet Submitted" : "Belum Diajukan"],
+              ] as const).map(([key, label]) => (
+                <button
+                  key={key}
+                  onClick={() => setWreathStatusFilter(key)}
+                  style={{ padding: "6px 14px", borderRadius: "var(--pill)", border: "1px solid var(--border2)", cursor: "pointer", fontSize: 12, fontWeight: 700, background: wreathStatusFilter === key ? "linear-gradient(135deg, var(--brand), var(--brand2))" : "transparent", color: wreathStatusFilter === key ? "#fff" : "var(--t2)" }}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+            <div style={{ display: "flex", gap: 8 }}>
+              <button
+                onClick={handleExportWreaths}
+                disabled={filteredWreaths.length === 0}
+                style={{ padding: "9px 16px", borderRadius: "var(--pill)", border: "1px solid var(--green)", background: "var(--green-soft)", color: "var(--green)", fontWeight: 700, fontSize: 13, cursor: filteredWreaths.length === 0 ? "not-allowed" : "pointer", opacity: filteredWreaths.length === 0 ? 0.5 : 1 }}
+                title={lang === "en" ? "Export condolence wreath report (CSV)" : "Export laporan karangan bunga (CSV)"}
+              >
+                ⬇ {lang === "en" ? "Export Report" : "Export Laporan"}
+              </button>
+              <button className="pillBtn" onClick={openAddWreath}>
+                + {lang === "en" ? "Add Wreath Record" : "Tambah Karangan Bunga"}
+              </button>
+            </div>
+          </div>
+
+          {loadingWreaths ? (
+            <div style={{ textAlign: "center", padding: 40, color: "var(--t3)" }}>{t.actionLoading}</div>
+          ) : filteredWreaths.length === 0 ? (
+            <div style={{ textAlign: "center", padding: 40, color: "var(--t3)" }}>
+              💐 {lang === "en" ? "No condolence wreath records yet" : "Belum ada data karangan bunga duka cita"}
+            </div>
+          ) : (
+            <div style={{ overflowX: "auto", position: "relative", zIndex: 1 }}>
+              <table className="tableCompact" style={{ minWidth: 640, width: "100%" }}>
+                <thead>
+                  <tr>
+                    <th>{lang === "en" ? "Date" : "Tanggal"}</th>
+                    <th>{lang === "en" ? "On Behalf Of" : "Atas Nama"}</th>
+                    <th>{lang === "en" ? "Note" : "Keterangan"}</th>
+                    <th>Plant</th>
+                    <th>{lang === "en" ? "Claim Status" : "Status Klaim"}</th>
+                    <th style={{ textAlign: "right" }}></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredWreaths.map((w) => (
+                    <tr key={w.id}>
+                      <td>{formatDateLabel(w.tanggal)}</td>
+                      <td style={{ fontWeight: 700 }}>{w.atasNama}</td>
+                      <td style={{ color: "var(--t3)" }}>{w.keterangan || "-"}</td>
+                      <td>
+                        <span style={tagStyle(PLANT_COLOR[w.plant])}>{w.plant}</span>
+                      </td>
+                      <td>
+                        <button
+                          onClick={() => handleToggleWreathClaimed(w)}
+                          style={{
+                            padding: "5px 12px",
+                            borderRadius: "var(--pill)",
+                            border: "none",
+                            cursor: "pointer",
+                            fontSize: 12,
+                            fontWeight: 700,
+                            background: w.claimed ? "var(--green-soft)" : "var(--orange-soft)",
+                            color: w.claimed ? "var(--green)" : "var(--orange)",
+                          }}
+                          title={lang === "en" ? "Click to toggle claim status" : "Klik untuk ubah status klaim"}
+                        >
+                          {w.claimed ? `✓ ${lang === "en" ? "Submitted" : "Sudah Diajukan"}` : `○ ${lang === "en" ? "Not Yet Submitted" : "Belum Diajukan"}`}
+                        </button>
+                      </td>
+                      <td style={{ textAlign: "right" }}>
+                        <button
+                          onClick={() => setConfirmDeleteWreath(w)}
+                          style={{ border: "none", background: "var(--red-soft)", color: "var(--red)", borderRadius: 8, cursor: "pointer", padding: "5px 9px" }}
+                        >
+                          ✕
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
               </table>
             </div>
           )}
@@ -3762,6 +4009,91 @@ function ClaimsTab({ myProfile = null }: { myProfile?: MyProfile | null }) {
                 {t.actionCancel}
               </button>
               <button onClick={handleDelete} style={{ flex: 1, padding: "10px", borderRadius: 10, border: "none", background: "var(--red)", color: "#fff", fontWeight: 700, cursor: "pointer" }}>
+                {t.actionYesDelete}
+              </button>
+            </div>
+          </div>
+        </ModalPortal>
+      )}
+
+      {showWreathForm && (
+        <ModalPortal onOverlayClick={() => setShowWreathForm(false)} maxWidth={440}>
+          <div style={{ ...cardStyle, padding: 24 }}>
+            <div style={{ fontSize: 17, fontWeight: 800, marginBottom: 18, color: "var(--t1)" }}>
+              💐 {lang === "en" ? "Add Condolence Wreath Record" : "Tambah Data Karangan Bunga Duka Cita"}
+            </div>
+
+            <div style={{ marginBottom: 12 }}>
+              <label style={labelStyle}>{lang === "en" ? "DATE *" : "TANGGAL *"}</label>
+              <input type="date" className={styles.formInput} value={wreathTanggal} onChange={(e) => setWreathTanggal(e.target.value)} />
+            </div>
+
+            <div style={{ marginBottom: 12 }}>
+              <label style={labelStyle}>{lang === "en" ? "ON BEHALF OF *" : "KARANGAN BUNGA ATAS NAMA *"}</label>
+              <input
+                className={styles.formInput}
+                value={wreathAtasNama}
+                onChange={(e) => setWreathAtasNama(e.target.value)}
+                placeholder={lang === "en" ? "e.g. Bapak Ahmad (Father of driver Budi)" : "Contoh: Bapak Ahmad (Ayah dari driver Budi)"}
+              />
+            </div>
+
+            <div style={{ marginBottom: 12 }}>
+              <label style={labelStyle}>{lang === "en" ? "NOTE (optional)" : "KETERANGAN (opsional)"}</label>
+              <input className={styles.formInput} value={wreathKeterangan} onChange={(e) => setWreathKeterangan(e.target.value)} />
+            </div>
+
+            <div style={{ marginBottom: 18 }}>
+              <label style={labelStyle}>{t.fieldPlant} *</label>
+              <div style={{ display: "flex", gap: 8 }}>
+                {OT_PLANTS.map((p) => (
+                  <button
+                    key={p}
+                    type="button"
+                    onClick={() => setWreathPlant(p)}
+                    style={{
+                      flex: 1, padding: "9px", borderRadius: 10, fontWeight: 800, fontSize: 13, cursor: "pointer",
+                      border: wreathPlant === p ? `1px solid ${PLANT_COLOR[p]}` : "1px solid var(--border2)",
+                      background: wreathPlant === p ? "var(--bg2)" : "transparent",
+                      color: wreathPlant === p ? PLANT_COLOR[p] : "var(--t3)",
+                    }}
+                  >
+                    {p}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div style={{ display: "flex", gap: 10 }}>
+              <button onClick={() => setShowWreathForm(false)} style={{ flex: 1, padding: "11px", borderRadius: 10, border: "1px solid var(--border2)", background: "var(--surface2)", color: "var(--t2)", fontWeight: 700, cursor: "pointer" }}>
+                {t.actionCancel}
+              </button>
+              <button
+                className="pillBtn"
+                onClick={handleSaveWreath}
+                disabled={!canSaveWreath || savingWreath}
+                style={{ flex: 2, justifyContent: "center", opacity: canSaveWreath && !savingWreath ? 1 : 0.5 }}
+              >
+                {savingWreath ? t.actionSaving : (lang === "en" ? "Save Record" : "Simpan Data")}
+              </button>
+            </div>
+          </div>
+        </ModalPortal>
+      )}
+
+      {confirmDeleteWreath && (
+        <ModalPortal onOverlayClick={() => setConfirmDeleteWreath(null)} maxWidth={360}>
+          <div style={{ ...cardStyle, padding: 24, textAlign: "center" }}>
+            <div style={{ fontSize: 28, marginBottom: 8 }}>⚠️</div>
+            <div style={{ fontSize: 15, fontWeight: 800, marginBottom: 8, color: "var(--t1)" }}>{lang === "en" ? "Delete this record?" : "Hapus data ini?"}</div>
+            <div style={{ fontSize: 13, color: "var(--t3)", marginBottom: 18 }}>
+              <strong style={{ color: "var(--t1)" }}>{confirmDeleteWreath.atasNama}</strong> ({formatDateLabel(confirmDeleteWreath.tanggal)}) {lang === "en" ? "will be permanently deleted." : "akan dihapus permanen."}
+            </div>
+            <div style={{ display: "flex", gap: 10 }}>
+              <button onClick={() => setConfirmDeleteWreath(null)} style={{ flex: 1, padding: "10px", borderRadius: 10, border: "1px solid var(--border2)", background: "var(--surface2)", color: "var(--t2)", fontWeight: 700, cursor: "pointer" }}>
+                {t.actionCancel}
+              </button>
+              <button onClick={handleDeleteWreath} style={{ flex: 1, padding: "10px", borderRadius: 10, border: "none", background: "var(--red)", color: "#fff", fontWeight: 700, cursor: "pointer" }}>
                 {t.actionYesDelete}
               </button>
             </div>
@@ -4174,7 +4506,7 @@ function LoginScreen() {
           <div style={{ position: "absolute", bottom: "-20%", left: "-15%", width: 420, height: 420, borderRadius: "50%", background: "radial-gradient(circle, rgba(23,195,178,0.22), transparent 70%)" }} />
           <div style={{ position: "absolute", top: "38%", left: "48%", width: 260, height: 260, borderRadius: "50%", border: "1px solid rgba(255,255,255,0.12)" }} />
           <div style={{ position: "relative", zIndex: 1, display: "flex", alignItems: "center", gap: 12 }}>
-            <img src="/logo.png" alt="CIKOPS" style={{ width: 48, height: 48 }} />
+            <img src="/logo.png" alt={BRAND.name} style={{ width: 48, height: 48 }} />
             <div>
               <div style={{ fontSize: 17, fontWeight: 800, color: "#fff" }}>{t.appName}</div>
               <div style={{ fontSize: 13, color: "rgba(255,255,255,0.7)" }}>Integrated Facility Management</div>
