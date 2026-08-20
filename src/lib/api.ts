@@ -446,7 +446,7 @@ export async function deleteTaskBatch(batchId: string): Promise<number> {
    REALTIME SUBSCRIPTION
 ════════════════════════════════════════════════════════════ */
 
-export function subscribeToTasks(onChange: () => void) {
+export function subscribeToTasks(onChange: () => void, onStatusChange?: (connected: boolean) => void) {
   const channel = supabase
     .channel("tasks-realtime")
     .on(
@@ -456,7 +456,9 @@ export function subscribeToTasks(onChange: () => void) {
         onChange();
       }
     )
-    .subscribe();
+    .subscribe((status) => {
+      onStatusChange?.(status === "SUBSCRIBED");
+    });
 
   return () => {
     supabase.removeChannel(channel);
