@@ -359,10 +359,12 @@ const [masterDataInitialSub, setMasterDataInitialSub] = useState<"drivers" | "em
     loadTasks();
   }, [loadTasks]);
 
+  const [liveConnected, setLiveConnected] = useState(false);
+
   useEffect(() => {
     const unsubscribe = subscribeToTasks(() => {
       loadTasks();
-    });
+    }, setLiveConnected);
     return unsubscribe;
   }, [loadTasks]);
 
@@ -549,7 +551,12 @@ const [masterDataInitialSub, setMasterDataInitialSub] = useState<"drivers" | "em
           <img src="/logo.png" alt="CIKOPS" style={{ width: 38, height: 38, filter: "drop-shadow(0 4px 10px rgba(47,95,224,0.35))" }} />
           <div>
             <div style={{ fontSize: 14, fontWeight: 800, color: "var(--t1)" }}>{t.appName}</div>
-            <div style={{ fontSize: 12, color: "var(--t3)" }}>CIKOPS-FM System</div>
+            <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+              <span className={liveConnected ? styles.livePulseDot : undefined} style={liveConnected ? undefined : { width: 7, height: 7, borderRadius: "50%", background: "var(--t3)" }} />
+              <span style={{ fontSize: 11, fontWeight: 700, color: liveConnected ? "var(--green)" : "var(--t3)", letterSpacing: "0.02em" }}>
+                {liveConnected ? "LIVE" : (lang === "en" ? "Connecting…" : "Menyambungkan…")}
+              </span>
+            </div>
           </div>
         </div>
        <nav style={{ flex: 1, overflowY: "auto", padding: "10px 10px" }}>
@@ -873,6 +880,26 @@ const [masterDataInitialSub, setMasterDataInitialSub] = useState<"drivers" | "em
           {toast.msg}
         </div>
       )}
+    </div>
+  );
+}
+
+/** Shimmering placeholder rows shown while a table/list is loading —
+ *  replaces plain "Loading..." text everywhere in the dashboard so the
+ *  screen doesn't feel frozen while data comes in. */
+function SkeletonRows({ rows = 4 }: { rows?: number }) {
+  return (
+    <div style={{ padding: "16px 4px" }}>
+      {Array.from({ length: rows }).map((_, i) => (
+        <div key={i} style={{ display: "flex", alignItems: "center", gap: 14, padding: "10px 12px" }}>
+          <div className={styles.skeletonBar} style={{ width: 34, height: 34, borderRadius: "50%", flexShrink: 0 }} />
+          <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 7 }}>
+            <div className={styles.skeletonBar} style={{ height: 12, width: `${58 - i * 6}%` }} />
+            <div className={styles.skeletonBar} style={{ height: 10, width: `${34 - i * 3}%` }} />
+          </div>
+          <div className={styles.skeletonBar} style={{ height: 22, width: 64, borderRadius: "var(--pill)", flexShrink: 0 }} />
+        </div>
+      ))}
     </div>
   );
 }
@@ -3684,7 +3711,7 @@ function ClaimsTab({ myProfile = null }: { myProfile?: MyProfile | null }) {
           </div>
 
           {loadingWreaths ? (
-            <div style={{ textAlign: "center", padding: 40, color: "var(--t3)" }}>{t.actionLoading}</div>
+            <SkeletonRows />
           ) : filteredWreaths.length === 0 ? (
             <div style={{ textAlign: "center", padding: 40, color: "var(--t3)" }}>
               💐 {lang === "en" ? "No condolence wreath records yet" : "Belum ada data karangan bunga duka cita"}
@@ -3798,7 +3825,7 @@ function ClaimsTab({ myProfile = null }: { myProfile?: MyProfile | null }) {
           </div>
         )}
         {loading ? (
-          <div style={{ textAlign: "center", padding: 40, color: "var(--t3)" }}>{t.actionLoading}</div>
+          <SkeletonRows />
         ) : filtered.length === 0 ? (
           <div style={{ textAlign: "center", padding: 40, color: "var(--t3)" }}>{t.actionNoDataYet}</div>
         ) : (
@@ -4990,7 +5017,7 @@ function OpFundTab({ myProfile }: { myProfile: MyProfile | null }) {
     return (
       <div style={{ padding: 20 }}>
         {PlantSwitcher}
-        <div style={{ padding: 60, textAlign: "center", color: "var(--t3)" }}>{t.actionLoading}</div>
+        <SkeletonRows rows={5} />
       </div>
     );
   }
@@ -5976,7 +6003,7 @@ return (
           </div>
           <div style={{ overflowY: "auto", flex: 1 }}>
             {loading ? (
-              <div style={{ textAlign: "center", padding: 30, color: "var(--t3)", fontSize: 12 }}>{t.actionLoading}</div>
+              <SkeletonRows rows={3} />
             ) : stations.length === 0 ? (
               <div style={{ textAlign: "center", padding: 30, color: "var(--t3)", fontSize: 12 }}>{t.actionNoDataYet}</div>
             ) : (
@@ -6727,7 +6754,7 @@ function SettingsPanel({ cardStyle }: { cardStyle: CSSProperties }) {
   const inputStyle: CSSProperties = {};
   const labelStyle: CSSProperties = { fontSize: 11, fontWeight: 700, color: "var(--t2)", marginBottom: 5, display: "block" };
 
-  if (loading) return <div style={{ padding: 40, textAlign: "center", color: "var(--t3)" }}>{t.actionLoading}</div>;
+  if (loading) return <SkeletonRows />;
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16, maxWidth: 480 }}>
@@ -6947,7 +6974,7 @@ function DriversMasterPanel({ cardStyle, myProfile = null }: { cardStyle: CSSPro
 
       <div className="statPop" style={{ ...cardStyle, overflow: "hidden" }}>
         {loading ? (
-          <div style={{ textAlign: "center", padding: 40, color: "var(--t3)" }}>{t.actionLoading}</div>
+          <SkeletonRows />
         ) : drivers.length === 0 ? (
           <div style={{ textAlign: "center", padding: 40, color: "var(--t3)" }}>{t.actionNoDataYet}</div>
         ) : (
@@ -7217,7 +7244,7 @@ function EmployeesMasterPanel({ cardStyle }: { cardStyle: CSSProperties }) {
       {error && <div style={{ padding: 12, borderRadius: 10, background: "var(--red-soft)", color: "var(--red)", marginBottom: 14, fontSize: 13 }}>{error}</div>}
       <div className="statPop" style={{ ...cardStyle, overflow: "hidden" }}>
         {loading ? (
-          <div style={{ textAlign: "center", padding: 40, color: "var(--t3)" }}>{t.actionLoading}</div>
+          <SkeletonRows />
         ) : employees.length === 0 ? (
           <div style={{ textAlign: "center", padding: 40, color: "var(--t3)" }}>{t.actionNoDataYet}</div>
         ) : (
@@ -7336,7 +7363,7 @@ function JobTypesMasterPanel({ cardStyle }: { cardStyle: CSSProperties }) {
       {error && <div style={{ padding: 12, borderRadius: 10, background: "var(--red-soft)", color: "var(--red)", marginBottom: 14, fontSize: 13 }}>{error}</div>}
       <div className="statPop" style={{ ...cardStyle, overflow: "hidden" }}>
         {loading ? (
-          <div style={{ textAlign: "center", padding: 40, color: "var(--t3)" }}>{t.actionLoading}</div>
+          <SkeletonRows />
         ) : jobTypes.length === 0 ? (
           <div style={{ textAlign: "center", padding: 40, color: "var(--t3)" }}>{t.actionNoDataYet}</div>
         ) : (
@@ -7594,7 +7621,7 @@ function CanteenDashboardPanel({ cardStyle }: { cardStyle: CSSProperties }) {
       {error && <div style={{ padding: 12, borderRadius: 10, background: "var(--red-soft)", color: "var(--red)", marginBottom: 14, fontSize: 13 }}>{error}</div>}
 
       {loading ? (
-        <div style={{ textAlign: "center", padding: 40, color: "var(--t3)" }}>{t.actionLoading}</div>
+        <SkeletonRows />
       ) : (
         <>
           {/* KPI cards */}
@@ -7934,7 +7961,7 @@ function GiftMasterPanel({ cardStyle }: { cardStyle: CSSProperties }) {
       </div>
 
       {loading ? (
-        <div style={{ textAlign: "center", padding: 40, color: "var(--t3)" }}>{t.actionLoading}</div>
+        <SkeletonRows />
       ) : events.length === 0 ? (
         <div style={{ textAlign: "center", padding: 40, color: "var(--t3)" }}>
           <div style={{ fontSize: 40, marginBottom: 12 }}>🎁</div>
