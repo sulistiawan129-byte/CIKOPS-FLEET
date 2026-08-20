@@ -2098,6 +2098,80 @@ function weekOfMonth(dateStr: string): number {
   return 4;
 }
 
+/* ════════════════════════════════════════════════════════════
+   BUDGET FORECAST (Claims-based) — used by OpFundTab to project
+   next week's likely spend from recent claim history, for the
+   "dana belum cair dari Finance" contingency-planning scenario.
+════════════════════════════════════════════════════════════ */
+
+interface WeekBucket {
+  key: string;   // e.g. "2026-08-W1" — unique across months
+  label: string; // e.g. "M1 Agu"
+  endDate: Date; // last day of that work-week, used for chronological sort
+}
+
+/** Every 4-week bucket (using the same Mon–Fri, weekend-folded-into-Week-1
+ *  rule as weekOfMonth) whose end date falls within the last `monthsBack`
+ *  months up to today — oldest first. A claim's bucket key is
+ *  `${year}-${month}-W${weekOfMonth(date)}`, so summing claim totals by
+ *  bucket key and walking this sequence gives a complete week-by-week
+ *  history with explicit zeros for weeks that had no claims (not just
+ *  the weeks that happen to have data — a driver who claims every other
+ *  week should average lower per-week than one who claims every week,
+ *  and skipping the zero-claim weeks would hide that). */
+function generateWeekBucketSequence(monthsBack: number): WeekBucket[] {
+  const buckets: WeekBucket[] = [];
+  const today = new Date();
+  const rangeStart = new Date(today);
+  rangeStart.setMonth(rangeStart.getMonth() - monthsBack);
+
+  let cursor = new Date(rangeStart.getFullYear(), rangeStart.getMonth(), 1);
+  const endCursor = new Date(today.getFullYear(), today.getMonth(), 1);
+
+  while (cursor <= endCursor) {
+    const year = cursor.getFullYear();
+    const month = cursor.getMonth();
+    const bounds = monthWeekBoundaries(`${year}-${String(month + 1).padStart(2, "0")}-01`);
+    bounds.forEach((b, i) => {
+      const endDate = new Date(year, month, b.end);
+      if (endDate >= rangeStart && endDate <= today) {
+        buckets.push({
+          key: `${year}-${String(month + 1).padStart(2, "0")}-W${i + 1}`,
+          label: `M${i + 1} ${cursor.toLocaleDateString("id-ID", { month: "short" })}`,
+          endDate,
+        });
+      }
+    });
+    cursor = new Date(year, month + 1, 1);
+  }
+  return buckets.sort((a, b) => a.endDate.getTime() - b.endDate.getTime());
+}
+
+function claimWeekBucketKey(dateStr: string): string {
+  const d = new Date(dateStr);
+  const wk = weekOfMonth(dateStr);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-W${wk}`;
+}
+
+/** Recency-weighted average: the most recent week in `buckets` gets
+ *  weight 1, and each week further back is weighted by `decay` less
+ *  (decay=0.85 ⇒ a week ~5 weeks old counts about half as much as this
+ *  week) — so a recent spike or dip in a driver's claim pattern shows up
+ *  in the forecast faster than a flat 3-month average would, while older
+ *  weeks still contribute rather than being cut off entirely. */
+function weightedWeeklyAverage(buckets: WeekBucket[], totalsByKey: Record<string, number>, decay = 0.85): number {
+  const n = buckets.length;
+  if (n === 0) return 0;
+  let weightedSum = 0;
+  let weightTotal = 0;
+  buckets.forEach((b, i) => {
+    const weight = Math.pow(decay, n - 1 - i);
+    weightedSum += weight * (totalsByKey[b.key] ?? 0);
+    weightTotal += weight;
+  });
+  return weightTotal > 0 ? weightedSum / weightTotal : 0;
+}
+
 /** Shared placeholder for tabs not yet ported in this pass. */
 function ComingSoonTab({ title }: { title: string }) {
   return (
@@ -4879,6 +4953,120 @@ function DriverBudgetTab({ myProfile = null }: { myProfile?: MyProfile | null })
     </div>
   );
 }
+/** "Prediksi Kebutuhan Minggu Depan" — projects next week's likely
+ *  Op Driver claim spend from the last 3 months of Claims history, using
+ *  a recency-weighted per-driver average (see weightedWeeklyAverage()).
+ *  Built for the "dana belum cair dari Finance" scenario: gives the
+ *  admin a defensible number to work from even without waiting on an
+ *  actual disbursement. */
+function ForecastCard({ plant }: { plant: Plant }) {
+  const { lang } = useLang();
+  const cardStyle: CSSProperties = { borderRadius: "var(--r2)" };
+  const [claims, setClaims] = useState<Claim[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    (async () => {
+      try {
+        const all = await getClaims(plant);
+        if (!cancelled) setClaims(all);
+      } catch {
+        if (!cancelled) setClaims([]);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [plant]);
+
+  const forecast = useMemo(() => {
+    const MONTHS_BACK = 3;
+    const buckets = generateWeekBucketSequence(MONTHS_BACK);
+    if (buckets.length === 0) return { total: 0, perDriver: [] as { driverId: string; name: string; weekly: number }[], weeksAnalyzed: 0 };
+
+    const cutoff = buckets[0].endDate;
+    const recentClaims = claims.filter((c) => {
+      const d = new Date(c.periodDate || c.submissionDate);
+      return !isNaN(d.getTime()) && d >= cutoff;
+    });
+
+    // driverId -> bucketKey -> sum of claim totals
+    const byDriver = new Map<string, { name: string; totals: Record<string, number> }>();
+    for (const c of recentClaims) {
+      const key = claimWeekBucketKey(c.periodDate || c.submissionDate);
+      const entry = byDriver.get(c.driver_id) ?? { name: c.driverName, totals: {} };
+      entry.totals[key] = (entry.totals[key] ?? 0) + c.total;
+      byDriver.set(c.driver_id, entry);
+    }
+
+    const perDriver = Array.from(byDriver.entries())
+      .map(([driverId, { name, totals }]) => ({
+        driverId,
+        name,
+        weekly: weightedWeeklyAverage(buckets, totals),
+      }))
+      .filter((d) => d.weekly > 0)
+      .sort((a, b) => b.weekly - a.weekly);
+
+    const total = perDriver.reduce((sum, d) => sum + d.weekly, 0);
+    return { total, perDriver, weeksAnalyzed: buckets.length };
+  }, [claims]);
+
+  const animatedTotal = useCountUp(Math.round(forecast.total));
+
+  return (
+    <div className="statPop" style={{ ...cardStyle, padding: 20, marginBottom: 18 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 10, marginBottom: 4 }}>
+        <div>
+          <div style={{ fontSize: 13, fontWeight: 800, color: "var(--t1)" }}>
+            🔮 {lang === "en" ? "Next Week Budget Forecast" : "Prediksi Kebutuhan Minggu Depan"}
+          </div>
+          <div style={{ fontSize: 12, color: "var(--t3)", marginTop: 2 }}>
+            {lang === "en"
+              ? `Recency-weighted average from the last ${forecast.weeksAnalyzed} weeks of Claims history — use this if Finance funds haven't landed yet.`
+              : `Rata-rata tertimbang (minggu terbaru lebih berpengaruh) dari ${forecast.weeksAnalyzed} minggu riwayat Claims terakhir — pakai ini kalau dana dari Finance belum cair.`}
+          </div>
+        </div>
+      </div>
+
+      {loading ? (
+        <SkeletonRows rows={3} />
+      ) : forecast.perDriver.length === 0 ? (
+        <div style={{ textAlign: "center", padding: 30, color: "var(--t3)", fontSize: 12.5 }}>
+          {lang === "en" ? "Not enough Claims history yet to forecast." : "Belum cukup riwayat Claims untuk membuat prediksi."}
+        </div>
+      ) : (
+        <>
+          <div style={{ fontSize: 28, fontWeight: 800, fontFamily: "var(--mono)", color: "var(--brand)", margin: "10px 0 16px" }}>
+            Rp {fmtRp(animatedTotal)}
+            <span style={{ fontSize: 12, fontWeight: 600, color: "var(--t3)", marginLeft: 8 }}>
+              / {lang === "en" ? "week" : "minggu"} · {forecast.perDriver.length} {lang === "en" ? "drivers" : "driver"}
+            </span>
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {forecast.perDriver.map((d, i) => {
+              const pct = forecast.total > 0 ? (d.weekly / forecast.total) * 100 : 0;
+              return (
+                <div key={d.driverId} className="staggerItem" style={{ animationDelay: `${i * 0.04}s` }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12.5, marginBottom: 3 }}>
+                    <span style={{ color: "var(--t2)", fontWeight: 600 }}>{d.name}</span>
+                    <span style={{ color: "var(--t3)", fontFamily: "var(--mono)" }}>Rp {fmtRp(Math.round(d.weekly))}</span>
+                  </div>
+                  <div style={{ height: 6, borderRadius: 3, background: "var(--border)", overflow: "hidden" }}>
+                    <div style={{ height: "100%", width: `${Math.min(100, pct)}%`, background: "var(--brand)", borderRadius: 3, transition: "width 0.8s cubic-bezier(0.16,1,0.3,1)" }} />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
 function OpFundTab({ myProfile }: { myProfile: MyProfile | null }) {
   const { lang, t } = useLang();
   const lockedPlant = myProfile?.plantScope ?? null;
@@ -5261,6 +5449,8 @@ gap: h.allocOpDriver + h.allocEmergency + h.cashAvailable + h.claimSubmitted + h
           )}
         </div>
       </div>
+
+      <ForecastCard plant={viewPlant} />
 
       {showEdit && (
         <ModalPortal onOverlayClick={() => setShowEdit(false)} maxWidth={420}>
