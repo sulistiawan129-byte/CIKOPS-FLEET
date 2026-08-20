@@ -121,7 +121,6 @@ import type {
 } from "@/lib/types";
 import { computeStats } from "@/lib/types";
 import { useLang, useTheme } from "@/lib/providers";
-import { BRAND } from "@/lib/brand";
 import LockerTab from "./LockerTab";
 import { getLockerStatusGrid } from "@/lib/lockerApi";
 import CanteenTab from "./CanteenTab";
@@ -547,10 +546,10 @@ const [masterDataInitialSub, setMasterDataInitialSub] = useState<"drivers" | "em
         }}
       >
         <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "18px" }}>
-          <img src="/logo.png" alt={BRAND.name} style={{ width: 38, height: 38, filter: "drop-shadow(0 4px 10px rgba(47,95,224,0.35))" }} />
+          <img src="/logo.png" alt="CIKOPS" style={{ width: 38, height: 38, filter: "drop-shadow(0 4px 10px rgba(47,95,224,0.35))" }} />
           <div>
             <div style={{ fontSize: 14, fontWeight: 800, color: "var(--t1)" }}>{t.appName}</div>
-            <div style={{ fontSize: 12, color: "var(--t3)" }}>{BRAND.fullName}</div>
+            <div style={{ fontSize: 12, color: "var(--t3)" }}>CIKOPS-FM System</div>
           </div>
         </div>
        <nav style={{ flex: 1, overflowY: "auto", padding: "10px 10px" }}>
@@ -1160,7 +1159,7 @@ function ReportModal({
       <div className={styles.reportPanel}>
         <div className={styles.reportTopbar}>
           <div className={styles.reportTitleWrap}>
-            <div className={styles.topbarEyebrow}>{BRAND.name}</div>
+            <div className={styles.topbarEyebrow}>CIKOPS</div>
             <div className={styles.topbarTitle}>Laporan & Analytics</div>
           </div>
           <button className={styles.modalClose} onClick={onClose}>
@@ -1494,7 +1493,7 @@ function buildTaskWhatsAppMessage(params: {
   if (params.perihal.trim()) {
     lines.push(`📝 *Perihal* : ${params.perihal.trim()}`);
   }
-  lines.push("", "Mohon dapat ditindaklanjuti. Terima kasih 🙏", "", `_Pesan otomatis — ${BRAND.name}_`);
+  lines.push("", "Mohon dapat ditindaklanjuti. Terima kasih 🙏", "", "_Pesan otomatis — CIKOPS Fleet Ops_");
 
   return lines.join("\n");
 }
@@ -4506,7 +4505,7 @@ function LoginScreen() {
           <div style={{ position: "absolute", bottom: "-20%", left: "-15%", width: 420, height: 420, borderRadius: "50%", background: "radial-gradient(circle, rgba(23,195,178,0.22), transparent 70%)" }} />
           <div style={{ position: "absolute", top: "38%", left: "48%", width: 260, height: 260, borderRadius: "50%", border: "1px solid rgba(255,255,255,0.12)" }} />
           <div style={{ position: "relative", zIndex: 1, display: "flex", alignItems: "center", gap: 12 }}>
-            <img src="/logo.png" alt={BRAND.name} style={{ width: 48, height: 48 }} />
+            <img src="/logo.png" alt="CIKOPS" style={{ width: 48, height: 48 }} />
             <div>
               <div style={{ fontSize: 17, fontWeight: 800, color: "#fff" }}>{t.appName}</div>
               <div style={{ fontSize: 13, color: "rgba(255,255,255,0.7)" }}>Integrated Facility Management</div>
