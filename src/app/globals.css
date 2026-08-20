@@ -136,18 +136,62 @@ body {
   min-height: 100%;
   overscroll-behavior-y: none;
   background-image:
-    radial-gradient(circle at 8% 8%, rgba(47, 95, 224, 0.08), transparent 35%),
-    radial-gradient(circle at 92% 88%, rgba(216, 169, 78, 0.08), transparent 35%),
-    radial-gradient(circle, var(--border2) 1.3px, transparent 1.3px);
-  background-size: auto, auto, 24px 24px;
+    radial-gradient(circle at 96% 0%, rgba(45, 212, 196, 0.08), transparent 40%),
+    radial-gradient(circle at 0% 96%, rgba(111, 94, 199, 0.07), transparent 40%);
   background-attachment: fixed;
+  position: relative;
 }
 [data-theme="dark"] body {
   background-image:
-    radial-gradient(circle at 8% 8%, rgba(91, 140, 255, 0.1), transparent 35%),
-    radial-gradient(circle at 92% 88%, rgba(230, 188, 110, 0.08), transparent 35%),
-    radial-gradient(circle, rgba(255, 255, 255, 0.06) 1.3px, transparent 1.3px);
-  background-size: auto, auto, 24px 24px;
+    radial-gradient(circle at 96% 0%, rgba(45, 212, 196, 0.09), transparent 40%),
+    radial-gradient(circle at 0% 96%, rgba(167, 147, 255, 0.09), transparent 40%);
+}
+
+/* Two soft, slowly-drifting light blobs — replaces the static dot-grid /
+   fully-static mesh with something that reads as quietly alive instead of
+   a flat printed backdrop, without being distracting or looping fast
+   enough to draw the eye away from actual content. */
+body::before,
+body::after {
+  content: "";
+  position: fixed;
+  border-radius: 50%;
+  filter: blur(70px);
+  pointer-events: none;
+  z-index: -1;
+}
+body::before {
+  width: 440px;
+  height: 440px;
+  top: -140px;
+  left: -120px;
+  background: rgba(47, 95, 224, 0.12);
+  animation: bgDrift1 24s ease-in-out infinite;
+}
+body::after {
+  width: 380px;
+  height: 380px;
+  bottom: -120px;
+  right: -100px;
+  background: rgba(216, 169, 78, 0.10);
+  animation: bgDrift2 28s ease-in-out infinite;
+}
+[data-theme="dark"] body::before {
+  background: rgba(91, 140, 255, 0.16);
+}
+[data-theme="dark"] body::after {
+  background: rgba(230, 188, 110, 0.12);
+}
+@keyframes bgDrift1 {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  50% { transform: translate(70px, 50px) scale(1.1); }
+}
+@keyframes bgDrift2 {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  50% { transform: translate(-60px, 55px) scale(1.06); }
+}
+@media (prefers-reduced-motion: reduce) {
+  body::before, body::after { animation: none; }
 }
 
 button {
