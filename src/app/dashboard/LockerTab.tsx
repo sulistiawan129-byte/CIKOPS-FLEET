@@ -1,9 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { createPortal } from "react-dom";
 import type { CSSProperties } from "react";
 import { useLang } from "@/lib/providers";
+import { ModalPortal } from "@/components/ModalPortal";
 import {
   getLockerStatusGrid,
   getAllLockers,
@@ -25,58 +25,10 @@ import {
 } from "@/lib/lockerApi";
 
 /* ════════════════════════════════════════════════════════════
-   LOCKER TAB — self-contained (own ModalPortal/styles) so this file
-   can be dropped into the dashboard with a minimal wiring patch to
-   page.tsx (just the tab entry + a single render line), rather than
-   editing the huge existing file directly.
+   LOCKER TAB — self-contained styles, shares ModalPortal with the
+   rest of the dashboard (see src/components/ModalPortal.tsx) so every
+   dialog in the app stays visually and behaviorally consistent.
 ════════════════════════════════════════════════════════════ */
-
-function ModalPortal({
-  onOverlayClick,
-  children,
-  maxWidth = 480,
-}: {
-  onOverlayClick?: () => void;
-  children: React.ReactNode;
-  maxWidth?: number;
-}) {
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => setMounted(true), []);
-  if (!mounted) return null;
-
-  return createPortal(
-    <div
-      onClick={onOverlayClick}
-      className="modalOverlayAnim"
-      style={{
-        position: "fixed",
-        inset: 0,
-        background: "rgba(10,20,40,0.55)",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        zIndex: 3000,
-        padding: "24px 16px",
-        overflowY: "auto",
-      }}
-    >
-      <div
-        onClick={(e) => e.stopPropagation()}
-        className="modalPop"
-        style={{
-          width: "100%",
-          maxWidth,
-          maxHeight: "calc(100vh - 48px)",
-          overflowY: "auto",
-          margin: "auto",
-        }}
-      >
-        {children}
-      </div>
-    </div>,
-    document.body
-  );
-}
 
 const cardStyle: CSSProperties = { borderRadius: "var(--r2)" };
 const inputStyle: CSSProperties = {
@@ -842,7 +794,7 @@ function LockerManagePanel() {
                 <div style={{ fontSize: 15, fontWeight: 800, marginBottom: 8, color: "var(--t1)" }}>
                   {lang === "en" ? "Send confirmation email?" : "Kirim email konfirmasi?"}
                 </div>
-                <div style={{ fontSize: 13, color: "var(--t3)", marginBottom: 18, lineHeight: 1.6 }}>
+                <div style={{ fontSize: 13, color: "var(--t2)", marginBottom: 18, lineHeight: 1.6 }}>
                   {lang === "en"
                     ? `Will be sent to ${bulkCount} people. Anyone who answers "No" will have their locker automatically deactivated.`
                     : `Akan dikirim ke ${bulkCount} orang. Locker yang dijawab "Tidak" akan otomatis dinonaktifkan.`}

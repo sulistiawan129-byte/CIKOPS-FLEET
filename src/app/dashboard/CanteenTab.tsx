@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { CSSProperties } from "react";
 import { useLang } from "@/lib/providers";
+import { ModalPortal } from "@/components/ModalPortal";
 import { getAllCanteenReports, deleteCanteenReport } from "@/lib/api";
 import type { CanteenReport } from "@/lib/types";
 import { exportCanteenToPdf } from "@/lib/canteenReport";
@@ -381,8 +382,8 @@ export default function CanteenTab() {
       </div>
 
       {confirmDelete && (
-        <div style={{ position: "fixed", inset: 0, background: "rgba(10,20,40,0.55)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 3000, padding: 20 }} onClick={() => setConfirmDelete(null)}>
-          <div style={{ ...cardStyle, padding: 24, textAlign: "center", maxWidth: 360, width: "100%" }} onClick={(e) => e.stopPropagation()}>
+        <ModalPortal onOverlayClick={() => setConfirmDelete(null)} maxWidth={360}>
+          <div style={{ ...cardStyle, padding: 24, textAlign: "center" }}>
             <div style={{ fontSize: 28, marginBottom: 8 }}>⚠️</div>
             <div style={{ fontSize: 15, fontWeight: 800, marginBottom: 8, color: "var(--t1)" }}>{lang === "en" ? "Delete this report?" : "Hapus laporan ini?"}</div>
             <div style={{ fontSize: 13, color: "var(--t3)", marginBottom: 18 }}>
@@ -393,7 +394,7 @@ export default function CanteenTab() {
               <button onClick={handleDelete} style={{ flex: 1, padding: "10px", borderRadius: 10, border: "none", background: "var(--red)", color: "#fff", fontWeight: 700, cursor: "pointer" }}>{t.actionYesDelete}</button>
             </div>
           </div>
-        </div>
+        </ModalPortal>
       )}
     </div>
   );
