@@ -1,10 +1,10 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { createPortal } from "react-dom";
 import type { CSSProperties } from "react";
 import dynamic from "next/dynamic";
 import styles from "./dashboard.module.css";
+import { ModalPortal } from "@/components/ModalPortal";
 import {
   getMyProfile,
   canAccessTab,
@@ -199,63 +199,6 @@ const NAV_GROUPS: NavGroup[] = [
 
 /** Hook sederhana untuk deteksi viewport mobile vs desktop, dipakai untuk
  *  memilih presentasi yang berbeda (tabel di PC, kartu di HP) dari data yang sama. */
-/** Renders its children directly into document.body via a Portal — this
- *  makes position:fixed centering bulletproof regardless of ANY ancestor
- *  CSS (transforms, animations, overflow, etc.), which was the root cause
- *  of a recurring "modal stuck at the top / off-center" bug. Every modal
- *  in this file should use this instead of a raw `<div style={{position:
- *  "fixed", ...}}>` wrapper. */
-function ModalPortal({
-  onOverlayClick,
-  children,
-  maxWidth = 480,
-}: {
-  onOverlayClick?: () => void;
-  children: React.ReactNode;
-  maxWidth?: number;
-}) {
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => setMounted(true), []);
-  if (!mounted) return null;
-
-  return createPortal(
-    <div
-      onClick={onOverlayClick}
-      className="modalOverlayAnim"
-      style={{
-        position: "fixed",
-        inset: 0,
-        background: "rgba(10,20,40,0.55)",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        zIndex: 3000,
-        padding: "24px 16px",
-        overflowY: "auto",
-      }}
-    >
-     <div
-        onClick={(e) => e.stopPropagation()}
-        className="modalPop"
-        style={{
-          width: "100%",
-          maxWidth,
-          maxHeight: "calc(100vh - 48px)",
-          overflowY: "auto",
-          margin: "auto",
-          background: "var(--surface)",
-          border: "1px solid var(--border2)",
-          borderRadius: "var(--r2)",
-          boxShadow: "var(--shadow-lg)",
-        }}
-      >
-        {children}
-      </div>
-    </div>,
-    document.body
-  );
-}
-
 function useIsMobile(breakpoint = 860) {
   const [isMobile, setIsMobile] = useState(false);
 
@@ -526,7 +469,7 @@ const [masterDataInitialSub, setMasterDataInitialSub] = useState<"drivers" | "em
       {isMobile && sidebarOpen && (
         <div
           onClick={() => setSidebarOpen(false)}
-          style={{ position: "fixed", inset: 0, background: "rgba(10,20,40,0.5)", zIndex: 299 }}
+          style={{ position: "fixed", inset: 0, background: "rgba(6,13,24,0.6)", zIndex: 299 }}
         />
       )}
 
@@ -8194,11 +8137,11 @@ function GiftMasterPanel({ cardStyle }: { cardStyle: CSSProperties }) {
       )}
 
       {confirmDelete && (
-        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 9999 }}>
-          <div style={{ background: "var(--surface)", borderRadius: 20, padding: 28, maxWidth: 380, width: "90%", textAlign: "center" }}>
+        <ModalPortal onOverlayClick={() => setConfirmDelete(null)} maxWidth={380}>
+          <div style={{ background: "var(--surface)", borderRadius: 20, padding: 28, textAlign: "center" }}>
             <div style={{ fontSize: 36, marginBottom: 12 }}>⚠️</div>
             <div style={{ fontWeight: 800, fontSize: 16, color: "var(--t1)", marginBottom: 8 }}>Hapus Event?</div>
-            <div style={{ fontSize: 13, color: "var(--t3)", marginBottom: 20 }}>
+            <div style={{ fontSize: 13, color: "var(--t2)", marginBottom: 20 }}>
               Event "<strong>{confirmDelete.name}</strong>" dan semua data pendaftarannya akan dihapus permanen.
             </div>
             <div style={{ display: "flex", gap: 10 }}>
@@ -8206,7 +8149,7 @@ function GiftMasterPanel({ cardStyle }: { cardStyle: CSSProperties }) {
               <button onClick={() => handleDelete(confirmDelete)} style={{ flex: 1, padding: 11, borderRadius: 10, border: "none", background: "var(--red)", color: "#fff", fontWeight: 700, cursor: "pointer" }}>Hapus</button>
             </div>
           </div>
-        </div>
+        </ModalPortal>
       )}
     </div>
   );
