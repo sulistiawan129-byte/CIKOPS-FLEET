@@ -4288,13 +4288,13 @@ function OvertimeTab({ myProfile }: { myProfile: MyProfile | null }) {
   return (
     <div style={{ padding: 20 }}>
       <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap", marginBottom: 16 }}>
-        <select style={{ ...inputStyle, width: "auto" }} value={filterMonth} onChange={(e) => setFilterMonth(Number(e.target.value))}>
+        <select className={styles.formSelect} style={{ width: "auto" }} value={filterMonth} onChange={(e) => setFilterMonth(Number(e.target.value))}>
           {months.map((m, i) => <option key={i} value={i}>{m}</option>)}
         </select>
-        <select style={{ ...inputStyle, width: "auto" }} value={filterYear} onChange={(e) => setFilterYear(Number(e.target.value))}>
+        <select className={styles.formSelect} style={{ width: "auto" }} value={filterYear} onChange={(e) => setFilterYear(Number(e.target.value))}>
           {[now.getFullYear() - 1, now.getFullYear(), now.getFullYear() + 1].map((y) => <option key={y} value={y}>{y}</option>)}
         </select>
-        <select style={{ ...inputStyle, width: "auto" }} value={filterPlant} onChange={(e) => setFilterPlant(e.target.value as "all" | Plant)}>
+        <select className={styles.formSelect} style={{ width: "auto" }} value={filterPlant} onChange={(e) => setFilterPlant(e.target.value as "all" | Plant)}>
           <option value="all">{lang === "en" ? "All Plants" : "Semua Plant"}</option>
           {OT_PLANTS.map((p) => <option key={p} value={p}>{p}</option>)}
         </select>
@@ -4838,7 +4838,8 @@ function DriverBudgetTab({ myProfile = null }: { myProfile?: MyProfile | null })
             <div key={d.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 0", borderBottom: "1px solid var(--border)" }}>
               <div style={{ flex: 1, fontSize: 12.5, color: "var(--t1)" }}>{d.nama}</div>
               <select
-                style={{ ...inputStyle, width: "auto", fontSize: 13, padding: "6px 10px" }}
+                className={styles.formSelect}
+                style={{ width: "auto", fontSize: 13, padding: "6px 10px" }}
                 value={d.tier_id || ""}
                 onChange={(e) => handleAssignTier(d.id, e.target.value)}
               >
