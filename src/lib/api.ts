@@ -731,6 +731,7 @@ interface GatePublicLogApiRow {
   vehicle_id: string;
   nopol: string;
   jenis: string | null;
+  color: string | null;
   plant: Plant;
   driver_name: string;
   tujuan: string | null;
@@ -750,6 +751,7 @@ export async function getGateLogsPublic(date?: string): Promise<VehicleGateLog[]
     vehicleId: r.vehicle_id,
     nopol: r.nopol,
     jenis: r.jenis ?? "-",
+    color: r.color ?? "",
     driverId: null,
     driverNameManual: null,
     driverName: r.driver_name,
@@ -797,7 +799,7 @@ interface GateLogRow {
   time_in: string | null;
   status: "OUT" | "IN" | "DONE";
   created_at: string;
-  vehicles?: { nopol: string; jenis: string | null } | null;
+  vehicles?: { nopol: string; jenis: string | null; color: string | null } | null;
   drivers?: { nama: string } | null;
 }
 
@@ -807,6 +809,7 @@ function mapGateLogRow(r: GateLogRow): VehicleGateLog {
     vehicleId: r.vehicle_id,
     nopol: r.vehicles?.nopol ?? "-",
     jenis: r.vehicles?.jenis ?? "-",
+    color: r.vehicles?.color ?? "",
     driverId: r.driver_id,
     driverNameManual: r.driver_name_manual,
     driverName: r.driver_name_manual || r.drivers?.nama || "-",
@@ -827,7 +830,7 @@ export async function getVehicleGateLogs(params?: {
 }): Promise<VehicleGateLog[]> {
   let q = supabase
     .from("vehicle_gate_logs")
-    .select("*, vehicles(nopol, jenis), drivers(nama)")
+    .select("*, vehicles(nopol, jenis, color), drivers(nama)")
     .order("created_at", { ascending: false });
   if (params?.plant) q = q.eq("plant", params.plant);
   if (params?.dateFrom) q = q.gte("created_at", params.dateFrom);

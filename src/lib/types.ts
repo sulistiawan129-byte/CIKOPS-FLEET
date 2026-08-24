@@ -77,6 +77,7 @@ export interface VehicleGateLog {
   vehicleId: string;
   nopol: string;
   jenis: string;
+  color: string;
   driverId: string | null;
   driverNameManual: string | null;
   driverName: string; // resolved: driverNameManual jika ada, kalau tidak nama driver terdaftar
@@ -97,6 +98,7 @@ export interface GateVehicleOption {
   nopol: string;
   jenis: string;
   plant: Plant;
+  color: string;
 }
 export interface GateDriverOption {
   id: string;
