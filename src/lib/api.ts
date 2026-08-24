@@ -20,7 +20,6 @@ import type {
   VehicleGateLog,
   GateVehicleOption,
   GateDriverOption,
-  GateDashboardRow,
 } from "./types";
 
 /* ════════════════════════════════════════════════════════════
@@ -713,69 +712,75 @@ export async function deleteWreath(id: string): Promise<void> {
    yang boleh baca tabel vehicle_gate_logs langsung.
 ════════════════════════════════════════════════════════════ */
 
-/** Daftar kendaraan aktif untuk dropdown driver-manual di quick-form
- *  buka catatan (dipakai halaman /gate versi dashboard). */
+/** Daftar kendaraan aktif untuk dropdown di form input operator. */
 export async function getActiveVehiclesForGate(): Promise<GateVehicleOption[]> {
   const { data, error } = await supabase.rpc("get_active_vehicles_for_gate");
   if (error) throw error;
   return (data ?? []) as GateVehicleOption[];
 }
 
-/** Daftar driver aktif untuk dropdown di quick-form buka catatan. */
+/** Daftar driver aktif untuk dropdown di form input operator. */
 export async function getActiveDriversForGate(): Promise<GateDriverOption[]> {
   const { data, error } = await supabase.rpc("get_active_drivers_for_gate");
   if (error) throw error;
   return (data ?? []) as GateDriverOption[];
 }
 
-interface GateDashboardApiRow {
+interface GatePublicLogApiRow {
+  log_id: string;
   vehicle_id: string;
   nopol: string;
   jenis: string | null;
   plant: Plant;
-  log_id: string | null;
-  driver_name: string | null;
+  driver_name: string;
   tujuan: string | null;
-  open_since: string | null;
-  next_action: "OUT" | "IN" | "DONE";
+  time_out: string | null;
+  time_in: string | null;
+  status: "OUT" | "IN" | "DONE";
+  created_at: string;
 }
 
-/** Papan status semua kendaraan aktif, sekali panggil — dasar dari
- *  halaman /gate model dashboard (bukan pilih-satu-per-satu lagi). */
-export async function getGateDashboard(): Promise<GateDashboardRow[]> {
-  const { data, error } = await supabase.rpc("get_gate_dashboard");
+/** List entri gate untuk tanggal tertentu — dasar dari tampilan
+ *  halaman publik /gate (form di atas, list ini di bawahnya). */
+export async function getGateLogsPublic(date?: string): Promise<VehicleGateLog[]> {
+  const { data, error } = await supabase.rpc("get_gate_logs_public", { p_date: date ?? null });
   if (error) throw error;
-  return (data as GateDashboardApiRow[] ?? []).map((r) => ({
+  return (data as GatePublicLogApiRow[] ?? []).map((r) => ({
+    id: r.log_id,
     vehicleId: r.vehicle_id,
     nopol: r.nopol,
     jenis: r.jenis ?? "-",
-    plant: r.plant,
-    logId: r.log_id,
+    driverId: null,
+    driverNameManual: null,
     driverName: r.driver_name,
-    tujuan: r.tujuan,
-    openSince: r.open_since,
-    nextAction: r.next_action,
+    plant: r.plant,
+    tujuan: r.tujuan ?? "",
+    timeOut: r.time_out,
+    timeIn: r.time_in,
+    status: r.status,
+    createdAt: r.created_at,
   }));
 }
 
-/** Buka catatan baru (kendaraan lagi standby → keluar/check-in). */
+/** Buka catatan baru dari form operator (tanggal, driver, kendaraan, tujuan). */
 export async function openGateCheckpoint(input: {
   vehicleId: string;
   driverId?: string | null;
   driverNameManual?: string | null;
   tujuan: string;
+  timestamp?: string; // ISO — kalau tidak diisi, RPC pakai now()
 }): Promise<void> {
   const { error } = await supabase.rpc("open_gate_checkpoint", {
     p_vehicle_id: input.vehicleId,
     p_driver_id: input.driverId || null,
     p_driver_name_manual: input.driverNameManual || null,
     p_tujuan: input.tujuan || "",
+    p_timestamp: input.timestamp ?? new Date().toISOString(),
   });
   if (error) throw error;
 }
 
-/** Tutup catatan yang sudah terbuka (kendaraan lagi keluar/check-in
- *  → kembali/check-out) — satu klik, tidak butuh input apapun. */
+/** Tutup catatan (tombol kontrol di list) — satu klik, tidak butuh input. */
 export async function closeGateCheckpoint(vehicleId: string): Promise<void> {
   const { error } = await supabase.rpc("close_gate_checkpoint", { p_vehicle_id: vehicleId });
   if (error) throw error;
