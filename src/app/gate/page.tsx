@@ -268,7 +268,7 @@ export default function GatePage() {
   return (
     <div style={{ minHeight: "100vh", background: P.bg, fontFamily: "-apple-system,'Segoe UI',sans-serif", transition: "background 0.25s ease" }}>
       {/* Header */}
-      <div style={{ background: P.headerBg, borderBottom: `1px solid ${P.headerBorder}`, padding: "16px 32px", display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 14 }}>
+      <div style={{ background: P.headerBg, borderBottom: `1px solid ${P.headerBorder}`, padding: "16px 40px", display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 14 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
           <div style={{ width: 44, height: 44, borderRadius: "50%", background: "#0f2847", border: "2px solid #2f5fe0", display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden" }}>
             <img src="/logo.png" alt="CIKOPS" style={{ width: "78%", height: "78%", objectFit: "contain" }} />
@@ -315,7 +315,7 @@ export default function GatePage() {
         </div>
       </div>
 
-      <div style={{ maxWidth: 1520, margin: "0 auto", padding: "28px 32px", display: "grid", gridTemplateColumns: "500px 1fr", gap: 26, alignItems: "start" }}>
+      <div style={{ width: "100%", boxSizing: "border-box", margin: "0", padding: "28px 40px", display: "grid", gridTemplateColumns: "minmax(460px, 560px) 1fr", gap: 28, alignItems: "start" }}>
 
         {/* ── FORM (lebih besar — fokus utama halaman) ── */}
         <div style={{ background: P.cardBg, borderRadius: 20, border: `1.5px solid ${selectedVehicle ? activePlant.main : P.cardBorder}`, padding: 34, position: "sticky", top: 24, boxShadow: mode === "light" ? "0 4px 24px rgba(15,40,71,0.06)" : "0 4px 24px rgba(0,0,0,0.3)", transition: "border-color 0.25s ease" }}>
@@ -381,8 +381,8 @@ export default function GatePage() {
               <input value={driverManual} onChange={(e) => setDriverManual(e.target.value)} placeholder="Nama driver" style={inputStyle} />
             ) : (
               <select value={driverId} onChange={(e) => setDriverId(e.target.value)} style={inputStyle}>
-                <option value="">-- Pilih Driver --</option>
-                {drivers.map((d) => <option key={d.id} value={d.id}>{d.nama}</option>)}
+                <option value="" style={{ background: "#ffffff", color: "#0f2847" }}>-- Pilih Driver --</option>
+                {drivers.map((d) => <option key={d.id} value={d.id} style={{ background: "#ffffff", color: "#0f2847" }}>{d.nama}</option>)}
               </select>
             )}
           </div>
