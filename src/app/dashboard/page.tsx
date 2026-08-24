@@ -61,6 +61,7 @@ import {
   addWreath,
   setWreathClaimed,
   deleteWreath,
+  getVehicleGateLogs,
   sendClaimNotificationEmails,
   getAppSetting,
   setAppSetting,
@@ -82,7 +83,7 @@ import {
   updateGasStation,
   deleteGasStation,
 } from "@/lib/api";
-import type { Claim, ClaimItem, Overtime, Plant, Kantong, DriverTier, GasStation, FuelEntry, CanteenReport, GiftEvent, GiftItemDef, GiftRegistration, Wreath } from "@/lib/types";
+import type { Claim, ClaimItem, Overtime, Plant, Kantong, DriverTier, GasStation, FuelEntry, CanteenReport, GiftEvent, GiftItemDef, GiftRegistration, Wreath, VehicleGateLog } from "@/lib/types";
 import { computeCanteenKPI } from "@/lib/types";
 import { exportTandaTerima } from "@/lib/tandaTerima";
 import { buildRincianRows } from "@/lib/claimRecap";
@@ -109,7 +110,7 @@ const GasStationMap = dynamic(() => import("./GasStationMap"), {
     </div>
   ),
 });
-import { exportTasksToCsv, exportTasksToPdf, exportWreathsToCsv } from "@/lib/report";
+import { exportTasksToCsv, exportTasksToPdf, exportWreathsToCsv, exportGateLogsToCsv } from "@/lib/report";
 import { computeReportAnalytics, formatMinutes } from "@/lib/analytics";
 import type {
   Driver,
@@ -6282,6 +6283,7 @@ const BLANK_VEHICLE_FORM: VehicleFormState = {
 function VehiclesTab({ myProfile }: { myProfile: MyProfile | null }) {
   const isAdmin = myProfile?.role === "admin";
   const { lang, t } = useLang();
+  const [viewMode, setViewMode] = useState<"list" | "gatelog">("list");
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [drivers, setDrivers] = useState<Driver[]>([]);
   const [loading, setLoading] = useState(true);
@@ -6292,6 +6294,36 @@ function VehiclesTab({ myProfile }: { myProfile: MyProfile | null }) {
   const [form, setForm] = useState<VehicleFormState>(BLANK_VEHICLE_FORM);
   const [confirmDelete, setConfirmDelete] = useState<Vehicle | null>(null);
   const [saving, setSaving] = useState(false);
+
+  // ── Gate Log ──
+  const [gateLogs, setGateLogs] = useState<VehicleGateLog[]>([]);
+  const [loadingGateLogs, setLoadingGateLogs] = useState(false);
+  const [gatePlantFilter, setGatePlantFilter] = useState<"all" | Plant>("all");
+  const [gateDateFrom, setGateDateFrom] = useState(() => {
+    const d = new Date(); d.setDate(d.getDate() - 7);
+    return d.toISOString().slice(0, 10);
+  });
+  const [gateDateTo, setGateDateTo] = useState(() => new Date().toISOString().slice(0, 10));
+
+  const loadGateLogs = useCallback(async () => {
+    setLoadingGateLogs(true);
+    try {
+      const logs = await getVehicleGateLogs({
+        plant: gatePlantFilter === "all" ? null : gatePlantFilter,
+        dateFrom: gateDateFrom,
+        dateTo: gateDateTo,
+      });
+      setGateLogs(logs);
+    } catch (e) {
+      console.warn("Gagal memuat gate log:", e);
+    } finally {
+      setLoadingGateLogs(false);
+    }
+  }, [gatePlantFilter, gateDateFrom, gateDateTo]);
+
+  useEffect(() => {
+    if (viewMode === "gatelog") loadGateLogs();
+  }, [viewMode, loadGateLogs]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -6405,16 +6437,105 @@ function VehiclesTab({ myProfile }: { myProfile: MyProfile | null }) {
           justifyContent: "space-between",
           alignItems: "center",
           marginBottom: 16,
+          flexWrap: "wrap",
+          gap: 10,
         }}
       >
-        <div style={{ fontSize: 16, fontWeight: 800, color: "var(--t1)" }}>
-          {lang === "en" ? "Vehicle Fleet" : "Armada Kendaraan"}
+        <div style={{ display: "flex", gap: 8 }}>
+          <button
+            onClick={() => setViewMode("list")}
+            style={{ padding: "7px 16px", borderRadius: "var(--pill)", border: "1px solid var(--border2)", cursor: "pointer", fontSize: 12.5, fontWeight: 700, background: viewMode === "list" ? "linear-gradient(135deg, var(--brand), var(--brand2))" : "transparent", color: viewMode === "list" ? "#fff" : "var(--t2)" }}
+          >
+            {lang === "en" ? "Vehicle Fleet" : "Armada Kendaraan"}
+          </button>
+          <button
+            onClick={() => setViewMode("gatelog")}
+            style={{ padding: "7px 16px", borderRadius: "var(--pill)", border: "1px solid var(--border2)", cursor: "pointer", fontSize: 12.5, fontWeight: 700, background: viewMode === "gatelog" ? "linear-gradient(135deg, var(--brand), var(--brand2))" : "transparent", color: viewMode === "gatelog" ? "#fff" : "var(--t2)" }}
+          >
+            🚧 Gate Log
+          </button>
         </div>
-        <button className="pillBtn" onClick={openAdd}>
-          + {lang === "en" ? "Add Vehicle" : "Tambah Kendaraan"}
-        </button>
+        {viewMode === "list" && (
+          <button className="pillBtn" onClick={openAdd}>
+            + {lang === "en" ? "Add Vehicle" : "Tambah Kendaraan"}
+          </button>
+        )}
       </div>
 
+      {viewMode === "gatelog" && (
+        <div className="neonCard" style={{ padding: 0, overflow: "hidden", marginBottom: 18 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 10, padding: "16px 18px" }}>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+              <input type="date" className={styles.formInput} style={{ width: "auto" }} value={gateDateFrom} onChange={(e) => setGateDateFrom(e.target.value)} />
+              <span style={{ color: "var(--t3)", fontSize: 12 }}>—</span>
+              <input type="date" className={styles.formInput} style={{ width: "auto" }} value={gateDateTo} onChange={(e) => setGateDateTo(e.target.value)} />
+              <select className={styles.formSelect} style={{ width: "auto" }} value={gatePlantFilter} onChange={(e) => setGatePlantFilter(e.target.value as "all" | Plant)}>
+                <option value="all">{lang === "en" ? "All Plants" : "Semua Plant"}</option>
+                <option value="CIK">CIK</option>
+                <option value="PRB">PRB</option>
+              </select>
+            </div>
+            <button
+              onClick={() => exportGateLogsToCsv(gateLogs)}
+              disabled={gateLogs.length === 0}
+              style={{ padding: "9px 16px", borderRadius: "var(--pill)", border: "1px solid var(--green)", background: "var(--green-soft)", color: "var(--green)", fontWeight: 700, fontSize: 13, cursor: gateLogs.length === 0 ? "not-allowed" : "pointer", opacity: gateLogs.length === 0 ? 0.5 : 1 }}
+            >
+              ⬇ {lang === "en" ? "Export CSV" : "Export CSV"}
+            </button>
+          </div>
+
+          {loadingGateLogs ? (
+            <SkeletonRows rows={5} />
+          ) : gateLogs.length === 0 ? (
+            <div style={{ textAlign: "center", padding: 40, color: "var(--t3)" }}>
+              🚧 {lang === "en" ? "No gate log entries in this range" : "Belum ada catatan gate di rentang ini"}
+            </div>
+          ) : (
+            <div style={{ overflowX: "auto" }}>
+              <table className="tableCompact" style={{ minWidth: 900, width: "100%" }}>
+                <thead>
+                  <tr>
+                    <th>{lang === "en" ? "Date" : "Tanggal"}</th>
+                    <th>{lang === "en" ? "Plate" : "Plat"}</th>
+                    <th>Driver</th>
+                    <th>{lang === "en" ? "Purpose" : "Tujuan"}</th>
+                    <th>Jam Out</th>
+                    <th>Jam In</th>
+                    <th>Status</th>
+                    <th>Durasi</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {gateLogs.map((l) => {
+                    const done = l.status === "DONE";
+                    const label = l.plant === "CIK" ? (done ? "Sudah Kembali" : "Sedang Keluar") : (done ? "Sudah Check-Out" : "Sedang Check-In");
+                    const durMin = l.timeOut && l.timeIn ? Math.round(Math.abs(new Date(l.timeIn).getTime() - new Date(l.timeOut).getTime()) / 60000) : null;
+                    const durLabel = durMin === null ? "-" : durMin >= 60 ? `${Math.floor(durMin / 60)}j ${durMin % 60}m` : `${durMin}m`;
+                    return (
+                      <tr key={l.id}>
+                        <td>{formatDateLabel(l.createdAt.slice(0, 10))}</td>
+                        <td style={{ fontWeight: 700 }}>{l.nopol} <span style={{ display: "inline-block", fontSize: 11, fontWeight: 700, padding: "2px 8px", borderRadius: 6, color: PLANT_COLOR[l.plant], background: `${PLANT_COLOR[l.plant]}18`, marginLeft: 4 }}>{l.plant}</span></td>
+                        <td>{l.driverName}</td>
+                        <td style={{ color: "var(--t3)" }}>{l.tujuan || "-"}</td>
+                        <td>{l.timeOut ? new Date(l.timeOut).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" }) : "-"}</td>
+                        <td>{l.timeIn ? new Date(l.timeIn).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" }) : "-"}</td>
+                        <td>
+                          <span style={{ padding: "4px 10px", borderRadius: "var(--pill)", fontSize: 11.5, fontWeight: 700, background: done ? "var(--green-soft)" : "var(--orange-soft)", color: done ? "var(--green)" : "var(--orange)" }}>
+                            {label}
+                          </span>
+                        </td>
+                        <td style={{ fontFamily: "var(--mono)" }}>{durLabel}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
+
+      <div style={{ display: viewMode === "list" ? "block" : "none" }}>
       {error && (
         <div
           style={{
@@ -6602,6 +6723,7 @@ function VehiclesTab({ myProfile }: { myProfile: MyProfile | null }) {
           })}
         </div>
       )}
+      </div>
 
       {showForm && (
         <ModalPortal onOverlayClick={() => setShowForm(false)} maxWidth={560}>
