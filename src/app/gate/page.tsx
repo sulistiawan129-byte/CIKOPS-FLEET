@@ -266,7 +266,8 @@ export default function GatePage() {
   const pageList = searchedList.slice((pageSafe - 1) * PAGE_SIZE, pageSafe * PAGE_SIZE);
 
   return (
-    <div style={{ minHeight: "100vh", background: P.bg, fontFamily: "-apple-system,'Segoe UI',sans-serif", transition: "background 0.25s ease" }}>
+    <div style={{ minHeight: "100vh", background: P.bg, fontFamily: "-apple-system,'Segoe UI',sans-serif", transition: "background 0.25s ease", display: "flex", flexDirection: "column" }}>
+      <div style={{ height: 10, background: "linear-gradient(90deg, #1f44b8, #2f5fe0, #5b8cff, #2f5fe0, #1f44b8)", flexShrink: 0 }} />
       {/* Header */}
       <div style={{ background: P.headerBg, borderBottom: `1px solid ${P.headerBorder}`, padding: "16px 40px", display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 14 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
@@ -315,7 +316,7 @@ export default function GatePage() {
         </div>
       </div>
 
-      <div style={{ width: "100%", boxSizing: "border-box", margin: "0", padding: "28px 40px", display: "grid", gridTemplateColumns: "minmax(460px, 560px) 1fr", gap: 28, alignItems: "start" }}>
+      <div style={{ width: "100%", boxSizing: "border-box", margin: "0", padding: "28px 40px", display: "grid", gridTemplateColumns: "minmax(460px, 560px) 1fr", gap: 28, alignItems: "start", flex: 1 }}>
 
         {/* ── FORM (lebih besar — fokus utama halaman) ── */}
         <div style={{ background: P.cardBg, borderRadius: 20, border: `1.5px solid ${selectedVehicle ? activePlant.main : P.cardBorder}`, padding: 34, position: "sticky", top: 24, boxShadow: mode === "light" ? "0 4px 24px rgba(15,40,71,0.06)" : "0 4px 24px rgba(0,0,0,0.3)", transition: "border-color 0.25s ease" }}>
@@ -535,6 +536,7 @@ export default function GatePage() {
           )}
         </div>
       </div>
+      <div style={{ height: 10, background: "linear-gradient(90deg, #1f44b8, #2f5fe0, #5b8cff, #2f5fe0, #1f44b8)", flexShrink: 0 }} />
     </div>
   );
 }
