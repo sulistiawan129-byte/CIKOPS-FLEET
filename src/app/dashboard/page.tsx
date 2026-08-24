@@ -7603,8 +7603,8 @@ function EmployeeRequestsTab() {
               </thead>
               <tbody>
                 {filtered.map((r) => {
-                  const typeInfo = EMPLOYEE_REQUEST_TYPE_LABELS[r.requestType];
-                  const statusInfo = EMPLOYEE_REQUEST_STATUS_LABELS[r.status];
+                  const typeInfo = EMPLOYEE_REQUEST_TYPE_LABELS[r.requestType] ?? { label: r.requestType || "-", icon: "❔" };
+                  const statusInfo = EMPLOYEE_REQUEST_STATUS_LABELS[r.status] ?? { label: r.status || "-", color: "var(--t3)", bg: "var(--bg2)" };
                   return (
                     <tr key={r.id} style={{ cursor: "pointer" }} onClick={() => openDetail(r)}>
                       <td style={{ whiteSpace: "nowrap" }}>{formatDateLabel(r.createdAt.slice(0, 10))}</td>
@@ -7633,8 +7633,8 @@ function EmployeeRequestsTab() {
         <ModalPortal onOverlayClick={() => setDetailRequest(null)} maxWidth={460}>
           <div style={{ ...cardStyle, padding: 24 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4 }}>
-              <span style={{ fontSize: 22 }}>{EMPLOYEE_REQUEST_TYPE_LABELS[detailRequest.requestType].icon}</span>
-              <div style={{ fontSize: 16, fontWeight: 800, color: "var(--t1)" }}>{EMPLOYEE_REQUEST_TYPE_LABELS[detailRequest.requestType].label}</div>
+              <span style={{ fontSize: 22 }}>{(EMPLOYEE_REQUEST_TYPE_LABELS[detailRequest.requestType] ?? { icon: "❔" }).icon}</span>
+              <div style={{ fontSize: 16, fontWeight: 800, color: "var(--t1)" }}>{(EMPLOYEE_REQUEST_TYPE_LABELS[detailRequest.requestType] ?? { label: detailRequest.requestType }).label}</div>
             </div>
             <div style={{ fontSize: 12, color: "var(--t3)", marginBottom: 18 }}>{formatDateLabel(detailRequest.createdAt.slice(0, 10))} · {new Date(detailRequest.createdAt).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })}</div>
 
@@ -7680,7 +7680,7 @@ function EmployeeRequestsTab() {
             <div style={{ fontSize: 28, marginBottom: 8 }}>⚠️</div>
             <div style={{ fontSize: 15, fontWeight: 800, marginBottom: 8, color: "var(--t1)" }}>{lang === "en" ? "Delete this request?" : "Hapus permintaan ini?"}</div>
             <div style={{ fontSize: 13, color: "var(--t3)", marginBottom: 18 }}>
-              <strong style={{ color: "var(--t1)" }}>{confirmDelete.employeeName}</strong> — {EMPLOYEE_REQUEST_TYPE_LABELS[confirmDelete.requestType].label} {lang === "en" ? "will be permanently deleted." : "akan dihapus permanen."}
+              <strong style={{ color: "var(--t1)" }}>{confirmDelete.employeeName}</strong> — {(EMPLOYEE_REQUEST_TYPE_LABELS[confirmDelete.requestType] ?? { label: confirmDelete.requestType }).label} {lang === "en" ? "will be permanently deleted." : "akan dihapus permanen."}
             </div>
             <div style={{ display: "flex", gap: 10 }}>
               <button onClick={() => setConfirmDelete(null)} style={{ flex: 1, padding: "10px", borderRadius: 10, border: "1px solid var(--border2)", background: "var(--surface2)", color: "var(--t2)", fontWeight: 700, cursor: "pointer" }}>{t.actionCancel}</button>
