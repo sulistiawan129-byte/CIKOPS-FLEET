@@ -20,6 +20,7 @@ import type {
   VehicleGateLog,
   GateVehicleOption,
   GateDriverOption,
+  GateDashboardRow,
 } from "./types";
 
 /* ════════════════════════════════════════════════════════════
@@ -712,63 +713,72 @@ export async function deleteWreath(id: string): Promise<void> {
    yang boleh baca tabel vehicle_gate_logs langsung.
 ════════════════════════════════════════════════════════════ */
 
-/** Daftar kendaraan aktif untuk dropdown di halaman publik gate. */
+/** Daftar kendaraan aktif untuk dropdown driver-manual di quick-form
+ *  buka catatan (dipakai halaman /gate versi dashboard). */
 export async function getActiveVehiclesForGate(): Promise<GateVehicleOption[]> {
   const { data, error } = await supabase.rpc("get_active_vehicles_for_gate");
   if (error) throw error;
   return (data ?? []) as GateVehicleOption[];
 }
 
-/** Daftar driver aktif untuk dropdown di halaman publik gate. */
+/** Daftar driver aktif untuk dropdown di quick-form buka catatan. */
 export async function getActiveDriversForGate(): Promise<GateDriverOption[]> {
   const { data, error } = await supabase.rpc("get_active_drivers_for_gate");
   if (error) throw error;
   return (data ?? []) as GateDriverOption[];
 }
 
-export interface GateStatusPreview {
+interface GateDashboardApiRow {
+  vehicle_id: string;
+  nopol: string;
+  jenis: string | null;
   plant: Plant;
-  nextAction: "OUT" | "IN" | "DONE";
-  openSince: string | null;
-  openTujuan: string | null;
+  log_id: string | null;
+  driver_name: string | null;
+  tujuan: string | null;
+  open_since: string | null;
+  next_action: "OUT" | "IN" | "DONE";
 }
 
-/** Cek kendaraan ini kalau di-scan sekarang bakal tercatat sebagai
- *  apa — dipakai halaman publik untuk kasih preview sebelum submit,
- *  misal "Kendaraan ini akan dicatat: KELUAR". */
-export async function getVehicleGateStatus(vehicleId: string): Promise<GateStatusPreview> {
-  const { data, error } = await supabase.rpc("get_vehicle_gate_status", { p_vehicle_id: vehicleId });
+/** Papan status semua kendaraan aktif, sekali panggil — dasar dari
+ *  halaman /gate model dashboard (bukan pilih-satu-per-satu lagi). */
+export async function getGateDashboard(): Promise<GateDashboardRow[]> {
+  const { data, error } = await supabase.rpc("get_gate_dashboard");
   if (error) throw error;
-  const row = data?.[0];
-  if (!row) throw new Error("Kendaraan tidak ditemukan");
-  return {
-    plant: row.plant,
-    nextAction: row.next_action,
-    openSince: row.open_since,
-    openTujuan: row.open_tujuan,
-  };
+  return (data as GateDashboardApiRow[] ?? []).map((r) => ({
+    vehicleId: r.vehicle_id,
+    nopol: r.nopol,
+    jenis: r.jenis ?? "-",
+    plant: r.plant,
+    logId: r.log_id,
+    driverName: r.driver_name,
+    tujuan: r.tujuan,
+    openSince: r.open_since,
+    nextAction: r.next_action,
+  }));
 }
 
-export interface RecordGateCheckpointInput {
+/** Buka catatan baru (kendaraan lagi standby → keluar/check-in). */
+export async function openGateCheckpoint(input: {
   vehicleId: string;
   driverId?: string | null;
   driverNameManual?: string | null;
   tujuan: string;
-}
-
-/** Catat checkpoint (keluar/masuk/check-in/check-out) — satu tombol,
- *  aksinya ditentukan otomatis oleh RPC berdasarkan plant kendaraan
- *  dan ada/tidaknya log yang masih terbuka. */
-export async function recordGateCheckpoint(input: RecordGateCheckpointInput): Promise<{ action: string; plant: Plant }> {
-  const { data, error } = await supabase.rpc("record_gate_checkpoint", {
+}): Promise<void> {
+  const { error } = await supabase.rpc("open_gate_checkpoint", {
     p_vehicle_id: input.vehicleId,
     p_driver_id: input.driverId || null,
     p_driver_name_manual: input.driverNameManual || null,
     p_tujuan: input.tujuan || "",
   });
   if (error) throw error;
-  const row = data?.[0];
-  return { action: row?.action ?? "DONE", plant: row?.plant ?? "CIK" };
+}
+
+/** Tutup catatan yang sudah terbuka (kendaraan lagi keluar/check-in
+ *  → kembali/check-out) — satu klik, tidak butuh input apapun. */
+export async function closeGateCheckpoint(vehicleId: string): Promise<void> {
+  const { error } = await supabase.rpc("close_gate_checkpoint", { p_vehicle_id: vehicleId });
+  if (error) throw error;
 }
 
 interface GateLogRow {

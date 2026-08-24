@@ -92,6 +92,20 @@ export interface VehicleGateLog {
  *  pakai tipe Vehicle/Driver penuh karena RPC publiknya cuma expose
  *  kolom yang benar-benar perlu (lihat get_active_vehicles_for_gate /
  *  get_active_drivers_for_gate di migration 016). */
+/** Satu baris di papan dashboard gate publik — mewakili status
+ *  terkini 1 kendaraan (lagi standby, atau lagi keluar/check-in). */
+export interface GateDashboardRow {
+  vehicleId: string;
+  nopol: string;
+  jenis: string;
+  plant: Plant;
+  logId: string | null;
+  driverName: string | null;
+  tujuan: string | null;
+  openSince: string | null;
+  nextAction: "OUT" | "IN" | "DONE";
+}
+
 export interface GateVehicleOption {
   id: string;
   nopol: string;
