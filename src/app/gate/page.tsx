@@ -41,7 +41,8 @@ const inputStyle: CSSProperties = {
   width: "100%",
   padding: "17px 20px",
   borderRadius: 14,
-  border: "1.5px solid rgba(255,255,255,0.1)",
+  border: "1.5px solid rgba(61,123,255,0.4)",
+  boxShadow: "0 0 14px rgba(61,123,255,0.14), inset 0 0 20px rgba(61,123,255,0.03)",
   background: "rgba(255,255,255,0.04)",
   fontSize: 17,
   color: "#f2f6fc",
@@ -164,7 +165,9 @@ export default function GatePage() {
 
       <div style={{ position: "relative", zIndex: 2, borderBottom: "1px solid rgba(255,255,255,0.07)", padding: "28px 44px", display: "flex", alignItems: "center", justifyContent: "space-between", backdropFilter: "blur(20px)" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 18 }}>
-          <div style={{ width: 56, height: 56, borderRadius: 16, background: "linear-gradient(135deg, rgba(61,123,255,0.2), rgba(255,179,64,0.15))", border: "1px solid rgba(255,255,255,0.1)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 28 }}>[GATE]</div>
+          <div style={{ width: 60, height: 60, borderRadius: 18, background: "rgba(61,123,255,0.1)", border: "1.5px solid rgba(61,123,255,0.5)", boxShadow: "0 0 24px rgba(61,123,255,0.45), inset 0 0 16px rgba(61,123,255,0.08)", display: "flex", alignItems: "center", justifyContent: "center", padding: 8 }}>
+            <img src="/logo.png" alt="CIKOPS" style={{ width: "100%", height: "100%", objectFit: "contain", filter: "drop-shadow(0 0 8px rgba(61,123,255,0.6))" }} />
+          </div>
           <div>
             <div style={{ fontSize: 28, fontWeight: 800, letterSpacing: "-0.02em", color: "#fff" }}>Security Gate Control</div>
             <div style={{ fontSize: 14, color: "rgba(226,234,248,0.5)", marginTop: 3, letterSpacing: "0.02em" }}>CIKOPS FLEET — VEHICLE ACCESS LOG</div>
@@ -214,17 +217,18 @@ export default function GatePage() {
 
           <div style={{ marginBottom: 20 }}>
             <label style={labelStyle}>TANGGAL</label>
-            <input type="date" value={tanggal} onChange={(e) => setTanggal(e.target.value)} style={inputStyle} />
+            <input className="neon-field" type="date" value={tanggal} onChange={(e) => setTanggal(e.target.value)} style={inputStyle} />
           </div>
 
           <div style={{ marginBottom: 20, position: "relative" }} ref={vehicleInputRef}>
             <label style={labelStyle}>KENDARAAN — KETIK PLAT NOMOR</label>
             <input
+              className="neon-field"
               value={vehicleSearch}
               onChange={(e) => { setVehicleSearch(e.target.value); setVehicleId(""); setShowVehicleDropdown(true); }}
               onFocus={() => setShowVehicleDropdown(true)}
               placeholder="Ketik nomor polisi... contoh: B 1234"
-              style={{ ...inputStyle, fontFamily: "var(--font-mono, monospace)", letterSpacing: "0.04em", border: vehicleId ? `1.5px solid ${activeTheme.border}` : inputStyle.border, boxShadow: vehicleId ? `0 0 0 3px ${activeTheme.soft}` : "none" }}
+              style={{ ...inputStyle, fontFamily: "var(--font-mono, monospace)", letterSpacing: "0.04em", border: vehicleId ? `1.5px solid ${activeTheme.border}` : inputStyle.border, boxShadow: vehicleId ? `0 0 0 3px ${activeTheme.soft}` : inputStyle.boxShadow }}
             />
             {showVehicleDropdown && vehicleSearch.trim() !== "" && (
               <div style={{ position: "absolute", top: "100%", left: 0, right: 0, marginTop: 8, background: "#0d1a2e", backdropFilter: "blur(20px)", borderRadius: 16, boxShadow: "0 20px 50px rgba(0,0,0,0.5)", maxHeight: 300, overflowY: "auto", zIndex: 30, border: "1px solid rgba(255,255,255,0.1)" }}>
@@ -259,9 +263,9 @@ export default function GatePage() {
               </button>
             </div>
             {useManualDriver ? (
-              <input value={driverManual} onChange={(e) => setDriverManual(e.target.value)} placeholder="Nama driver" style={inputStyle} />
+              <input className="neon-field" value={driverManual} onChange={(e) => setDriverManual(e.target.value)} placeholder="Nama driver" style={inputStyle} />
             ) : (
-              <select value={driverId} onChange={(e) => setDriverId(e.target.value)} style={inputStyle}>
+              <select className="neon-field" value={driverId} onChange={(e) => setDriverId(e.target.value)} style={inputStyle}>
                 <option value="" style={{ background: "#0d1a2e" }}>-- Pilih Driver --</option>
                 {drivers.map((d) => <option key={d.id} value={d.id} style={{ background: "#0d1a2e" }}>{d.nama}</option>)}
               </select>
@@ -271,6 +275,7 @@ export default function GatePage() {
           <div style={{ marginBottom: 28 }}>
             <label style={labelStyle}>TUJUAN {selectedVehicle?.plant === "PRB" ? "/ KEPERLUAN" : ""}</label>
             <input
+              className="neon-field"
               value={tujuan}
               onChange={(e) => setTujuan(e.target.value)}
               placeholder={selectedVehicle?.plant === "PRB" ? "Contoh: Pengiriman barang" : "Contoh: Antar dokumen ke PRB"}
@@ -299,7 +304,7 @@ export default function GatePage() {
         <div>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
             <div style={{ fontSize: 22, fontWeight: 800, color: "#fff" }}>Aktivitas Gate</div>
-            <input type="date" value={tanggal} onChange={(e) => setTanggal(e.target.value)} style={{ ...inputStyle, width: "auto", padding: "11px 16px", fontSize: 14 }} />
+            <input className="neon-field" type="date" value={tanggal} onChange={(e) => setTanggal(e.target.value)} style={{ ...inputStyle, width: "auto", padding: "11px 16px", fontSize: 14 }} />
           </div>
 
           {loadingLogs ? (
@@ -388,6 +393,9 @@ export default function GatePage() {
         @keyframes float1 { 0%, 100% { transform: translate(0,0); } 50% { transform: translate(60px,40px); } }
         @keyframes float2 { 0%, 100% { transform: translate(0,0); } 50% { transform: translate(-50px,50px); } }
         select option { background: #0d1a2e; color: #fff; }
+        .neon-field { transition: border-color 0.2s ease, box-shadow 0.2s ease; }
+        .neon-field:hover { border-color: rgba(61,123,255,0.65) !important; box-shadow: 0 0 18px rgba(61,123,255,0.22), inset 0 0 20px rgba(61,123,255,0.05) !important; }
+        .neon-field:focus { border-color: #3d7bff !important; box-shadow: 0 0 0 3px rgba(61,123,255,0.22), 0 0 28px rgba(61,123,255,0.4), inset 0 0 20px rgba(61,123,255,0.06) !important; }
         input::placeholder { color: rgba(226,234,248,0.3); }
       `}</style>
     </div>
