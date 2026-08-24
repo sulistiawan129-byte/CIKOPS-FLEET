@@ -1,4 +1,4 @@
-import type { Driver, TaskDetail, Wreath } from "./types";
+import type { Driver, TaskDetail, Wreath, VehicleGateLog } from "./types";
 import { computeReportAnalytics, formatMinutes } from "./analytics";
 import type { RankedEntry } from "./analytics";
 
@@ -548,4 +548,68 @@ function todayForFilename(): string {
   const m = String(d.getMonth() + 1).padStart(2, "0");
   const day = String(d.getDate()).padStart(2, "0");
   return `${y}-${m}-${day}`;
+}
+
+/* ════════════════════════════════════════════════════════════
+   VEHICLE GATE LOG — laporan keluar/masuk kendaraan security gate.
+   Format kolom mengikuti persis sistem GAS Spreadsheet lama, supaya
+   drop-in compatible dengan alur kerja yang sudah biasa dipakai:
+   log_id, tanggal, driver_id, nama_driver, plat_mobil, tujuan,
+   jam_out, jam_in, status, Durasi
+════════════════════════════════════════════════════════════ */
+
+function fmtJam(iso: string | null): string {
+  if (!iso) return "";
+  const d = new Date(iso);
+  return d.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit", hour12: false });
+}
+
+function fmtDurasi(timeOut: string | null, timeIn: string | null): string {
+  if (!timeOut || !timeIn) return "";
+  const ms = Math.abs(new Date(timeIn).getTime() - new Date(timeOut).getTime());
+  const totalMinutes = Math.round(ms / 60000);
+  const h = Math.floor(totalMinutes / 60);
+  const m = totalMinutes % 60;
+  if (h === 0) return `${m}m`;
+  return `${h}j ${m}m`;
+}
+
+function statusLabelGate(log: VehicleGateLog): string {
+  if (log.plant === "CIK") {
+    return log.status === "DONE" ? "Sudah Kembali" : "Sedang Keluar";
+  }
+  return log.status === "DONE" ? "Sudah Check-Out" : "Sedang Check-In";
+}
+
+export function exportGateLogsToCsv(logs: VehicleGateLog[]): void {
+  const headers = ["log_id", "tanggal", "driver_id", "nama_driver", "plat_mobil", "tujuan", "jam_out", "jam_in", "status", "Durasi"];
+
+  const rows = logs.map((l) => [
+    l.id,
+    formatDateOnly(l.createdAt),
+    l.driverId ?? "",
+    l.driverName,
+    l.nopol,
+    l.tujuan,
+    fmtJam(l.timeOut),
+    fmtJam(l.timeIn),
+    statusLabelGate(l),
+    fmtDurasi(l.timeOut, l.timeIn),
+  ]);
+
+  const csvLines = [
+    headers.map(escapeCsvField).join(","),
+    ...rows.map((row) => row.map(escapeCsvField).join(",")),
+  ];
+
+  const csvContent = "\uFEFF" + csvLines.join("\r\n");
+  const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `GateLog_${todayForFilename()}.csv`;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
 }

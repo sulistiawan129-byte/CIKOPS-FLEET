@@ -68,6 +68,45 @@ export interface Claim {
  *  separately from regular expense claims since it's a one-off event
  *  (not tied to a driver or a Rp amount) that still needs its own
  *  claim-submitted status and its own report. */
+/** Catatan keluar/masuk kendaraan di security gate. Semantik status
+ *  tergantung plant: CIK => OUT berarti "sedang pergi kerja", DONE
+ *  berarti "sudah kembali". PRB => IN berarti "sedang check-in
+ *  (di dalam)", DONE berarti "sudah check-out". */
+export interface VehicleGateLog {
+  id: string;
+  vehicleId: string;
+  nopol: string;
+  jenis: string;
+  driverId: string | null;
+  driverNameManual: string | null;
+  driverName: string; // resolved: driverNameManual jika ada, kalau tidak nama driver terdaftar
+  plant: Plant;
+  tujuan: string;
+  timeOut: string | null;
+  timeIn: string | null;
+  status: "OUT" | "IN" | "DONE";
+  createdAt: string;
+}
+
+/** Opsi ringan untuk dropdown di halaman publik gate — sengaja tidak
+ *  pakai tipe Vehicle/Driver penuh karena RPC publiknya cuma expose
+ *  kolom yang benar-benar perlu (lihat get_active_vehicles_for_gate /
+ *  get_active_drivers_for_gate di migration 016). */
+export interface GateVehicleOption {
+  id: string;
+  nopol: string;
+  jenis: string;
+  plant: Plant;
+}
+export interface GateDriverOption {
+  id: string;
+  nama: string;
+}
+
+/** Karangan Bunga Duka Cita — condolence flower wreath record, tracked
+ *  separately from regular expense claims since it's a one-off event
+ *  (not tied to a driver or a Rp amount) that still needs its own
+ *  claim-submitted status and its own report. */
 export interface Wreath {
   id: string;
   plant: Plant;

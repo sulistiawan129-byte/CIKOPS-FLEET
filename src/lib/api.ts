@@ -17,6 +17,9 @@ import type {
   Vehicle,
   CanteenReport,
   Wreath,
+  VehicleGateLog,
+  GateVehicleOption,
+  GateDriverOption,
 } from "./types";
 
 /* ════════════════════════════════════════════════════════════
@@ -699,6 +702,124 @@ export async function setWreathClaimed(id: string, claimed: boolean): Promise<vo
 export async function deleteWreath(id: string): Promise<void> {
   const { error } = await supabase.from("condolence_wreaths").delete().eq("id", id);
   if (error) throw error;
+}
+
+/* ════════════════════════════════════════════════════════════
+   VEHICLE GATE LOG — pencatatan keluar/masuk kendaraan di security
+   gate. Halaman publik (/gate) TIDAK PERNAH menyentuh tabel
+   langsung — semuanya lewat RPC security definer, sama seperti pola
+   locker yang sudah terbukti aman. Cuma dashboard (authenticated)
+   yang boleh baca tabel vehicle_gate_logs langsung.
+════════════════════════════════════════════════════════════ */
+
+/** Daftar kendaraan aktif untuk dropdown di halaman publik gate. */
+export async function getActiveVehiclesForGate(): Promise<GateVehicleOption[]> {
+  const { data, error } = await supabase.rpc("get_active_vehicles_for_gate");
+  if (error) throw error;
+  return (data ?? []) as GateVehicleOption[];
+}
+
+/** Daftar driver aktif untuk dropdown di halaman publik gate. */
+export async function getActiveDriversForGate(): Promise<GateDriverOption[]> {
+  const { data, error } = await supabase.rpc("get_active_drivers_for_gate");
+  if (error) throw error;
+  return (data ?? []) as GateDriverOption[];
+}
+
+export interface GateStatusPreview {
+  plant: Plant;
+  nextAction: "OUT" | "IN" | "DONE";
+  openSince: string | null;
+  openTujuan: string | null;
+}
+
+/** Cek kendaraan ini kalau di-scan sekarang bakal tercatat sebagai
+ *  apa — dipakai halaman publik untuk kasih preview sebelum submit,
+ *  misal "Kendaraan ini akan dicatat: KELUAR". */
+export async function getVehicleGateStatus(vehicleId: string): Promise<GateStatusPreview> {
+  const { data, error } = await supabase.rpc("get_vehicle_gate_status", { p_vehicle_id: vehicleId });
+  if (error) throw error;
+  const row = data?.[0];
+  if (!row) throw new Error("Kendaraan tidak ditemukan");
+  return {
+    plant: row.plant,
+    nextAction: row.next_action,
+    openSince: row.open_since,
+    openTujuan: row.open_tujuan,
+  };
+}
+
+export interface RecordGateCheckpointInput {
+  vehicleId: string;
+  driverId?: string | null;
+  driverNameManual?: string | null;
+  tujuan: string;
+}
+
+/** Catat checkpoint (keluar/masuk/check-in/check-out) — satu tombol,
+ *  aksinya ditentukan otomatis oleh RPC berdasarkan plant kendaraan
+ *  dan ada/tidaknya log yang masih terbuka. */
+export async function recordGateCheckpoint(input: RecordGateCheckpointInput): Promise<{ action: string; plant: Plant }> {
+  const { data, error } = await supabase.rpc("record_gate_checkpoint", {
+    p_vehicle_id: input.vehicleId,
+    p_driver_id: input.driverId || null,
+    p_driver_name_manual: input.driverNameManual || null,
+    p_tujuan: input.tujuan || "",
+  });
+  if (error) throw error;
+  const row = data?.[0];
+  return { action: row?.action ?? "DONE", plant: row?.plant ?? "CIK" };
+}
+
+interface GateLogRow {
+  id: string;
+  vehicle_id: string;
+  driver_id: string | null;
+  driver_name_manual: string | null;
+  plant: Plant;
+  tujuan: string | null;
+  time_out: string | null;
+  time_in: string | null;
+  status: "OUT" | "IN" | "DONE";
+  created_at: string;
+  vehicles?: { nopol: string; jenis: string | null } | null;
+  drivers?: { nama: string } | null;
+}
+
+function mapGateLogRow(r: GateLogRow): VehicleGateLog {
+  return {
+    id: r.id,
+    vehicleId: r.vehicle_id,
+    nopol: r.vehicles?.nopol ?? "-",
+    jenis: r.vehicles?.jenis ?? "-",
+    driverId: r.driver_id,
+    driverNameManual: r.driver_name_manual,
+    driverName: r.driver_name_manual || r.drivers?.nama || "-",
+    plant: r.plant,
+    tujuan: r.tujuan ?? "",
+    timeOut: r.time_out,
+    timeIn: r.time_in,
+    status: r.status,
+    createdAt: r.created_at,
+  };
+}
+
+/** Untuk Dashboard (Tab Vehicle → Gate Log) — authenticated only. */
+export async function getVehicleGateLogs(params?: {
+  plant?: Plant | null;
+  dateFrom?: string;
+  dateTo?: string;
+}): Promise<VehicleGateLog[]> {
+  let q = supabase
+    .from("vehicle_gate_logs")
+    .select("*, vehicles(nopol, jenis), drivers(nama)")
+    .order("created_at", { ascending: false });
+  if (params?.plant) q = q.eq("plant", params.plant);
+  if (params?.dateFrom) q = q.gte("created_at", params.dateFrom);
+  if (params?.dateTo) q = q.lte("created_at", params.dateTo + "T23:59:59");
+  const { data, error } = await q;
+  if (error) throw error;
+  return (data as GateLogRow[] ?? []).map(mapGateLogRow);
 }
 
 /* ════════════════════════════════════════════════════════════
