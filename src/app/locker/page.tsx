@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import type { CSSProperties } from "react";
 import { useLang, useTheme } from "@/lib/providers";
 import {
-  getEmployeeByNik,
   registerLocker,
   verifyLockerRelease,
   releaseLockerByUser,
@@ -82,7 +81,6 @@ export default function LockerPublicPage() {
   const [nik, setNik] = useState("");
   const [namaEmp, setNamaEmp] = useState("");
   const [dept, setDept] = useState("");
-  const [nikStatus, setNikStatus] = useState<"" | "loading" | "ok" | "bad">("");
 
   // Employee contact step
   const [hpEmp, setHpEmp] = useState("");
@@ -114,7 +112,7 @@ export default function LockerPublicPage() {
     setHistory((h) => (h.length > 1 ? h.slice(0, -1) : h));
   }
   function resetApp() {
-    setNik(""); setNamaEmp(""); setDept(""); setNikStatus("");
+    setNik(""); setNamaEmp(""); setDept("");
     setHpEmp(""); setEmailEmp("");
     setNamaInt(""); setKampus(""); setHpInt(""); setEmailInt(""); setPeriode(""); setTanggalSelesai("");
     setEndNumber(""); setEndPin(""); setEndUseError(""); setConfirmData(null);
@@ -127,30 +125,7 @@ export default function LockerPublicPage() {
     goTo("end-use");
   }
 
-  // Debounced NIK lookup
-  useEffect(() => {
-    if (!nik.trim()) {
-      setNamaEmp(""); setDept(""); setNikStatus("");
-      return;
-    }
-    setNikStatus("loading");
-    const id = setTimeout(async () => {
-      try {
-        const emp = await getEmployeeByNik(nik.trim());
-        if (emp) {
-          setNamaEmp(emp.nama);
-          setDept(emp.dept);
-          setNikStatus("ok");
-        } else {
-          setNamaEmp(""); setDept("");
-          setNikStatus("bad");
-        }
-      } catch {
-        setNikStatus("bad");
-      }
-    }, 450);
-    return () => clearTimeout(id);
-  }, [nik]);
+  // Employee NIK step (input manual — TIDAK auto-lookup lagi, karyawan isi sendiri)
 
   async function submitEmployee() {
     if (!hpEmp.trim() || !emailEmp.trim()) {
@@ -310,7 +285,7 @@ export default function LockerPublicPage() {
           )}
 
           {screen === "employee-nik" && (
-            <EmployeeNikScreen lang={lang} nik={nik} setNik={setNik} namaEmp={namaEmp} dept={dept} nikStatus={nikStatus} />
+            <EmployeeNikScreen lang={lang} nik={nik} setNik={setNik} namaEmp={namaEmp} setNamaEmp={setNamaEmp} dept={dept} setDept={setDept} />
           )}
 
           {screen === "employee-form" && (
@@ -343,7 +318,7 @@ export default function LockerPublicPage() {
         {/* ── Bottom action bar ── */}
         <div style={bottomBar}>
           {screen === "employee-nik" && (
-            <BigButton disabled={nikStatus !== "ok"} onClick={() => goTo("employee-form")}>
+            <BigButton disabled={!nik.trim() || !namaEmp.trim() || !dept.trim()} onClick={() => goTo("employee-form")}>
               {lang === "en" ? "Continue" : "Lanjutkan"}
             </BigButton>
           )}
@@ -626,30 +601,24 @@ function StepBar({ step, total }: { step: number; total: number }) {
 }
 
 function EmployeeNikScreen({
-  lang, nik, setNik, namaEmp, dept, nikStatus,
+  lang, nik, setNik, namaEmp, setNamaEmp, dept, setDept,
 }: {
-  lang: string; nik: string; setNik: (v: string) => void; namaEmp: string; dept: string; nikStatus: "" | "loading" | "ok" | "bad";
+  lang: string; nik: string; setNik: (v: string) => void; namaEmp: string; setNamaEmp: (v: string) => void; dept: string; setDept: (v: string) => void;
 }) {
-  const statusColor = nikStatus === "ok" ? "var(--green)" : nikStatus === "bad" ? "var(--red)" : "var(--t3)";
-  const statusText =
-    nikStatus === "loading" ? (lang === "en" ? "Searching..." : "Mencari data...") :
-    nikStatus === "ok" ? (lang === "en" ? "✓ NIK found" : "✓ NIK ditemukan") :
-    nikStatus === "bad" ? (lang === "en" ? "NIK not found" : "NIK tidak ditemukan") : "";
   return (
     <div className="tabContent">
       <StepBar step={0} total={2} />
       <div style={{ fontSize: 12.5, color: "var(--t3)", fontWeight: 600, marginBottom: 18 }}>
-        {lang === "en" ? "Step 1 of 2 — Employee Verification" : "Langkah 1 dari 2 — Verifikasi Karyawan"}
+        {lang === "en" ? "Step 1 of 2 — Employee Data" : "Langkah 1 dari 2 — Data Karyawan"}
       </div>
+      <Field label={lang === "en" ? "Full Name" : "Nama Lengkap"}>
+        <input className="premiumInput" style={fieldInput} placeholder={lang === "en" ? "Enter full name" : "Masukkan nama lengkap"} value={namaEmp} onChange={(e) => setNamaEmp(e.target.value)} />
+      </Field>
       <Field label={lang === "en" ? "Employee NIK" : "NIK Karyawan"}>
         <input className="premiumInput" style={fieldInput} inputMode="numeric" placeholder={lang === "en" ? "Enter NIK" : "Masukkan NIK"} value={nik} onChange={(e) => setNik(e.target.value)} />
-        {statusText && <div style={{ fontSize: 12, marginTop: 6, color: statusColor, fontWeight: 600 }}>{statusText}</div>}
       </Field>
-      <Field label={lang === "en" ? "Name" : "Nama"}>
-        <input style={{ ...fieldInput, background: "var(--bg2)", color: "var(--t2)" }} readOnly value={namaEmp} placeholder={lang === "en" ? "Auto-filled" : "Otomatis terisi"} />
-      </Field>
-      <Field label="Department">
-        <input style={{ ...fieldInput, background: "var(--bg2)", color: "var(--t2)" }} readOnly value={dept} placeholder={lang === "en" ? "Auto-filled" : "Otomatis terisi"} />
+      <Field label={lang === "en" ? "Department" : "Departemen"}>
+        <input className="premiumInput" style={fieldInput} placeholder={lang === "en" ? "Enter department" : "Masukkan departemen"} value={dept} onChange={(e) => setDept(e.target.value)} />
       </Field>
     </div>
   );
