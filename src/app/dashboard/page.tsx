@@ -62,6 +62,8 @@ import {
   setWreathClaimed,
   deleteWreath,
   getVehicleGateLogs,
+  deleteGateLog,
+  forceCloseGateLog,
   sendClaimNotificationEmails,
   getAppSetting,
   setAppSetting,
@@ -6304,6 +6306,8 @@ function VehiclesTab({ myProfile }: { myProfile: MyProfile | null }) {
     return d.toISOString().slice(0, 10);
   });
   const [gateDateTo, setGateDateTo] = useState(() => new Date().toISOString().slice(0, 10));
+  const [confirmDeleteGateLog, setConfirmDeleteGateLog] = useState<VehicleGateLog | null>(null);
+  const [busyGateLogId, setBusyGateLogId] = useState<string | null>(null);
 
   const loadGateLogs = useCallback(async () => {
     setLoadingGateLogs(true);
@@ -6324,6 +6328,29 @@ function VehiclesTab({ myProfile }: { myProfile: MyProfile | null }) {
   useEffect(() => {
     if (viewMode === "gatelog") loadGateLogs();
   }, [viewMode, loadGateLogs]);
+
+  async function handleForceCloseGateLog(log: VehicleGateLog) {
+    setBusyGateLogId(log.id);
+    try {
+      await forceCloseGateLog(log);
+      await loadGateLogs();
+    } catch (e) {
+      alert(e instanceof Error ? e.message : "Gagal menutup catatan");
+    } finally {
+      setBusyGateLogId(null);
+    }
+  }
+
+  async function handleDeleteGateLog() {
+    if (!confirmDeleteGateLog) return;
+    try {
+      await deleteGateLog(confirmDeleteGateLog.id);
+      setConfirmDeleteGateLog(null);
+      await loadGateLogs();
+    } catch (e) {
+      alert(e instanceof Error ? e.message : "Gagal menghapus catatan");
+    }
+  }
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -6503,6 +6530,7 @@ function VehiclesTab({ myProfile }: { myProfile: MyProfile | null }) {
                     <th>Jam In</th>
                     <th>Status</th>
                     <th>Durasi</th>
+                    <th style={{ textAlign: "right" }}>{lang === "en" ? "Actions" : "Aksi"}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -6525,6 +6553,25 @@ function VehiclesTab({ myProfile }: { myProfile: MyProfile | null }) {
                           </span>
                         </td>
                         <td style={{ fontFamily: "var(--mono)" }}>{durLabel}</td>
+                        <td style={{ textAlign: "right", whiteSpace: "nowrap" }}>
+                          {!done && (
+                            <button
+                              onClick={() => handleForceCloseGateLog(l)}
+                              disabled={busyGateLogId === l.id}
+                              title={lang === "en" ? "Force close (manual correction)" : "Tutup manual (koreksi data)"}
+                              style={{ border: "none", background: "var(--green-soft)", color: "var(--green)", borderRadius: 8, cursor: busyGateLogId === l.id ? "wait" : "pointer", padding: "5px 9px", marginRight: 6, fontSize: 11, fontWeight: 700 }}
+                            >
+                              {busyGateLogId === l.id ? "..." : "✓ Tutup"}
+                            </button>
+                          )}
+                          <button
+                            onClick={() => setConfirmDeleteGateLog(l)}
+                            title={lang === "en" ? "Delete" : "Hapus"}
+                            style={{ border: "none", background: "var(--red-soft)", color: "var(--red)", borderRadius: 8, cursor: "pointer", padding: "5px 9px" }}
+                          >
+                            🗑️
+                          </button>
+                        </td>
                       </tr>
                     );
                   })}
@@ -6868,6 +6915,28 @@ function VehiclesTab({ myProfile }: { myProfile: MyProfile | null }) {
                 {t.actionCancel}
               </button>
               <button onClick={handleDelete} style={{ flex: 1, padding: "10px", borderRadius: 10, border: "none", background: "var(--red)", color: "#fff", fontWeight: 700, cursor: "pointer" }}>
+                {t.actionYesDelete}
+              </button>
+            </div>
+          </div>
+        </ModalPortal>
+      )}
+
+      {confirmDeleteGateLog && (
+        <ModalPortal onOverlayClick={() => setConfirmDeleteGateLog(null)} maxWidth={380}>
+          <div style={{ ...cardStyle, padding: 24, textAlign: "center" }}>
+            <div style={{ fontSize: 28, marginBottom: 8 }}>⚠️</div>
+            <div style={{ fontSize: 15, fontWeight: 800, marginBottom: 8, color: "var(--t1)" }}>
+              {lang === "en" ? "Delete this gate log entry?" : "Hapus catatan gate ini?"}
+            </div>
+            <div style={{ fontSize: 13, color: "var(--t3)", marginBottom: 18 }}>
+              <strong style={{ color: "var(--t1)" }}>{confirmDeleteGateLog.nopol}</strong> — {confirmDeleteGateLog.driverName} ({formatDateLabel(confirmDeleteGateLog.createdAt.slice(0, 10))}) {lang === "en" ? "will be permanently deleted." : "akan dihapus permanen."}
+            </div>
+            <div style={{ display: "flex", gap: 10 }}>
+              <button onClick={() => setConfirmDeleteGateLog(null)} style={{ flex: 1, padding: "10px", borderRadius: 10, border: "1px solid var(--border2)", background: "var(--surface2)", color: "var(--t2)", fontWeight: 700, cursor: "pointer" }}>
+                {t.actionCancel}
+              </button>
+              <button onClick={handleDeleteGateLog} style={{ flex: 1, padding: "10px", borderRadius: 10, border: "none", background: "var(--red)", color: "#fff", fontWeight: 700, cursor: "pointer" }}>
                 {t.actionYesDelete}
               </button>
             </div>
