@@ -837,6 +837,26 @@ export async function getVehicleGateLogs(params?: {
   return (data as GateLogRow[] ?? []).map(mapGateLogRow);
 }
 
+/** Hapus 1 baris gate log — khusus Dashboard Admin (staf login),
+ *  tidak pernah dipanggil dari halaman publik /gate. */
+export async function deleteGateLog(logId: string): Promise<void> {
+  const { error } = await supabase.from("vehicle_gate_logs").delete().eq("id", logId);
+  if (error) throw error;
+}
+
+/** Tutup manual gate log yang kelupaan/kesangkut di status aktif —
+ *  khusus Dashboard Admin, untuk koreksi data (mis. satpam lupa klik
+ *  tombol kembali). Mengisi kolom waktu yang masih kosong dengan
+ *  waktu sekarang dan menandai status selesai. */
+export async function forceCloseGateLog(log: VehicleGateLog): Promise<void> {
+  const now = new Date().toISOString();
+  const updates: { status: "DONE"; time_out?: string; time_in?: string } = { status: "DONE" };
+  if (!log.timeOut) updates.time_out = now;
+  if (!log.timeIn) updates.time_in = now;
+  const { error } = await supabase.from("vehicle_gate_logs").update(updates).eq("id", log.id);
+  if (error) throw error;
+}
+
 /* ════════════════════════════════════════════════════════════
    FLEETOS — OVERTIME (Lembur, CIK vs PRB)
 ════════════════════════════════════════════════════════════ */
