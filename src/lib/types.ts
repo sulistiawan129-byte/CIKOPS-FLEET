@@ -75,6 +75,24 @@ export interface Claim {
 /** Printer Management — daftar printer kantor (berwarna/hitam-putih)
  *  dan pencatatan permintaan karyawan (reset kuota, tambah kuota,
  *  pengambilan toner) yang diinput admin. */
+export type EmployeeRequestType = "DRIVER" | "TONER" | "OTHER";
+export type EmployeeRequestStatus = "PENDING" | "IN_PROGRESS" | "DONE" | "REJECTED";
+
+/** Permintaan karyawan dari form publik (/request) — request driver,
+ *  request toner, atau lainnya — masuk ke Dashboard untuk dieksekusi. */
+export interface EmployeeRequest {
+  id: string;
+  requestType: EmployeeRequestType;
+  employeeName: string;
+  department: string;
+  phone: string;
+  description: string;
+  status: EmployeeRequestStatus;
+  adminNotes: string;
+  createdAt: string;
+  processedAt: string | null;
+}
+
 export interface Printer {
   id: string;
   noEq: string;

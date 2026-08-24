@@ -23,6 +23,9 @@ import type {
   Printer,
   PrinterRequest,
   PrinterRequestType,
+  EmployeeRequest,
+  EmployeeRequestType,
+  EmployeeRequestStatus,
 } from "./types";
 
 /* ════════════════════════════════════════════════════════════
@@ -999,6 +1002,77 @@ export async function addPrinterRequest(input: AddPrinterRequestInput): Promise<
 
 export async function deletePrinterRequest(id: string): Promise<void> {
   const { error } = await supabase.from("printer_requests").delete().eq("id", id);
+  if (error) throw error;
+}
+
+/* ════════════════════════════════════════════════════════════
+   EMPLOYEE REQUESTS — form publik (request driver, toner, lainnya)
+   yang masuk ke Dashboard untuk langsung dieksekusi admin.
+════════════════════════════════════════════════════════════ */
+
+interface EmployeeRequestRow {
+  id: string;
+  request_type: EmployeeRequestType;
+  employee_name: string;
+  department: string | null;
+  phone: string | null;
+  description: string;
+  status: EmployeeRequestStatus;
+  admin_notes: string | null;
+  created_at: string;
+  processed_at: string | null;
+}
+
+function mapEmployeeRequestRow(r: EmployeeRequestRow): EmployeeRequest {
+  return {
+    id: r.id,
+    requestType: r.request_type,
+    employeeName: r.employee_name,
+    department: r.department ?? "",
+    phone: r.phone ?? "",
+    description: r.description,
+    status: r.status,
+    adminNotes: r.admin_notes ?? "",
+    createdAt: r.created_at,
+    processedAt: r.processed_at,
+  };
+}
+
+/** Dipanggil dari form publik /request — tidak butuh login. */
+export async function submitEmployeeRequest(input: {
+  requestType: EmployeeRequestType;
+  employeeName: string;
+  department: string;
+  phone: string;
+  description: string;
+}): Promise<void> {
+  const { error } = await supabase.from("employee_requests").insert({
+    request_type: input.requestType,
+    employee_name: input.employeeName,
+    department: input.department || null,
+    phone: input.phone || null,
+    description: input.description,
+  });
+  if (error) throw error;
+}
+
+/** Untuk Dashboard (authenticated) — daftar semua permintaan. */
+export async function getEmployeeRequests(): Promise<EmployeeRequest[]> {
+  const { data, error } = await supabase.from("employee_requests").select("*").order("created_at", { ascending: false });
+  if (error) throw error;
+  return (data as EmployeeRequestRow[] ?? []).map(mapEmployeeRequestRow);
+}
+
+export async function updateEmployeeRequestStatus(id: string, status: EmployeeRequestStatus, adminNotes?: string): Promise<void> {
+  const updates: { status: EmployeeRequestStatus; admin_notes?: string; processed_at?: string } = { status };
+  if (adminNotes !== undefined) updates.admin_notes = adminNotes;
+  if (status === "DONE" || status === "REJECTED") updates.processed_at = new Date().toISOString();
+  const { error } = await supabase.from("employee_requests").update(updates).eq("id", id);
+  if (error) throw error;
+}
+
+export async function deleteEmployeeRequest(id: string): Promise<void> {
+  const { error } = await supabase.from("employee_requests").delete().eq("id", id);
   if (error) throw error;
 }
 
