@@ -1,4 +1,4 @@
-import type { Driver, TaskDetail, Wreath, VehicleGateLog } from "./types";
+import type { Driver, TaskDetail, Wreath, VehicleGateLog, PrinterRequest } from "./types";
 import { computeReportAnalytics, formatMinutes } from "./analytics";
 import type { RankedEntry } from "./analytics";
 
@@ -608,6 +608,48 @@ export function exportGateLogsToCsv(logs: VehicleGateLog[]): void {
   const link = document.createElement("a");
   link.href = url;
   link.download = `GateLog_${todayForFilename()}.csv`;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+}
+
+/* ════════════════════════════════════════════════════════════
+   PRINTER MANAGEMENT — laporan permintaan (reset kuota, tambah
+   kuota, ambil toner).
+════════════════════════════════════════════════════════════ */
+
+function printerRequestTypeLabel(t: PrinterRequest["requestType"]): string {
+  if (t === "RESET_KUOTA") return "Reset Kuota";
+  if (t === "TAMBAH_KUOTA") return "Tambah Kuota";
+  return "Pengambilan Toner";
+}
+
+export function exportPrinterRequestsToCsv(requests: PrinterRequest[]): void {
+  const headers = ["Tanggal", "No EQ Printer", "Lokasi", "Jenis Permintaan", "Nama Karyawan", "Departemen", "Jumlah Kuota", "Catatan"];
+
+  const rows = requests.map((r) => [
+    formatDateOnly(r.createdAt),
+    r.printerNoEq,
+    r.printerLocation,
+    printerRequestTypeLabel(r.requestType),
+    r.employeeName,
+    r.department,
+    r.quotaAmount ?? "",
+    r.notes,
+  ]);
+
+  const csvLines = [
+    headers.map(escapeCsvField).join(","),
+    ...rows.map((row) => row.map(escapeCsvField).join(",")),
+  ];
+
+  const csvContent = "\uFEFF" + csvLines.join("\r\n");
+  const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `PrinterRequests_${todayForFilename()}.csv`;
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);

@@ -72,6 +72,35 @@ export interface Claim {
  *  tergantung plant: CIK => OUT berarti "sedang pergi kerja", DONE
  *  berarti "sudah kembali". PRB => IN berarti "sedang check-in
  *  (di dalam)", DONE berarti "sudah check-out". */
+/** Printer Management — daftar printer kantor (berwarna/hitam-putih)
+ *  dan pencatatan permintaan karyawan (reset kuota, tambah kuota,
+ *  pengambilan toner) yang diinput admin. */
+export interface Printer {
+  id: string;
+  noEq: string;
+  location: string;
+  type: "COLOR" | "BW";
+  controlPanelUrl: string;
+  brand: string;
+  aktif: boolean;
+  createdAt: string;
+}
+
+export type PrinterRequestType = "RESET_KUOTA" | "TAMBAH_KUOTA" | "AMBIL_TONER";
+
+export interface PrinterRequest {
+  id: string;
+  printerId: string;
+  printerNoEq: string;
+  printerLocation: string;
+  requestType: PrinterRequestType;
+  employeeName: string;
+  department: string;
+  quotaAmount: number | null;
+  notes: string;
+  createdAt: string;
+}
+
 export interface VehicleGateLog {
   id: string;
   vehicleId: string;

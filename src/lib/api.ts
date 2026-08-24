@@ -20,6 +20,9 @@ import type {
   VehicleGateLog,
   GateVehicleOption,
   GateDriverOption,
+  Printer,
+  PrinterRequest,
+  PrinterRequestType,
 } from "./types";
 
 /* ════════════════════════════════════════════════════════════
@@ -857,6 +860,145 @@ export async function forceCloseGateLog(log: VehicleGateLog): Promise<void> {
   if (!log.timeOut) updates.time_out = now;
   if (!log.timeIn) updates.time_in = now;
   const { error } = await supabase.from("vehicle_gate_logs").update(updates).eq("id", log.id);
+  if (error) throw error;
+}
+
+/* ════════════════════════════════════════════════════════════
+   PRINTER MANAGEMENT — daftar printer (berwarna/hitam-putih) +
+   permintaan karyawan (reset kuota, tambah kuota, ambil toner).
+   Murni fitur admin, tidak ada jalur publik sama sekali.
+════════════════════════════════════════════════════════════ */
+
+interface PrinterRow {
+  id: string;
+  no_eq: string;
+  location: string;
+  type: "COLOR" | "BW";
+  control_panel_url: string | null;
+  brand: string | null;
+  aktif: boolean;
+  created_at: string;
+}
+
+function mapPrinterRow(r: PrinterRow): Printer {
+  return {
+    id: r.id,
+    noEq: r.no_eq,
+    location: r.location,
+    type: r.type,
+    controlPanelUrl: r.control_panel_url ?? "",
+    brand: r.brand ?? "",
+    aktif: r.aktif,
+    createdAt: r.created_at,
+  };
+}
+
+export async function getPrinters(): Promise<Printer[]> {
+  const { data, error } = await supabase.from("printers").select("*").order("no_eq");
+  if (error) throw error;
+  return (data as PrinterRow[] ?? []).map(mapPrinterRow);
+}
+
+export interface PrinterInput {
+  noEq: string;
+  location: string;
+  type: "COLOR" | "BW";
+  controlPanelUrl: string;
+  brand: string;
+  aktif: boolean;
+}
+
+export async function addPrinter(input: PrinterInput): Promise<void> {
+  const { error } = await supabase.from("printers").insert({
+    no_eq: input.noEq,
+    location: input.location,
+    type: input.type,
+    control_panel_url: input.controlPanelUrl || null,
+    brand: input.brand || null,
+    aktif: input.aktif,
+  });
+  if (error) throw error;
+}
+
+export async function updatePrinter(id: string, input: PrinterInput): Promise<void> {
+  const { error } = await supabase.from("printers").update({
+    no_eq: input.noEq,
+    location: input.location,
+    type: input.type,
+    control_panel_url: input.controlPanelUrl || null,
+    brand: input.brand || null,
+    aktif: input.aktif,
+  }).eq("id", id);
+  if (error) throw error;
+}
+
+export async function deletePrinter(id: string): Promise<void> {
+  const { error } = await supabase.from("printers").delete().eq("id", id);
+  if (error) throw error;
+}
+
+interface PrinterRequestRow {
+  id: string;
+  printer_id: string;
+  request_type: PrinterRequestType;
+  employee_name: string;
+  department: string | null;
+  quota_amount: number | null;
+  notes: string | null;
+  created_at: string;
+  printers?: { no_eq: string; location: string } | null;
+}
+
+function mapPrinterRequestRow(r: PrinterRequestRow): PrinterRequest {
+  return {
+    id: r.id,
+    printerId: r.printer_id,
+    printerNoEq: r.printers?.no_eq ?? "-",
+    printerLocation: r.printers?.location ?? "-",
+    requestType: r.request_type,
+    employeeName: r.employee_name,
+    department: r.department ?? "",
+    quotaAmount: r.quota_amount,
+    notes: r.notes ?? "",
+    createdAt: r.created_at,
+  };
+}
+
+export async function getPrinterRequests(params?: { dateFrom?: string; dateTo?: string }): Promise<PrinterRequest[]> {
+  let q = supabase
+    .from("printer_requests")
+    .select("*, printers(no_eq, location)")
+    .order("created_at", { ascending: false });
+  if (params?.dateFrom) q = q.gte("created_at", params.dateFrom);
+  if (params?.dateTo) q = q.lte("created_at", params.dateTo + "T23:59:59");
+  const { data, error } = await q;
+  if (error) throw error;
+  return (data as PrinterRequestRow[] ?? []).map(mapPrinterRequestRow);
+}
+
+export interface AddPrinterRequestInput {
+  printerId: string;
+  requestType: PrinterRequestType;
+  employeeName: string;
+  department: string;
+  quotaAmount: number | null;
+  notes: string;
+}
+
+export async function addPrinterRequest(input: AddPrinterRequestInput): Promise<void> {
+  const { error } = await supabase.from("printer_requests").insert({
+    printer_id: input.printerId,
+    request_type: input.requestType,
+    employee_name: input.employeeName,
+    department: input.department || null,
+    quota_amount: input.quotaAmount,
+    notes: input.notes || "",
+  });
+  if (error) throw error;
+}
+
+export async function deletePrinterRequest(id: string): Promise<void> {
+  const { error } = await supabase.from("printer_requests").delete().eq("id", id);
   if (error) throw error;
 }
 
