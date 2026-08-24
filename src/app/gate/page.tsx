@@ -10,21 +10,20 @@ import {
 } from "@/lib/api";
 import type { GateVehicleOption, GateDriverOption, VehicleGateLog } from "@/lib/types";
 
-/* ── Warna per plant — konsisten dipakai di seluruh halaman ── */
-const PLANT_THEME = {
-  CIK: { main: "#2f5fe0", soft: "#e8edff", text: "#1f44b8" },
-  PRB: { main: "#e08a1a", soft: "#fdf1e0", text: "#b25700" },
+const THEME = {
+  CIK: { glow: "#3d7bff", soft: "rgba(61,123,255,0.12)", border: "rgba(61,123,255,0.35)", text: "#8ab4ff" },
+  PRB: { glow: "#ffb340", soft: "rgba(255,179,64,0.12)", border: "rgba(255,179,64,0.35)", text: "#ffc873" },
 } as const;
 
 function actionLabel(plant: "CIK" | "PRB", done: boolean): string {
-  if (plant === "CIK") return done ? "Sudah Kembali" : "Sedang Keluar";
-  return done ? "Sudah Check-Out" : "Sedang Check-In";
+  if (plant === "CIK") return done ? "SUDAH KEMBALI" : "SEDANG KELUAR";
+  return done ? "SUDAH CHECK-OUT" : "SEDANG CHECK-IN";
 }
 function controlLabel(plant: "CIK" | "PRB"): string {
   return plant === "CIK" ? "Catat Kembali" : "Catat Check-Out";
 }
 function fmtJam(iso: string | null): string {
-  if (!iso) return "–";
+  if (!iso) return "-:-";
   return new Date(iso).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" });
 }
 function todayStr(): string {
@@ -34,23 +33,23 @@ function liveDuration(iso: string | null, tick: number): string {
   if (!iso) return "";
   void tick;
   const mins = Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 60000));
-  if (mins < 60) return `${mins} menit`;
-  return `${Math.floor(mins / 60)} jam ${mins % 60} menit`;
+  if (mins < 60) return `${mins}m`;
+  return `${Math.floor(mins / 60)}j ${mins % 60}m`;
 }
 
 const inputStyle: CSSProperties = {
   width: "100%",
-  padding: "16px 18px",
+  padding: "17px 20px",
   borderRadius: 14,
-  border: "2px solid #e1e7f1",
-  background: "#f6f8fc",
+  border: "1.5px solid rgba(255,255,255,0.1)",
+  background: "rgba(255,255,255,0.04)",
   fontSize: 17,
-  color: "#0f2847",
+  color: "#f2f6fc",
   fontFamily: "inherit",
   outline: "none",
   fontWeight: 600,
 };
-const labelStyle: CSSProperties = { fontSize: 14, fontWeight: 800, color: "#435773", marginBottom: 8, display: "block", letterSpacing: "0.02em" };
+const labelStyle: CSSProperties = { fontSize: 13, fontWeight: 800, color: "rgba(226,234,248,0.55)", marginBottom: 9, display: "block", letterSpacing: "0.08em" };
 
 export default function GatePage() {
   const [vehicles, setVehicles] = useState<GateVehicleOption[]>([]);
@@ -59,9 +58,9 @@ export default function GatePage() {
   const [loadingLogs, setLoadingLogs] = useState(true);
   const [error, setError] = useState("");
   const [tick, setTick] = useState(0);
+  const [clock, setClock] = useState("");
 
   const [tanggal, setTanggal] = useState(todayStr());
-
   const [vehicleId, setVehicleId] = useState("");
   const [vehicleSearch, setVehicleSearch] = useState("");
   const [showVehicleDropdown, setShowVehicleDropdown] = useState(false);
@@ -92,15 +91,14 @@ export default function GatePage() {
   useEffect(() => {
     loadLogs();
     const poll = setInterval(loadLogs, 15000);
-    const clock = setInterval(() => setTick((t) => t + 1), 30000);
-    return () => { clearInterval(poll); clearInterval(clock); };
+    const tickTimer = setInterval(() => setTick((t) => t + 1), 30000);
+    const clockTimer = setInterval(() => setClock(new Date().toLocaleTimeString("id-ID")), 1000);
+    return () => { clearInterval(poll); clearInterval(tickTimer); clearInterval(clockTimer); };
   }, [loadLogs]);
 
   useEffect(() => {
     function onClickOutside(e: MouseEvent) {
-      if (vehicleInputRef.current && !vehicleInputRef.current.contains(e.target as Node)) {
-        setShowVehicleDropdown(false);
-      }
+      if (vehicleInputRef.current && !vehicleInputRef.current.contains(e.target as Node)) setShowVehicleDropdown(false);
     }
     document.addEventListener("mousedown", onClickOutside);
     return () => document.removeEventListener("mousedown", onClickOutside);
@@ -110,6 +108,7 @@ export default function GatePage() {
   const filteredVehicles = vehicles.filter((v) => v.nopol.toLowerCase().includes(vehicleSearch.toLowerCase()));
   const driverOk = useManualDriver ? driverManual.trim() !== "" : driverId !== "";
   const canSubmit = vehicleId !== "" && driverOk && !submitting;
+  const activeTheme = selectedVehicle ? THEME[selectedVehicle.plant] : THEME.CIK;
 
   function pickVehicle(v: GateVehicleOption) {
     setVehicleId(v.id);
@@ -158,71 +157,93 @@ export default function GatePage() {
   const doneLogs = logs.filter((l) => l.status === "DONE");
 
   return (
-    <div style={{ minHeight: "100vh", background: "#eef2f9", fontFamily: "-apple-system,'Segoe UI',sans-serif" }}>
-      <div style={{ background: "linear-gradient(135deg,#0f2847,#0a1930)", padding: "26px 40px", color: "#fff", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-          <div style={{ fontSize: 40 }}>🚧</div>
+    <div style={{ minHeight: "100vh", background: "#050b16", fontFamily: "-apple-system,'Segoe UI',sans-serif", position: "relative", overflow: "hidden" }}>
+      <div style={{ position: "fixed", top: -200, left: -150, width: 500, height: 500, borderRadius: "50%", background: "radial-gradient(circle, rgba(61,123,255,0.18), transparent 70%)", filter: "blur(40px)", animation: "float1 18s ease-in-out infinite" }} />
+      <div style={{ position: "fixed", bottom: -200, right: -150, width: 550, height: 550, borderRadius: "50%", background: "radial-gradient(circle, rgba(255,179,64,0.14), transparent 70%)", filter: "blur(40px)", animation: "float2 22s ease-in-out infinite" }} />
+      <div style={{ position: "fixed", inset: 0, backgroundImage: "radial-gradient(circle, rgba(255,255,255,0.025) 1px, transparent 1px)", backgroundSize: "28px 28px", pointerEvents: "none" }} />
+
+      <div style={{ position: "relative", zIndex: 2, borderBottom: "1px solid rgba(255,255,255,0.07)", padding: "28px 44px", display: "flex", alignItems: "center", justifyContent: "space-between", backdropFilter: "blur(20px)" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 18 }}>
+          <div style={{ width: 56, height: 56, borderRadius: 16, background: "linear-gradient(135deg, rgba(61,123,255,0.2), rgba(255,179,64,0.15))", border: "1px solid rgba(255,255,255,0.1)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 28 }}>[GATE]</div>
           <div>
-            <div style={{ fontSize: 26, fontWeight: 800, letterSpacing: "-0.01em" }}>Security Gate Log</div>
-            <div style={{ fontSize: 15, opacity: 0.65, marginTop: 2 }}>Pencatatan Keluar / Masuk Kendaraan — CIKOPS Fleet</div>
+            <div style={{ fontSize: 28, fontWeight: 800, letterSpacing: "-0.02em", color: "#fff" }}>Security Gate Control</div>
+            <div style={{ fontSize: 14, color: "rgba(226,234,248,0.5)", marginTop: 3, letterSpacing: "0.02em" }}>CIKOPS FLEET — VEHICLE ACCESS LOG</div>
           </div>
         </div>
-        <div style={{ display: "flex", gap: 22 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 28 }}>
           <div style={{ textAlign: "center" }}>
-            <div style={{ fontSize: 28, fontWeight: 800, color: "#7ba0ff" }}>{activeLogs.filter((l) => l.plant === "CIK").length}</div>
-            <div style={{ fontSize: 12, opacity: 0.6, fontWeight: 700 }}>CIK KELUAR</div>
+            <div style={{ fontSize: 30, fontWeight: 800, color: THEME.CIK.text, fontFamily: "var(--font-mono, monospace)", textShadow: `0 0 20px ${THEME.CIK.glow}66` }}>{activeLogs.filter((l) => l.plant === "CIK").length}</div>
+            <div style={{ fontSize: 11.5, color: "rgba(226,234,248,0.45)", fontWeight: 800, letterSpacing: "0.08em" }}>CIK KELUAR</div>
           </div>
+          <div style={{ width: 1, height: 34, background: "rgba(255,255,255,0.1)" }} />
           <div style={{ textAlign: "center" }}>
-            <div style={{ fontSize: 28, fontWeight: 800, color: "#ffc477" }}>{activeLogs.filter((l) => l.plant === "PRB").length}</div>
-            <div style={{ fontSize: 12, opacity: 0.6, fontWeight: 700 }}>PRB CHECK-IN</div>
+            <div style={{ fontSize: 30, fontWeight: 800, color: THEME.PRB.text, fontFamily: "var(--font-mono, monospace)", textShadow: `0 0 20px ${THEME.PRB.glow}66` }}>{activeLogs.filter((l) => l.plant === "PRB").length}</div>
+            <div style={{ fontSize: 11.5, color: "rgba(226,234,248,0.45)", fontWeight: 800, letterSpacing: "0.08em" }}>PRB CHECK-IN</div>
+          </div>
+          <div style={{ width: 1, height: 34, background: "rgba(255,255,255,0.1)" }} />
+          <div style={{ textAlign: "center", fontFamily: "var(--font-mono, monospace)" }}>
+            <div style={{ fontSize: 22, fontWeight: 700, color: "#fff" }}>{clock || "--:--:--"}</div>
+            <div style={{ fontSize: 11, color: "rgba(226,234,248,0.4)", fontWeight: 700, letterSpacing: "0.06em" }}>WAKTU SERVER</div>
           </div>
         </div>
       </div>
 
-      <div style={{ maxWidth: 1400, margin: "0 auto", padding: "32px 40px", display: "grid", gridTemplateColumns: "420px 1fr", gap: 28, alignItems: "start" }}>
+      <div style={{ position: "relative", zIndex: 2, maxWidth: 1460, margin: "0 auto", padding: "36px 44px", display: "grid", gridTemplateColumns: "440px 1fr", gap: 30, alignItems: "start" }}>
 
-        <div style={{ background: "#fff", borderRadius: 22, boxShadow: "0 12px 36px rgba(15,40,71,0.1)", padding: 30, position: "sticky", top: 28 }}>
-          <div style={{ fontSize: 19, fontWeight: 800, color: "#0f2847", marginBottom: 22, display: "flex", alignItems: "center", gap: 10 }}>
-            <span style={{ width: 36, height: 36, borderRadius: 10, background: "#e8edff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18 }}>+</span>
+        <div
+          style={{
+            background: "rgba(255,255,255,0.035)",
+            backdropFilter: "blur(24px)",
+            borderRadius: 24,
+            border: `1.5px solid ${selectedVehicle ? activeTheme.border : "rgba(255,255,255,0.09)"}`,
+            padding: 32,
+            position: "sticky",
+            top: 28,
+            boxShadow: selectedVehicle ? `0 0 60px ${activeTheme.soft}, 0 20px 50px rgba(0,0,0,0.4)` : "0 20px 50px rgba(0,0,0,0.4)",
+            transition: "border-color 0.3s ease, box-shadow 0.3s ease",
+          }}
+        >
+          <div style={{ fontSize: 20, fontWeight: 800, color: "#fff", marginBottom: 24, display: "flex", alignItems: "center", gap: 12 }}>
+            <span style={{ width: 40, height: 40, borderRadius: 12, background: "rgba(61,123,255,0.15)", border: "1px solid rgba(61,123,255,0.3)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, color: "#8ab4ff" }}>+</span>
             Catat Kendaraan
           </div>
 
           {error && (
-            <div style={{ padding: "12px 15px", borderRadius: 12, background: "#fbe9e8", color: "#e0483f", fontSize: 14, fontWeight: 600, marginBottom: 16 }}>{error}</div>
+            <div style={{ padding: "13px 16px", borderRadius: 12, background: "rgba(255,107,99,0.12)", border: "1px solid rgba(255,107,99,0.3)", color: "#ff9d97", fontSize: 14, fontWeight: 600, marginBottom: 18 }}>{error}</div>
           )}
 
-          <div style={{ marginBottom: 18 }}>
+          <div style={{ marginBottom: 20 }}>
             <label style={labelStyle}>TANGGAL</label>
             <input type="date" value={tanggal} onChange={(e) => setTanggal(e.target.value)} style={inputStyle} />
           </div>
 
-          <div style={{ marginBottom: 18, position: "relative" }} ref={vehicleInputRef}>
+          <div style={{ marginBottom: 20, position: "relative" }} ref={vehicleInputRef}>
             <label style={labelStyle}>KENDARAAN — KETIK PLAT NOMOR</label>
             <input
               value={vehicleSearch}
               onChange={(e) => { setVehicleSearch(e.target.value); setVehicleId(""); setShowVehicleDropdown(true); }}
               onFocus={() => setShowVehicleDropdown(true)}
               placeholder="Ketik nomor polisi... contoh: B 1234"
-              style={{ ...inputStyle, border: vehicleId ? `2px solid ${selectedVehicle ? PLANT_THEME[selectedVehicle.plant].main : "#e1e7f1"}` : "2px solid #e1e7f1" }}
+              style={{ ...inputStyle, fontFamily: "var(--font-mono, monospace)", letterSpacing: "0.04em", border: vehicleId ? `1.5px solid ${activeTheme.border}` : inputStyle.border, boxShadow: vehicleId ? `0 0 0 3px ${activeTheme.soft}` : "none" }}
             />
             {showVehicleDropdown && vehicleSearch.trim() !== "" && (
-              <div style={{ position: "absolute", top: "100%", left: 0, right: 0, marginTop: 6, background: "#fff", borderRadius: 14, boxShadow: "0 12px 30px rgba(0,0,0,0.18)", maxHeight: 280, overflowY: "auto", zIndex: 20, border: "1px solid #eef2f9" }}>
+              <div style={{ position: "absolute", top: "100%", left: 0, right: 0, marginTop: 8, background: "#0d1a2e", backdropFilter: "blur(20px)", borderRadius: 16, boxShadow: "0 20px 50px rgba(0,0,0,0.5)", maxHeight: 300, overflowY: "auto", zIndex: 30, border: "1px solid rgba(255,255,255,0.1)" }}>
                 {filteredVehicles.length === 0 ? (
-                  <div style={{ padding: 16, color: "#a0aabb", fontSize: 15, textAlign: "center" }}>Tidak ditemukan</div>
+                  <div style={{ padding: 18, color: "rgba(226,234,248,0.4)", fontSize: 15, textAlign: "center" }}>Tidak ditemukan</div>
                 ) : (
                   filteredVehicles.map((v) => (
                     <div
                       key={v.id}
                       onMouseDown={() => pickVehicle(v)}
-                      style={{ padding: "13px 18px", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "1px solid #f2f5fa" }}
-                      onMouseEnter={(e) => (e.currentTarget.style.background = "#f6f8fc")}
+                      style={{ padding: "15px 20px", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "1px solid rgba(255,255,255,0.06)" }}
+                      onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(255,255,255,0.04)")}
                       onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
                     >
                       <div>
-                        <span style={{ fontWeight: 800, fontSize: 16, color: "#0f2847" }}>{v.nopol}</span>
-                        <span style={{ fontSize: 13, color: "#7c8aa0", marginLeft: 8 }}>{v.jenis}</span>
+                        <span style={{ fontWeight: 800, fontSize: 18, color: "#fff", fontFamily: "var(--font-mono, monospace)", letterSpacing: "0.03em" }}>{v.nopol}</span>
+                        <span style={{ fontSize: 13.5, color: "rgba(226,234,248,0.45)", marginLeft: 10 }}>{v.jenis}</span>
                       </div>
-                      <span style={{ fontSize: 11.5, fontWeight: 800, padding: "3px 9px", borderRadius: 7, background: PLANT_THEME[v.plant].soft, color: PLANT_THEME[v.plant].text }}>{v.plant}</span>
+                      <span style={{ fontSize: 12, fontWeight: 800, padding: "4px 11px", borderRadius: 8, background: THEME[v.plant].soft, color: THEME[v.plant].text, border: `1px solid ${THEME[v.plant].border}` }}>{v.plant}</span>
                     </div>
                   ))
                 )}
@@ -230,10 +251,10 @@ export default function GatePage() {
             )}
           </div>
 
-          <div style={{ marginBottom: 18 }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+          <div style={{ marginBottom: 20 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 9 }}>
               <label style={{ ...labelStyle, marginBottom: 0 }}>DRIVER</label>
-              <button type="button" onClick={() => setUseManualDriver((v) => !v)} style={{ background: "none", border: "none", color: "#2f5fe0", fontSize: 13, fontWeight: 800, cursor: "pointer", padding: 0 }}>
+              <button type="button" onClick={() => setUseManualDriver((v) => !v)} style={{ background: "none", border: "none", color: "#8ab4ff", fontSize: 13, fontWeight: 800, cursor: "pointer", padding: 0 }}>
                 {useManualDriver ? "Pilih dari daftar" : "Ketik manual"}
               </button>
             </div>
@@ -241,13 +262,13 @@ export default function GatePage() {
               <input value={driverManual} onChange={(e) => setDriverManual(e.target.value)} placeholder="Nama driver" style={inputStyle} />
             ) : (
               <select value={driverId} onChange={(e) => setDriverId(e.target.value)} style={inputStyle}>
-                <option value="">-- Pilih Driver --</option>
-                {drivers.map((d) => <option key={d.id} value={d.id}>{d.nama}</option>)}
+                <option value="" style={{ background: "#0d1a2e" }}>-- Pilih Driver --</option>
+                {drivers.map((d) => <option key={d.id} value={d.id} style={{ background: "#0d1a2e" }}>{d.nama}</option>)}
               </select>
             )}
           </div>
 
-          <div style={{ marginBottom: 26 }}>
+          <div style={{ marginBottom: 28 }}>
             <label style={labelStyle}>TUJUAN {selectedVehicle?.plant === "PRB" ? "/ KEPERLUAN" : ""}</label>
             <input
               value={tujuan}
@@ -261,57 +282,59 @@ export default function GatePage() {
             onClick={handleSubmit}
             disabled={!canSubmit}
             style={{
-              width: "100%", padding: 18, borderRadius: 16, border: "none",
-              background: canSubmit ? `linear-gradient(135deg, ${selectedVehicle ? PLANT_THEME[selectedVehicle.plant].main : "#2f5fe0"}, ${selectedVehicle ? PLANT_THEME[selectedVehicle.plant].text : "#1f44b8"})` : "#e1e7f1",
-              color: canSubmit ? "#fff" : "#a0aabb", fontWeight: 800, fontSize: 18, cursor: canSubmit ? "pointer" : "not-allowed",
-              boxShadow: canSubmit ? `0 10px 24px ${selectedVehicle ? PLANT_THEME[selectedVehicle.plant].main : "#2f5fe0"}55` : "none",
-              transition: "transform 0.15s ease",
+              width: "100%", padding: 19, borderRadius: 16, border: "none",
+              background: canSubmit ? `linear-gradient(135deg, ${activeTheme.glow}, ${activeTheme.glow}bb)` : "rgba(255,255,255,0.06)",
+              color: canSubmit ? "#050b16" : "rgba(226,234,248,0.3)", fontWeight: 800, fontSize: 17, letterSpacing: "0.02em",
+              cursor: canSubmit ? "pointer" : "not-allowed",
+              boxShadow: canSubmit ? `0 0 40px ${activeTheme.glow}55, 0 10px 24px rgba(0,0,0,0.3)` : "none",
+              transition: "all 0.15s ease",
             }}
-            onMouseDown={(e) => canSubmit && (e.currentTarget.style.transform = "scale(0.98)")}
+            onMouseDown={(e) => canSubmit && (e.currentTarget.style.transform = "scale(0.97)")}
             onMouseUp={(e) => (e.currentTarget.style.transform = "scale(1)")}
           >
-            {submitting ? "Menyimpan..." : selectedVehicle?.plant === "PRB" ? "🔵 CATAT CHECK-IN" : "🟠 CATAT KELUAR"}
+            {submitting ? "MENYIMPAN..." : selectedVehicle?.plant === "PRB" ? "CATAT CHECK-IN →" : "CATAT KELUAR →"}
           </button>
         </div>
 
         <div>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 18 }}>
-            <div style={{ fontSize: 20, fontWeight: 800, color: "#0f2847" }}>Aktivitas Hari Ini</div>
-            <input type="date" value={tanggal} onChange={(e) => setTanggal(e.target.value)} style={{ ...inputStyle, width: "auto", padding: "10px 16px", fontSize: 14 }} />
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
+            <div style={{ fontSize: 22, fontWeight: 800, color: "#fff" }}>Aktivitas Gate</div>
+            <input type="date" value={tanggal} onChange={(e) => setTanggal(e.target.value)} style={{ ...inputStyle, width: "auto", padding: "11px 16px", fontSize: 14 }} />
           </div>
 
           {loadingLogs ? (
-            <div style={{ padding: 60, textAlign: "center", color: "#a0aabb", fontSize: 16, background: "#fff", borderRadius: 20 }}>Memuat...</div>
+            <div style={{ padding: 70, textAlign: "center", color: "rgba(226,234,248,0.4)", fontSize: 16, background: "rgba(255,255,255,0.03)", borderRadius: 22, border: "1px solid rgba(255,255,255,0.07)" }}>Memuat data...</div>
           ) : (
             <>
-              <div style={{ fontSize: 14, fontWeight: 800, color: "#7c8aa0", marginBottom: 12, letterSpacing: "0.03em" }}>
-                🟠 SEDANG KELUAR / CHECK-IN ({activeLogs.length})
+              <div style={{ fontSize: 13.5, fontWeight: 800, color: "rgba(226,234,248,0.5)", marginBottom: 14, letterSpacing: "0.08em" }}>
+                SEDANG AKTIF ({activeLogs.length})
               </div>
               {activeLogs.length === 0 ? (
-                <div style={{ padding: 30, textAlign: "center", color: "#a0aabb", fontSize: 15, background: "#fff", borderRadius: 18, marginBottom: 26 }}>Tidak ada kendaraan aktif.</div>
+                <div style={{ padding: 34, textAlign: "center", color: "rgba(226,234,248,0.35)", fontSize: 15, background: "rgba(255,255,255,0.03)", borderRadius: 20, border: "1px solid rgba(255,255,255,0.07)", marginBottom: 32 }}>Tidak ada kendaraan aktif.</div>
               ) : (
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))", gap: 16, marginBottom: 30 }}>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(340px, 1fr))", gap: 18, marginBottom: 36 }}>
                   {activeLogs.map((l) => {
-                    const theme = PLANT_THEME[l.plant];
+                    const theme = THEME[l.plant];
                     return (
                       <div
                         key={l.id}
                         style={{
-                          background: "#fff", borderRadius: 18, padding: 20, boxShadow: "0 8px 24px rgba(15,40,71,0.08)",
-                          borderLeft: `6px solid ${theme.main}`, transition: "transform 0.15s ease, box-shadow 0.15s ease",
+                          background: "rgba(255,255,255,0.035)", backdropFilter: "blur(20px)", borderRadius: 20, padding: 24,
+                          border: `1.5px solid ${theme.border}`, boxShadow: `0 0 30px ${theme.soft}, 0 10px 30px rgba(0,0,0,0.3)`,
+                          transition: "transform 0.2s ease, box-shadow 0.2s ease",
                         }}
-                        onMouseEnter={(e) => { e.currentTarget.style.transform = "translateY(-3px)"; e.currentTarget.style.boxShadow = "0 14px 32px rgba(15,40,71,0.14)"; }}
-                        onMouseLeave={(e) => { e.currentTarget.style.transform = "translateY(0)"; e.currentTarget.style.boxShadow = "0 8px 24px rgba(15,40,71,0.08)"; }}
+                        onMouseEnter={(e) => { e.currentTarget.style.transform = "translateY(-4px)"; e.currentTarget.style.boxShadow = `0 0 50px ${theme.soft}, 0 18px 40px rgba(0,0,0,0.4)`; }}
+                        onMouseLeave={(e) => { e.currentTarget.style.transform = "translateY(0)"; e.currentTarget.style.boxShadow = `0 0 30px ${theme.soft}, 0 10px 30px rgba(0,0,0,0.3)`; }}
                       >
-                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 10 }}>
-                          <div style={{ fontSize: 22, fontWeight: 800, color: "#0f2847" }}>{l.nopol}</div>
-                          <span style={{ fontSize: 12, fontWeight: 800, padding: "4px 10px", borderRadius: 8, background: theme.soft, color: theme.text }}>{l.plant}</span>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 12 }}>
+                          <div style={{ fontSize: 26, fontWeight: 800, color: "#fff", fontFamily: "var(--font-mono, monospace)", letterSpacing: "0.03em", textShadow: `0 0 20px ${theme.glow}55` }}>{l.nopol}</div>
+                          <span style={{ fontSize: 12, fontWeight: 800, padding: "5px 12px", borderRadius: 9, background: theme.soft, color: theme.text, border: `1px solid ${theme.border}` }}>{l.plant}</span>
                         </div>
-                        <div style={{ fontSize: 16, fontWeight: 700, color: "#1f2d47", marginBottom: 4 }}>👤 {l.driverName}</div>
-                        {l.tujuan && <div style={{ fontSize: 14, color: "#7c8aa0", marginBottom: 10 }}>📍 {l.tujuan}</div>}
-                        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}>
-                          <span style={{ width: 8, height: 8, borderRadius: "50%", background: theme.main, animation: "gatePulse 1.6s ease-in-out infinite" }} />
-                          <span style={{ fontSize: 13.5, fontWeight: 700, color: theme.text }}>
+                        <div style={{ fontSize: 17, fontWeight: 700, color: "#e8edf7", marginBottom: 5 }}>{l.driverName}</div>
+                        {l.tujuan && <div style={{ fontSize: 14, color: "rgba(226,234,248,0.5)", marginBottom: 14 }}>{l.tujuan}</div>}
+                        <div style={{ display: "flex", alignItems: "center", gap: 9, marginBottom: 18 }}>
+                          <span style={{ width: 9, height: 9, borderRadius: "50%", background: theme.glow, boxShadow: `0 0 10px ${theme.glow}`, animation: "gatePulse 1.6s ease-in-out infinite" }} />
+                          <span style={{ fontSize: 13.5, fontWeight: 800, color: theme.text, letterSpacing: "0.03em" }}>
                             {actionLabel(l.plant, false)} · {liveDuration(l.timeOut || l.timeIn, tick)}
                           </span>
                         </div>
@@ -319,12 +342,13 @@ export default function GatePage() {
                           onClick={() => handleControl(l)}
                           disabled={busyLogId === l.id}
                           style={{
-                            width: "100%", padding: "13px", borderRadius: 12, border: "none",
-                            background: "linear-gradient(135deg,#17a673,#0f9c8f)", color: "#fff", fontWeight: 800, fontSize: 15,
+                            width: "100%", padding: "15px", borderRadius: 13, border: "none",
+                            background: "linear-gradient(135deg,#2fd894,#17a673)", color: "#052b1e", fontWeight: 800, fontSize: 15.5,
                             cursor: busyLogId === l.id ? "wait" : "pointer", opacity: busyLogId === l.id ? 0.6 : 1,
+                            boxShadow: "0 8px 20px rgba(47,216,148,0.3)",
                           }}
                         >
-                          {busyLogId === l.id ? "Menyimpan..." : `✓ ${controlLabel(l.plant)}`}
+                          {busyLogId === l.id ? "Menyimpan..." : `Selesai — ${controlLabel(l.plant)}`}
                         </button>
                       </div>
                     );
@@ -332,23 +356,23 @@ export default function GatePage() {
                 </div>
               )}
 
-              <div style={{ fontSize: 14, fontWeight: 800, color: "#7c8aa0", marginBottom: 12, letterSpacing: "0.03em" }}>
-                ✅ SELESAI HARI INI ({doneLogs.length})
+              <div style={{ fontSize: 13.5, fontWeight: 800, color: "rgba(226,234,248,0.5)", marginBottom: 14, letterSpacing: "0.08em" }}>
+                SELESAI ({doneLogs.length})
               </div>
               {doneLogs.length === 0 ? (
-                <div style={{ padding: 30, textAlign: "center", color: "#a0aabb", fontSize: 15, background: "#fff", borderRadius: 18 }}>Belum ada yang selesai.</div>
+                <div style={{ padding: 34, textAlign: "center", color: "rgba(226,234,248,0.35)", fontSize: 15, background: "rgba(255,255,255,0.03)", borderRadius: 20, border: "1px solid rgba(255,255,255,0.07)" }}>Belum ada yang selesai.</div>
               ) : (
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 14 }}>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(290px, 1fr))", gap: 14 }}>
                   {doneLogs.map((l) => {
-                    const theme = PLANT_THEME[l.plant];
+                    const theme = THEME[l.plant];
                     return (
-                      <div key={l.id} style={{ background: "#fff", borderRadius: 16, padding: 16, boxShadow: "0 4px 14px rgba(15,40,71,0.05)", borderLeft: `5px solid ${theme.main}`, opacity: 0.85 }}>
-                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
-                          <div style={{ fontSize: 17, fontWeight: 800, color: "#0f2847" }}>{l.nopol}</div>
-                          <span style={{ fontSize: 11, fontWeight: 800, padding: "3px 8px", borderRadius: 7, background: theme.soft, color: theme.text }}>{l.plant}</span>
+                      <div key={l.id} style={{ background: "rgba(255,255,255,0.02)", borderRadius: 16, padding: 18, border: "1px solid rgba(255,255,255,0.06)" }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+                          <div style={{ fontSize: 18, fontWeight: 800, color: "rgba(255,255,255,0.75)", fontFamily: "var(--font-mono, monospace)" }}>{l.nopol}</div>
+                          <span style={{ fontSize: 11, fontWeight: 800, padding: "3px 9px", borderRadius: 7, background: theme.soft, color: theme.text }}>{l.plant}</span>
                         </div>
-                        <div style={{ fontSize: 13.5, color: "#435773", marginBottom: 6 }}>{l.driverName}</div>
-                        <div style={{ fontSize: 12.5, color: "#a0aabb" }}>{fmtJam(l.timeOut)} → {fmtJam(l.timeIn)}</div>
+                        <div style={{ fontSize: 14, color: "rgba(226,234,248,0.55)", marginBottom: 7 }}>{l.driverName}</div>
+                        <div style={{ fontSize: 13, color: "rgba(226,234,248,0.35)", fontFamily: "var(--font-mono, monospace)" }}>{fmtJam(l.timeOut)} to {fmtJam(l.timeIn)}</div>
                       </div>
                     );
                   })}
@@ -360,10 +384,11 @@ export default function GatePage() {
       </div>
 
       <style>{`
-        @keyframes gatePulse {
-          0%, 100% { opacity: 1; transform: scale(1); }
-          50% { opacity: 0.4; transform: scale(0.7); }
-        }
+        @keyframes gatePulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.35; transform: scale(0.65); } }
+        @keyframes float1 { 0%, 100% { transform: translate(0,0); } 50% { transform: translate(60px,40px); } }
+        @keyframes float2 { 0%, 100% { transform: translate(0,0); } 50% { transform: translate(-50px,50px); } }
+        select option { background: #0d1a2e; color: #fff; }
+        input::placeholder { color: rgba(226,234,248,0.3); }
       `}</style>
     </div>
   );
