@@ -5,6 +5,7 @@ import type { CSSProperties } from "react";
 import dynamic from "next/dynamic";
 import styles from "./dashboard.module.css";
 import { ModalPortal } from "@/components/ModalPortal";
+import { TabErrorBoundary } from "@/components/TabErrorBoundary";
 import {
   getMyProfile,
   canAccessTab,
@@ -752,6 +753,7 @@ const [masterDataInitialSub, setMasterDataInitialSub] = useState<"drivers" | "em
 
       {activeTab !== "tasks" && (
         <div key={activeTab} className="tabContent">
+          <TabErrorBoundary label={activeTab}>
           {activeTab === "overview" && <OverviewTab setActiveTab={setActiveTab} myProfile={myProfile} />}
           {activeTab === "vehicles" && <VehiclesTab myProfile={myProfile} />}
           {activeTab === "claims" && <ClaimsTab myProfile={myProfile} />}
@@ -773,6 +775,7 @@ const [masterDataInitialSub, setMasterDataInitialSub] = useState<"drivers" | "em
           {activeTab === "printer" && <PrinterTab />}
           {activeTab === "employeerequests" && <EmployeeRequestsTab />}
           {activeTab === "activitylog" && <ActivityLogTab />}
+          </TabErrorBoundary>
         </div>
       )}
         </div>
