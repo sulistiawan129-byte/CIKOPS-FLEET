@@ -244,7 +244,16 @@ h1, h2, h3 {
   border: none;
   cursor: pointer;
   box-shadow: var(--shadow-gold);
-  transition: background 0.15s, transform 0.15s, box-shadow 0.15s;
+  transition: background 0.15s, transform 0.15s, box-shadow 0.15s, opacity 0.15s;
+}
+.pillBtn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  box-shadow: none;
+  filter: grayscale(0.3);
+}
+.pillBtn:disabled::after {
+  display: none;
 }
 .pillBtn::after {
   content: "";
