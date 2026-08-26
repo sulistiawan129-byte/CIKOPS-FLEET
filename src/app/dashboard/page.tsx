@@ -7016,6 +7016,13 @@ function PrinterTab() {
   const totalPrinters = printers.length;
   const colorCount = printers.filter((p) => p.type === "COLOR").length;
   const bwCount = printers.filter((p) => p.type === "BW").length;
+  // useCountUp HARUS dipanggil tanpa syarat di sini (bukan di dalam JSX
+  // kondisional viewMode==="list"), supaya jumlah hook yang terpanggil
+  // selalu sama di setiap render — ini yang menyebabkan React error #300
+  // ("Rendered fewer hooks than expected") saat pindah ke tab "requests".
+  const animatedTotalPrinters = useCountUp(totalPrinters);
+  const animatedColorCount = useCountUp(colorCount);
+  const animatedBwCount = useCountUp(bwCount);
 
   function openAddPrinter() {
     setEditingPrinter(null);
@@ -7171,15 +7178,15 @@ function PrinterTab() {
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 14, marginBottom: 20 }}>
             <div className="statPop" style={{ ...cardStyle, padding: 18, background: "linear-gradient(135deg, var(--brand), var(--brand2))" }}>
               <div style={{ fontSize: 12, fontWeight: 700, color: "rgba(255,255,255,0.8)", marginBottom: 6 }}>{lang === "en" ? "Total Printers" : "Total Printer"}</div>
-              <div style={{ fontSize: 32, fontWeight: 800, color: "#fff", fontFamily: "var(--mono)" }}>{useCountUp(totalPrinters)}</div>
+              <div style={{ fontSize: 32, fontWeight: 800, color: "#fff", fontFamily: "var(--mono)" }}>{animatedTotalPrinters}</div>
             </div>
             <div className="statPop" style={{ ...cardStyle, padding: 18 }}>
               <div style={{ fontSize: 12, fontWeight: 700, color: "var(--t3)", marginBottom: 6 }}>🎨 {lang === "en" ? "Color" : "Berwarna"}</div>
-              <div style={{ fontSize: 32, fontWeight: 800, color: "var(--purple)", fontFamily: "var(--mono)" }}>{useCountUp(colorCount)}</div>
+              <div style={{ fontSize: 32, fontWeight: 800, color: "var(--purple)", fontFamily: "var(--mono)" }}>{animatedColorCount}</div>
             </div>
             <div className="statPop" style={{ ...cardStyle, padding: 18 }}>
               <div style={{ fontSize: 12, fontWeight: 700, color: "var(--t3)", marginBottom: 6 }}>⚫ {lang === "en" ? "Black & White" : "Hitam Putih"}</div>
-              <div style={{ fontSize: 32, fontWeight: 800, color: "var(--t1)", fontFamily: "var(--mono)" }}>{useCountUp(bwCount)}</div>
+              <div style={{ fontSize: 32, fontWeight: 800, color: "var(--t1)", fontFamily: "var(--mono)" }}>{animatedBwCount}</div>
             </div>
           </div>
 
