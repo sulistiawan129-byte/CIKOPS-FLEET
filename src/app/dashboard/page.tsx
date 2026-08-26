@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties } from "react";
 import dynamic from "next/dynamic";
 import styles from "./dashboard.module.css";
@@ -276,6 +276,9 @@ export default function DashboardPage() {
    }, [user?.id]);
   const isMobile = useIsMobile();
   const [activeTab, setActiveTab] = useState<DashboardTab>("overview");
+  const [globalSearch, setGlobalSearch] = useState("");
+  const [showSearchDropdown, setShowSearchDropdown] = useState(false);
+  const searchBoxRef = useRef<HTMLDivElement>(null);
 const [masterDataInitialSub, setMasterDataInitialSub] = useState<"drivers" | "employees" | "jobtypes">("drivers");
 
   const [dateFilter, setDateFilter] = useState(todayStr());
@@ -289,6 +292,57 @@ const [masterDataInitialSub, setMasterDataInitialSub] = useState<"drivers" | "em
   const [drivers, setDrivers] = useState<Driver[]>([]);
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
+
+  const menuSearchResults = useMemo(() => {
+    const q = globalSearch.trim().toLowerCase();
+    if (!q) return [];
+    const results: { tab: DashboardTab; label: string; icon: string; group: string }[] = [];
+    for (const group of NAV_GROUPS) {
+      for (const tabItem of group.tabs) {
+        const label = lang === "en" ? tabItem.labelEn : tabItem.labelId;
+        if (label.toLowerCase().includes(q)) {
+          results.push({ tab: tabItem.id, label, icon: tabItem.icon, group: lang === "en" ? group.labelEn : group.labelId });
+        }
+      }
+    }
+    return results.slice(0, 6);
+  }, [globalSearch, lang]);
+
+  const dataSearchResults = useMemo(() => {
+    const q = globalSearch.trim().toLowerCase();
+    if (q.length < 2) return [];
+    const results: { kind: "driver" | "vehicle" | "employee"; id: string; label: string; sub: string }[] = [];
+    for (const d of drivers) {
+      if (d.nama.toLowerCase().includes(q)) results.push({ kind: "driver", id: d.id, label: d.nama, sub: d.no_hp || "Driver" });
+      if (results.length >= 4) break;
+    }
+    for (const v of vehicles) {
+      if (v.nopol.toLowerCase().includes(q) || (v.jenis ?? "").toLowerCase().includes(q)) results.push({ kind: "vehicle", id: v.id, label: v.nopol, sub: v.jenis || "Kendaraan" });
+      if (results.filter((r) => r.kind === "vehicle").length >= 4) break;
+    }
+    for (const e of employees) {
+      if (e.nama.toLowerCase().includes(q)) results.push({ kind: "employee", id: e.id, label: e.nama, sub: e.departement || "Karyawan" });
+      if (results.filter((r) => r.kind === "employee").length >= 3) break;
+    }
+    return results.slice(0, 8);
+  }, [globalSearch, drivers, vehicles, employees]);
+
+  function goToSearchResult(kind: "driver" | "vehicle" | "employee") {
+    if (kind === "driver") { setMasterDataInitialSub("drivers"); setActiveTab("masterdata"); }
+    else if (kind === "employee") { setMasterDataInitialSub("employees"); setActiveTab("masterdata"); }
+    else { setActiveTab("vehicles"); }
+    setGlobalSearch("");
+    setShowSearchDropdown(false);
+  }
+
+  useEffect(() => {
+    function onClickOutside(e: MouseEvent) {
+      if (searchBoxRef.current && !searchBoxRef.current.contains(e.target as Node)) setShowSearchDropdown(false);
+    }
+    document.addEventListener("mousedown", onClickOutside);
+    return () => document.removeEventListener("mousedown", onClickOutside);
+  }, []);
+
   const [jobTypes, setJobTypes] = useState<JobType[]>([]);
 
   const [modalOpen, setModalOpen] = useState(false);
@@ -572,13 +626,72 @@ const [masterDataInitialSub, setMasterDataInitialSub] = useState<"drivers" | "em
             </button>
           )}
           {!isMobile && (
-            <div style={{ flex: 1, position: "relative", maxWidth: 400 }}>
+            <div ref={searchBoxRef} style={{ flex: 1, position: "relative", maxWidth: 400 }}>
               <span style={{ position: "absolute", left: 13, top: "50%", transform: "translateY(-50%)", color: "var(--t3)", fontSize: 13 }}>🔍</span>
               <input
                 placeholder={lang === "en" ? "Search menu, data, or module..." : "Cari menu, data, atau modul..."}
                 className={styles.formInput}
                 style={{ borderRadius: "var(--pill)", paddingLeft: 36 }}
+                value={globalSearch}
+                onChange={(e) => { setGlobalSearch(e.target.value); setShowSearchDropdown(true); }}
+                onFocus={() => setShowSearchDropdown(true)}
               />
+              {showSearchDropdown && globalSearch.trim() !== "" && (
+                <div style={{ position: "absolute", top: "calc(100% + 6px)", left: 0, right: 0, background: "var(--surface)", border: "1px solid var(--border2)", borderRadius: 14, boxShadow: "var(--shadow-lg)", maxHeight: 360, overflowY: "auto", zIndex: 200 }}>
+                  {menuSearchResults.length === 0 && dataSearchResults.length === 0 ? (
+                    <div style={{ padding: 18, textAlign: "center", color: "var(--t3)", fontSize: 13 }}>
+                      {lang === "en" ? "No results found." : "Tidak ada hasil ditemukan."}
+                    </div>
+                  ) : (
+                    <>
+                      {menuSearchResults.length > 0 && (
+                        <div style={{ padding: "10px 8px 4px" }}>
+                          <div style={{ fontSize: 10.5, fontWeight: 800, color: "var(--t3)", letterSpacing: "0.06em", padding: "0 10px 6px" }}>
+                            {lang === "en" ? "MENU" : "MENU"}
+                          </div>
+                          {menuSearchResults.map((r) => (
+                            <div
+                              key={r.tab}
+                              onClick={() => { setActiveTab(r.tab); setGlobalSearch(""); setShowSearchDropdown(false); }}
+                              style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 10px", borderRadius: 9, cursor: "pointer" }}
+                              onMouseEnter={(e) => (e.currentTarget.style.background = "var(--bg2)")}
+                              onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+                            >
+                              <span style={{ fontSize: 15 }}>{r.icon}</span>
+                              <div>
+                                <div style={{ fontSize: 13, fontWeight: 700, color: "var(--t1)" }}>{r.label}</div>
+                                <div style={{ fontSize: 11, color: "var(--t3)" }}>{r.group}</div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                      {dataSearchResults.length > 0 && (
+                        <div style={{ padding: "4px 8px 10px", borderTop: menuSearchResults.length > 0 ? "1px solid var(--border)" : "none" }}>
+                          <div style={{ fontSize: 10.5, fontWeight: 800, color: "var(--t3)", letterSpacing: "0.06em", padding: "8px 10px 6px" }}>
+                            {lang === "en" ? "DATA" : "DATA"}
+                          </div>
+                          {dataSearchResults.map((r) => (
+                            <div
+                              key={`${r.kind}-${r.id}`}
+                              onClick={() => goToSearchResult(r.kind)}
+                              style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 10px", borderRadius: 9, cursor: "pointer" }}
+                              onMouseEnter={(e) => (e.currentTarget.style.background = "var(--bg2)")}
+                              onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+                            >
+                              <span style={{ fontSize: 15 }}>{r.kind === "driver" ? "🧑‍✈️" : r.kind === "vehicle" ? "🚗" : "👤"}</span>
+                              <div>
+                                <div style={{ fontSize: 13, fontWeight: 700, color: "var(--t1)" }}>{r.label}</div>
+                                <div style={{ fontSize: 11, color: "var(--t3)" }}>{r.sub}</div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
+              )}
             </div>
           )}
           <div style={{ flex: 1 }} />
