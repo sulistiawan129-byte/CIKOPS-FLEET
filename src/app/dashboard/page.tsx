@@ -7158,18 +7158,25 @@ function PrinterTab() {
         {viewMode === "list" ? (
           <button className="pillBtn" onClick={openAddPrinter}>+ {lang === "en" ? "Add Printer" : "Tambah Printer"}</button>
         ) : (
-          <div style={{ display: "flex", gap: 8 }}>
-            <button
-              onClick={() => exportPrinterRequestsToCsv(requests)}
-              disabled={requests.length === 0}
-              style={{ padding: "9px 16px", borderRadius: "var(--pill)", border: "1px solid var(--green)", background: "var(--green-soft)", color: "var(--green)", fontWeight: 700, fontSize: 13, cursor: requests.length === 0 ? "not-allowed" : "pointer", opacity: requests.length === 0 ? 0.5 : 1 }}
-            >
-              ⬇ {lang === "en" ? "Export CSV" : "Export CSV"}
-            </button>
-            <button className="pillBtn" onClick={openAddRequest} disabled={printers.length === 0}>
-              + {lang === "en" ? "Log Request" : "Catat Permintaan"}
-            </button>
-          </div>
+          <>
+            <div style={{ display: "flex", gap: 8 }}>
+              <button
+                onClick={() => exportPrinterRequestsToCsv(requests)}
+                disabled={requests.length === 0}
+                style={{ padding: "9px 16px", borderRadius: "var(--pill)", border: "1px solid var(--green)", background: "var(--green-soft)", color: "var(--green)", fontWeight: 700, fontSize: 13, cursor: requests.length === 0 ? "not-allowed" : "pointer", opacity: requests.length === 0 ? 0.5 : 1 }}
+              >
+                ⬇ {lang === "en" ? "Export CSV" : "Export CSV"}
+              </button>
+              <button className="pillBtn" onClick={openAddRequest} disabled={printers.length === 0} title={printers.length === 0 ? (lang === "en" ? "Add a printer first" : "Tambahkan printer dulu di tab 'Daftar Printer'") : undefined}>
+                + {lang === "en" ? "Log Request" : "Catat Permintaan"}
+              </button>
+            </div>
+            {printers.length === 0 && (
+              <div style={{ padding: "0 18px 14px", fontSize: 12.5, color: "var(--orange)" }}>
+                ⚠️ {lang === "en" ? "Add at least 1 printer in the \"Printer List\" tab before logging a request." : "Tambahkan minimal 1 printer di tab \"Daftar Printer\" dulu sebelum bisa mencatat permintaan."}
+              </div>
+            )}
+          </>
         )}
       </div>
 
