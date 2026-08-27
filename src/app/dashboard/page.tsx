@@ -7408,8 +7408,9 @@ function PrinterTab() {
                         </span>
                       </td>
                       <td style={{ fontWeight: 700, fontFamily: "var(--mono)" }}>
-                        {r.printerId ? r.printerNoEq : r.printUserId}
+                        {r.printerId ? r.printerNoEq : (r.requestType === "RESET_KUOTA" ? `📍 ${r.printUserId}` : r.printUserId)}
                         {r.printerId && <div style={{ fontSize: 11, color: "var(--t3)", fontWeight: 400, fontFamily: "var(--font)" }}>{r.printerLocation}</div>}
+                        {!r.printerId && r.requestType === "RESET_KUOTA" && <div style={{ fontSize: 10.5, color: "var(--t3)", fontWeight: 400, fontFamily: "var(--font)" }}>Area/Lokasi</div>}
                       </td>
                       <td>
                         <span style={{ padding: "4px 10px", borderRadius: "var(--pill)", fontSize: 11.5, fontWeight: 700, background: "var(--bg2)", color: "var(--t2)" }}>
@@ -7596,10 +7597,10 @@ function PrinterTab() {
  *  apapun (driver, toner/printer, lainnya) dari Dashboard. */
 /** Identitas dokumen resmi di bukti cetak — samakan dengan yang di
  *  src/app/request/page.tsx kalau ada pergantian administrator. */
-const RECEIPT_COMPANY_NAME = "PT Frieslandcampina Indonesia";
+const RECEIPT_COMPANY_NAME = "PT. Frisian Flag Indonesia - Plant Cikarang";
 const RECEIPT_SYSTEM_NAME = "CIKOPS Fleet Management";
 const RECEIPT_ADMIN_NAME = "Sulistiawan";
-const RECEIPT_ADMIN_DEPARTMENT = "General Affair (GA)";
+const RECEIPT_ADMIN_DEPARTMENT = "Facility Management";
 
 function printRequestReceipt(params: {
   refId: string;
@@ -7638,7 +7639,7 @@ function printRequestReceipt(params: {
             <div>
               <div style="font-size:15.5px;font-weight:800;color:#0f2847;line-height:1.3;">${RECEIPT_COMPANY_NAME}</div>
               <div style="font-size:12.5px;color:#435773;font-weight:600;">${RECEIPT_SYSTEM_NAME}</div>
-              <div style="font-size:11px;color:#94a3b8;">Departemen General Affair</div>
+              <div style="font-size:11px;color:#94a3b8;">Departemen Facility Management</div>
             </div>
           </div>
 
