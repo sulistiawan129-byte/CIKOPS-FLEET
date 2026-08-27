@@ -7384,12 +7384,12 @@ function PrinterTab() {
             </div>
           ) : (
             <div style={{ overflowX: "auto" }}>
-              <table className="tableCompact" style={{ minWidth: 860, width: "100%" }}>
+              <table className="tableCompact" style={{ minWidth: 900, width: "100%" }}>
                 <thead>
                   <tr>
                     <th>{lang === "en" ? "Date" : "Tanggal"}</th>
-                    <th>No. EQ</th>
-                    <th>{lang === "en" ? "Location" : "Lokasi"}</th>
+                    <th>{lang === "en" ? "Source" : "Sumber"}</th>
+                    <th>{lang === "en" ? "Printer / User ID" : "Printer / User ID"}</th>
                     <th>{lang === "en" ? "Request Type" : "Jenis Permintaan"}</th>
                     <th>{lang === "en" ? "Employee" : "Karyawan"}</th>
                     <th>{lang === "en" ? "Department" : "Departemen"}</th>
@@ -7402,8 +7402,15 @@ function PrinterTab() {
                   {requests.map((r) => (
                     <tr key={r.id}>
                       <td>{formatDateLabel(r.createdAt.slice(0, 10))}</td>
-                      <td style={{ fontWeight: 700, fontFamily: "var(--mono)" }}>{r.printerNoEq}</td>
-                      <td style={{ color: "var(--t3)" }}>{r.printerLocation}</td>
+                      <td>
+                        <span style={{ padding: "3px 9px", borderRadius: "var(--pill)", fontSize: 10.5, fontWeight: 700, background: r.source === "EMPLOYEE" ? "var(--brand)" : "var(--bg2)", color: r.source === "EMPLOYEE" ? "#fff" : "var(--t2)" }}>
+                          {r.source === "EMPLOYEE" ? (lang === "en" ? "Employee" : "Karyawan") : "Admin"}
+                        </span>
+                      </td>
+                      <td style={{ fontWeight: 700, fontFamily: "var(--mono)" }}>
+                        {r.printerId ? r.printerNoEq : r.printUserId}
+                        {r.printerId && <div style={{ fontSize: 11, color: "var(--t3)", fontWeight: 400, fontFamily: "var(--font)" }}>{r.printerLocation}</div>}
+                      </td>
                       <td>
                         <span style={{ padding: "4px 10px", borderRadius: "var(--pill)", fontSize: 11.5, fontWeight: 700, background: "var(--bg2)", color: "var(--t2)" }}>
                           {PRINTER_REQUEST_LABELS[r.requestType]}
@@ -7413,7 +7420,20 @@ function PrinterTab() {
                       <td>{r.department || "-"}</td>
                       <td style={{ fontFamily: "var(--mono)" }}>{r.quotaAmount ?? "-"}</td>
                       <td style={{ color: "var(--t3)" }}>{r.notes || "-"}</td>
-                      <td style={{ textAlign: "right" }}>
+                      <td style={{ textAlign: "right", whiteSpace: "nowrap" }}>
+                        <button
+                          onClick={() => printRequestReceipt({
+                            refId: r.id, createdAt: r.createdAt, typeLabel: PRINTER_REQUEST_LABELS[r.requestType], employeeName: r.employeeName, department: r.department,
+                            lines: [
+                              { label: r.printerId ? "Printer" : "User ID Print", value: r.printerId ? `${r.printerNoEq} — ${r.printerLocation}` : r.printUserId },
+                              { label: "Kuota", value: r.quotaAmount != null ? String(r.quotaAmount) : "" },
+                              { label: "Catatan", value: r.notes },
+                            ],
+                          })}
+                          style={{ border: "none", background: "var(--bg2)", color: "var(--t2)", borderRadius: 8, cursor: "pointer", padding: "5px 9px", marginRight: 6 }}
+                        >
+                          🖨️
+                        </button>
                         <button onClick={() => setConfirmDeleteRequest(r)} style={{ border: "none", background: "var(--red-soft)", color: "var(--red)", borderRadius: 8, cursor: "pointer", padding: "5px 9px" }}>🗑️</button>
                       </td>
                     </tr>
@@ -7570,6 +7590,58 @@ function PrinterTab() {
    request driver, request toner, atau lainnya. Admin bisa langsung
    proses (tandai diproses/selesai/tolak) dari sini.
 ════════════════════════════════════════════════════════════ */
+
+/** Buka jendela baru berisi bukti permintaan yang rapi lalu langsung
+ *  panggil print — dipakai admin untuk cetak ulang bukti permintaan
+ *  apapun (driver, toner/printer, lainnya) dari Dashboard. */
+function printRequestReceipt(params: {
+  refId: string;
+  createdAt: string;
+  typeLabel: string;
+  employeeName: string;
+  department: string;
+  lines: { label: string; value: string }[];
+}) {
+  const w = window.open("", "_blank", "width=480,height=700");
+  if (!w) return;
+  const rows = params.lines
+    .filter((l) => l.value)
+    .map((l) => `<tr><td style="padding:8px 0;color:#7c8aa0;border-bottom:1px solid #f2f5fa;">${l.label}</td><td style="padding:8px 0;font-weight:700;color:#0f2847;text-align:right;border-bottom:1px solid #f2f5fa;">${l.value}</td></tr>`)
+    .join("");
+  w.document.write(`
+    <html>
+      <head>
+        <title>Bukti Permintaan</title>
+        <style>
+          body { font-family: -apple-system, 'Segoe UI', sans-serif; padding: 30px; color: #0f2847; }
+          .header { text-align: center; border-bottom: 2px dashed #dbe4f0; padding-bottom: 16px; margin-bottom: 16px; }
+          .ref { font-size: 12px; color: #7c8aa0; }
+          table { width: 100%; border-collapse: collapse; margin: 16px 0; }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <div style="font-size:16px;font-weight:800;">BUKTI PERMINTAAN</div>
+          <div style="font-size:12px;color:#7c8aa0;">CIKOPS FLEET — General Affair</div>
+        </div>
+        <div class="ref">No. Referensi</div>
+        <div style="font-family:monospace;font-weight:700;margin-bottom:12px;">${params.refId.slice(0, 8).toUpperCase()}</div>
+        <div style="display:flex;justify-content:space-between;margin-bottom:12px;">
+          <div><div class="ref">Tanggal Pengajuan</div><div style="font-weight:700;">${new Date(params.createdAt).toLocaleDateString("id-ID", { day: "2-digit", month: "long", year: "numeric" })}</div></div>
+          <div style="text-align:right;"><div class="ref">Jenis Permintaan</div><div style="font-weight:700;">${params.typeLabel}</div></div>
+        </div>
+        <div style="background:#f6f8fc;border-radius:10px;padding:12px;margin-bottom:12px;">
+          <div style="font-weight:800;">${params.employeeName}</div>
+          <div style="font-size:12px;color:#7c8aa0;">${params.department || "-"}</div>
+        </div>
+        <table>${rows}</table>
+      </body>
+    </html>
+  `);
+  w.document.close();
+  w.focus();
+  setTimeout(() => w.print(), 300);
+}
 
 const EMPLOYEE_REQUEST_TYPE_LABELS: Record<EmployeeRequestType, { label: string; icon: string }> = {
   DRIVER: { label: "Request Driver", icon: "🚗" },
@@ -7773,10 +7845,27 @@ function EmployeeRequestsTab() {
               <div style={{ fontSize: 12.5, color: "var(--t3)" }}>{detailRequest.department || "-"}{detailRequest.phone ? ` · ${detailRequest.phone}` : ""}</div>
             </div>
 
-            <div style={{ marginBottom: 16 }}>
-              <div style={{ fontSize: 12, fontWeight: 700, color: "var(--t3)", marginBottom: 5 }}>{lang === "en" ? "Description" : "Detail Permintaan"}</div>
-              <div style={{ fontSize: 13.5, color: "var(--t1)", lineHeight: 1.6 }}>{detailRequest.description}</div>
-            </div>
+            {detailRequest.requestType === "DRIVER" && detailRequest.details ? (
+              <div style={{ marginBottom: 16, display: "flex", flexDirection: "column", gap: 8 }}>
+                {[
+                  ["Tanggal Event/Acara", detailRequest.details.eventDate ? formatDateLabel(detailRequest.details.eventDate) : ""],
+                  ["Tujuan", detailRequest.details.destination ?? ""],
+                  ["Jam Berangkat", detailRequest.details.departureTime ?? ""],
+                  ["Keperluan", detailRequest.details.purpose ?? ""],
+                  ["Catatan Tambahan", detailRequest.details.additionalNotes ?? ""],
+                ].filter(([, v]) => v).map(([label, value]) => (
+                  <div key={label} style={{ display: "flex", justifyContent: "space-between", gap: 12, fontSize: 13, padding: "6px 0", borderBottom: "1px solid var(--border)" }}>
+                    <span style={{ color: "var(--t3)" }}>{label}</span>
+                    <span style={{ fontWeight: 700, color: "var(--t1)", textAlign: "right" }}>{value}</span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div style={{ marginBottom: 16 }}>
+                <div style={{ fontSize: 12, fontWeight: 700, color: "var(--t3)", marginBottom: 5 }}>{lang === "en" ? "Description" : "Detail Permintaan"}</div>
+                <div style={{ fontSize: 13.5, color: "var(--t1)", lineHeight: 1.6 }}>{detailRequest.description}</div>
+              </div>
+            )}
 
             <div style={{ marginBottom: 18 }}>
               <label style={{ fontSize: 12, fontWeight: 700, color: "var(--t2)", marginBottom: 5, display: "block" }}>{lang === "en" ? "Admin Notes" : "Catatan Admin"}</label>
@@ -7784,6 +7873,24 @@ function EmployeeRequestsTab() {
             </div>
 
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              <button
+                onClick={() => {
+                  const typeInfo2 = EMPLOYEE_REQUEST_TYPE_LABELS[detailRequest.requestType] ?? { label: detailRequest.requestType };
+                  const lines = detailRequest.requestType === "DRIVER"
+                    ? [
+                        { label: "Tanggal Event/Acara", value: detailRequest.details.eventDate ? formatDateLabel(detailRequest.details.eventDate) : "" },
+                        { label: "Tujuan", value: detailRequest.details.destination ?? "" },
+                        { label: "Jam Berangkat", value: detailRequest.details.departureTime ?? "" },
+                        { label: "Keperluan", value: detailRequest.details.purpose ?? "" },
+                        { label: "Catatan Tambahan", value: detailRequest.details.additionalNotes ?? "" },
+                      ]
+                    : [{ label: "Detail Permintaan", value: detailRequest.description }];
+                  printRequestReceipt({ refId: detailRequest.id, createdAt: detailRequest.createdAt, typeLabel: typeInfo2.label, employeeName: detailRequest.employeeName, department: detailRequest.department, lines });
+                }}
+                style={{ flex: 1, minWidth: 110, padding: "10px", borderRadius: 10, border: "1px solid var(--border2)", background: "var(--bg2)", color: "var(--t2)", fontWeight: 700, fontSize: 12.5, cursor: "pointer" }}
+              >
+                🖨️ {lang === "en" ? "Print Receipt" : "Cetak Bukti"}
+              </button>
               {detailRequest.status !== "IN_PROGRESS" && (
                 <button onClick={() => handleSetStatus(detailRequest, "IN_PROGRESS")} disabled={busyId === detailRequest.id} style={{ flex: 1, minWidth: 110, padding: "10px", borderRadius: 10, border: "1px solid var(--brand)", background: "var(--bg2)", color: "var(--brand)", fontWeight: 700, fontSize: 12.5, cursor: "pointer" }}>
                   {lang === "en" ? "Mark In Progress" : "Tandai Diproses"}
