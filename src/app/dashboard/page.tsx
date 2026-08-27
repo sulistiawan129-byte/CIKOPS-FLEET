@@ -7420,7 +7420,7 @@ function PrinterTab() {
                       <td style={{ fontWeight: 700 }}>{r.employeeName}</td>
                       <td>{r.department || "-"}</td>
                       <td style={{ fontFamily: "var(--mono)" }}>{r.quotaAmount ?? "-"}</td>
-                      <td style={{ color: "var(--t3)" }}>{r.notes || "-"}</td>
+                      <td style={{ color: "var(--t3)", whiteSpace: "pre-line" }}>{r.notes || "-"}</td>
                       <td style={{ textAlign: "right", whiteSpace: "nowrap" }}>
                         <button
                           onClick={() => printRequestReceipt({
