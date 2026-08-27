@@ -121,13 +121,16 @@ export default function RequestPage() {
           ],
         });
       } else if (kind === "PRINTER") {
+        const combinedNotes = printAction === "TAMBAH_KUOTA"
+          ? `userid : ${printUserId.trim()}\n${printReason.trim()}`
+          : printReason.trim();
         const result = await submitPrinterRequestPublic({
           requestType: printAction,
           employeeName: employeeName.trim(),
           department: department.trim(),
           printUserId: printAction === "TAMBAH_KUOTA" ? printUserId.trim() : undefined,
           locations: printAction === "RESET_KUOTA" ? selectedAreas : undefined,
-          notes: printReason.trim(),
+          notes: combinedNotes,
         });
         setReceipt({
           refId: result.id, createdAt: result.createdAt, kind, employeeName: employeeName.trim(), department: department.trim(),
