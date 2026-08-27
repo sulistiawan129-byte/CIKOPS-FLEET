@@ -1009,18 +1009,30 @@ export async function addPrinterRequest(input: AddPrinterRequestInput): Promise<
   if (error) throw error;
 }
 
+/** Daftar Area/Lokasi printer untuk form publik /request — dipakai
+ *  di form "Reset Kuota" (pilih area, bukan User ID Print). */
+export async function getPrinterLocationsPublic(): Promise<string[]> {
+  const { data, error } = await supabase.rpc("get_printer_locations_public");
+  if (error) throw error;
+  return (data ?? []).map((r: { location: string }) => r.location);
+}
+
 export interface SubmitPrinterRequestPublicInput {
   requestType: "RESET_KUOTA" | "TAMBAH_KUOTA";
   employeeName: string;
   department: string;
-  printUserId: string;
+  printUserId?: string;   // dipakai untuk TAMBAH_KUOTA
+  locations?: string[];   // dipakai untuk RESET_KUOTA — bisa lebih dari 1 area
   notes: string;
 }
 
-/** Dipanggil dari form publik /request — TIDAK butuh login. Karyawan
- *  submit berdasarkan User ID Print (akun cetak), bukan pilih unit
- *  printer fisik — masuk ke tabel yang SAMA dengan yang dibaca admin
- *  di Tab Printer, jadi otomatis sinkron tanpa proses tambahan. */
+/** Dipanggil dari form publik /request — TIDAK butuh login.
+ *  - TAMBAH_KUOTA: karyawan input User ID Print (akun cetak personal).
+ *  - RESET_KUOTA: karyawan pilih 1 atau lebih Area/Lokasi (dari data
+ *    printer yang sudah ada) — tiap area jadi 1 baris permintaan
+ *    terpisah, supaya admin bisa proses per-area satu-satu.
+ *  Semua masuk ke tabel yang SAMA dengan yang dibaca admin di Tab
+ *  Printer, jadi otomatis sinkron tanpa proses tambahan. */
 export async function submitPrinterRequestPublic(input: SubmitPrinterRequestPublicInput): Promise<{ id: string; createdAt: string }> {
   // ID & waktu dibuat di sisi client, BUKAN dibaca-balik dari server —
   // membaca balik lewat .select() butuh izin SELECT, yang sengaja
@@ -1029,12 +1041,34 @@ export async function submitPrinterRequestPublic(input: SubmitPrinterRequestPubl
   // sedang login) akan gagal di langkah baca-balik meskipun data
   // sudah berhasil masuk — persis bug yang bikin cuma jalan di
   // komputer admin.
-  const id = crypto.randomUUID();
   const createdAt = new Date().toISOString();
+
+  if (input.requestType === "RESET_KUOTA") {
+    const areas = (input.locations ?? []).filter((a) => a.trim() !== "");
+    if (areas.length === 0) throw new Error("Pilih minimal 1 area.");
+    const firstId = crypto.randomUUID();
+    const rows = areas.map((area, i) => ({
+      id: i === 0 ? firstId : crypto.randomUUID(),
+      printer_id: null,
+      print_user_id: area, // menyimpan nama Area/Lokasi untuk permintaan Reset
+      source: "EMPLOYEE",
+      request_type: "RESET_KUOTA",
+      employee_name: input.employeeName,
+      department: input.department || null,
+      quota_amount: null,
+      notes: input.notes || "",
+      created_at: createdAt,
+    }));
+    const { error } = await supabase.from("printer_requests").insert(rows);
+    if (error) throw error;
+    return { id: firstId, createdAt };
+  }
+
+  const id = crypto.randomUUID();
   const { error } = await supabase.from("printer_requests").insert({
     id,
     printer_id: null,
-    print_user_id: input.printUserId,
+    print_user_id: input.printUserId ?? "",
     source: "EMPLOYEE",
     request_type: input.requestType,
     employee_name: input.employeeName,
