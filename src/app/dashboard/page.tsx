@@ -7594,6 +7594,13 @@ function PrinterTab() {
 /** Buka jendela baru berisi bukti permintaan yang rapi lalu langsung
  *  panggil print — dipakai admin untuk cetak ulang bukti permintaan
  *  apapun (driver, toner/printer, lainnya) dari Dashboard. */
+/** Identitas dokumen resmi di bukti cetak — samakan dengan yang di
+ *  src/app/request/page.tsx kalau ada pergantian administrator. */
+const RECEIPT_COMPANY_NAME = "PT Frieslandcampina Indonesia";
+const RECEIPT_SYSTEM_NAME = "CIKOPS Fleet Management";
+const RECEIPT_ADMIN_NAME = "Sulistiawan";
+const RECEIPT_ADMIN_DEPARTMENT = "General Affair (GA)";
+
 function printRequestReceipt(params: {
   refId: string;
   createdAt: string;
@@ -7602,45 +7609,74 @@ function printRequestReceipt(params: {
   department: string;
   lines: { label: string; value: string }[];
 }) {
-  const w = window.open("", "_blank", "width=480,height=700");
+  const w = window.open("", "_blank", "width=520,height=760");
   if (!w) return;
+  const refNo = `REQ-${new Date(params.createdAt).toISOString().slice(0, 10).replace(/-/g, "")}-${params.refId.slice(0, 6).toUpperCase()}`;
   const rows = params.lines
     .filter((l) => l.value)
-    .map((l) => `<tr><td style="padding:8px 0;color:#7c8aa0;border-bottom:1px solid #f2f5fa;">${l.label}</td><td style="padding:8px 0;font-weight:700;color:#0f2847;text-align:right;border-bottom:1px solid #f2f5fa;">${l.value}</td></tr>`)
+    .map((l) => `<tr><td style="padding:5px 0;color:#7c8aa0;width:38%;vertical-align:top;">${l.label}</td><td style="padding:5px 0;font-weight:700;color:#0f2847;">: ${l.value}</td></tr>`)
     .join("");
+  const origin = window.location.origin;
   w.document.write(`
     <html>
       <head>
-        <title>Bukti Permintaan</title>
+        <title>Bukti Permintaan — ${refNo}</title>
         <style>
-          body { font-family: -apple-system, 'Segoe UI', sans-serif; padding: 30px; color: #0f2847; }
-          .header { text-align: center; border-bottom: 2px dashed #dbe4f0; padding-bottom: 16px; margin-bottom: 16px; }
-          .ref { font-size: 12px; color: #7c8aa0; }
-          table { width: 100%; border-collapse: collapse; margin: 16px 0; }
+          @page { margin: 16mm; }
+          body { font-family: -apple-system, 'Segoe UI', sans-serif; color: #0f2847; margin: 0; }
+          .wrap { max-width: 480px; margin: 0 auto; border: 1px solid #dbe4f0; border-radius: 14px; overflow: hidden; }
+          table { width: 100%; border-collapse: collapse; }
+          .lbl { font-size: 11px; font-weight: 800; color: #7c8aa0; letter-spacing: 0.06em; }
         </style>
       </head>
       <body>
-        <div class="header">
-          <div style="font-size:16px;font-weight:800;">BUKTI PERMINTAAN</div>
-          <div style="font-size:12px;color:#7c8aa0;">CIKOPS FLEET — General Affair</div>
+        <div class="wrap">
+          <div style="padding:24px 28px 18px;border-bottom:3px solid #0f2847;display:flex;align-items:center;gap:14px;">
+            <div style="width:56px;height:56px;border-radius:10px;background:#0f2847;display:flex;align-items:center;justify-content:center;flex-shrink:0;overflow:hidden;">
+              <img src="${origin}/logo.png" alt="CIKOPS" style="width:80%;height:80%;object-fit:contain;" />
+            </div>
+            <div>
+              <div style="font-size:15.5px;font-weight:800;color:#0f2847;line-height:1.3;">${RECEIPT_COMPANY_NAME}</div>
+              <div style="font-size:12.5px;color:#435773;font-weight:600;">${RECEIPT_SYSTEM_NAME}</div>
+              <div style="font-size:11px;color:#94a3b8;">Departemen General Affair</div>
+            </div>
+          </div>
+
+          <div style="padding:18px 28px 14px;text-align:center;background:#f8fafc;">
+            <div style="font-size:15px;font-weight:800;color:#0f2847;letter-spacing:0.04em;">BUKTI PERMINTAAN</div>
+            <div style="font-size:11.5px;color:#7c8aa0;font-family:monospace;margin-top:3px;">No. ${refNo}</div>
+          </div>
+
+          <div style="padding:20px 28px;">
+            <table style="margin-bottom:16px;font-size:13px;">
+              <tr><td style="padding:5px 0;color:#7c8aa0;width:38%;">Tanggal Pengajuan</td><td style="padding:5px 0;font-weight:700;">: ${new Date(params.createdAt).toLocaleDateString("id-ID", { day: "2-digit", month: "long", year: "numeric" })}</td></tr>
+              <tr><td style="padding:5px 0;color:#7c8aa0;">Jenis Permintaan</td><td style="padding:5px 0;font-weight:700;">: ${params.typeLabel}</td></tr>
+              <tr><td style="padding:5px 0;color:#7c8aa0;">Nama Pemohon</td><td style="padding:5px 0;font-weight:700;">: ${params.employeeName}</td></tr>
+              <tr><td style="padding:5px 0;color:#7c8aa0;">Departemen</td><td style="padding:5px 0;font-weight:700;">: ${params.department || "-"}</td></tr>
+            </table>
+
+            <div class="lbl" style="border-top:1px solid #eef2f9;padding-top:14px;margin-bottom:8px;">DETAIL PERMINTAAN</div>
+            <table style="margin-bottom:22px;font-size:13px;">${rows}</table>
+
+            <div style="border-top:1px dashed #dbe4f0;padding-top:16px;display:flex;justify-content:flex-end;">
+              <div style="text-align:center;min-width:170px;">
+                <div style="font-size:11px;color:#7c8aa0;margin-bottom:46px;">Diterima &amp; diproses oleh,</div>
+                <div style="font-size:13.5px;font-weight:800;color:#0f2847;border-top:1px solid #0f2847;padding-top:4px;">${RECEIPT_ADMIN_NAME}</div>
+                <div style="font-size:11.5px;color:#7c8aa0;">${RECEIPT_ADMIN_DEPARTMENT}</div>
+              </div>
+            </div>
+          </div>
+
+          <div style="text-align:center;padding:10px 0;font-size:10px;color:#a0aabb;border-top:1px solid #eef2f9;">
+            Dokumen ini digenerate otomatis oleh sistem ${RECEIPT_SYSTEM_NAME}
+          </div>
         </div>
-        <div class="ref">No. Referensi</div>
-        <div style="font-family:monospace;font-weight:700;margin-bottom:12px;">${params.refId.slice(0, 8).toUpperCase()}</div>
-        <div style="display:flex;justify-content:space-between;margin-bottom:12px;">
-          <div><div class="ref">Tanggal Pengajuan</div><div style="font-weight:700;">${new Date(params.createdAt).toLocaleDateString("id-ID", { day: "2-digit", month: "long", year: "numeric" })}</div></div>
-          <div style="text-align:right;"><div class="ref">Jenis Permintaan</div><div style="font-weight:700;">${params.typeLabel}</div></div>
-        </div>
-        <div style="background:#f6f8fc;border-radius:10px;padding:12px;margin-bottom:12px;">
-          <div style="font-weight:800;">${params.employeeName}</div>
-          <div style="font-size:12px;color:#7c8aa0;">${params.department || "-"}</div>
-        </div>
-        <table>${rows}</table>
       </body>
     </html>
   `);
   w.document.close();
   w.focus();
-  setTimeout(() => w.print(), 300);
+  setTimeout(() => w.print(), 400);
 }
 
 const EMPLOYEE_REQUEST_TYPE_LABELS: Record<EmployeeRequestType, { label: string; icon: string }> = {
