@@ -1,16 +1,16 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import type { CSSProperties } from "react";
-import { submitEmployeeRequest, submitPrinterRequestPublic } from "@/lib/api";
+import { submitEmployeeRequest, submitPrinterRequestPublic, getPrinterLocationsPublic } from "@/lib/api";
 
 type FormKind = "DRIVER" | "PRINTER" | "OTHER";
 
 /** Identitas dokumen resmi di bukti cetak — ubah di sini kalau ada
  *  pergantian administrator atau data perusahaan. */
-const COMPANY_NAME = "PT Frieslandcampina Indonesia";
+const COMPANY_NAME = "PT. Frisian Flag Indonesia - Plant Cikarang";
 const SYSTEM_NAME = "CIKOPS Fleet Management";
 const ADMIN_NAME = "Sulistiawan";
-const ADMIN_DEPARTMENT = "General Affair (GA)";
+const ADMIN_DEPARTMENT = "Facility Management";
 
 const inputStyle: CSSProperties = {
   width: "100%",
@@ -58,6 +58,8 @@ export default function RequestPage() {
   const [printAction, setPrintAction] = useState<"RESET_KUOTA" | "TAMBAH_KUOTA">("RESET_KUOTA");
   const [printUserId, setPrintUserId] = useState("");
   const [printReason, setPrintReason] = useState("");
+  const [printerLocations, setPrinterLocations] = useState<string[]>([]);
+  const [selectedAreas, setSelectedAreas] = useState<string[]>([]);
 
   // Other fields
   const [description, setDescription] = useState("");
@@ -66,11 +68,19 @@ export default function RequestPage() {
   const [error, setError] = useState("");
   const [receipt, setReceipt] = useState<Receipt | null>(null);
 
+  useEffect(() => {
+    getPrinterLocationsPublic().then(setPrinterLocations).catch(() => {});
+  }, []);
+
+  function toggleArea(area: string) {
+    setSelectedAreas((prev) => (prev.includes(area) ? prev.filter((a) => a !== area) : [...prev, area]));
+  }
+
   function resetAll() {
     setKind("DRIVER");
     setEmployeeName(""); setDepartment(""); setPhone("");
     setEventDate(todayISO()); setDestination(""); setDepartureTime(""); setPurpose(""); setAdditionalNotes("");
-    setPrintAction("RESET_KUOTA"); setPrintUserId(""); setPrintReason("");
+    setPrintAction("RESET_KUOTA"); setPrintUserId(""); setPrintReason(""); setSelectedAreas([]);
     setDescription("");
     setReceipt(null); setError("");
   }
@@ -81,7 +91,9 @@ export default function RequestPage() {
     (kind === "DRIVER"
       ? eventDate !== "" && destination.trim() !== "" && departureTime !== "" && purpose.trim() !== ""
       : kind === "PRINTER"
-      ? printUserId.trim() !== "" && (printAction === "RESET_KUOTA" || printReason.trim() !== "")
+      ? printAction === "RESET_KUOTA"
+        ? selectedAreas.length > 0
+        : printUserId.trim() !== ""
       : description.trim() !== "");
 
   async function handleSubmit() {
@@ -113,14 +125,17 @@ export default function RequestPage() {
           requestType: printAction,
           employeeName: employeeName.trim(),
           department: department.trim(),
-          printUserId: printUserId.trim(),
+          printUserId: printAction === "TAMBAH_KUOTA" ? printUserId.trim() : undefined,
+          locations: printAction === "RESET_KUOTA" ? selectedAreas : undefined,
           notes: printReason.trim(),
         });
         setReceipt({
           refId: result.id, createdAt: result.createdAt, kind, employeeName: employeeName.trim(), department: department.trim(),
           lines: [
             { label: "Jenis Permintaan", value: printAction === "RESET_KUOTA" ? "Reset Kuota" : "Tambah Kuota" },
-            { label: "User ID Print", value: printUserId.trim() },
+            ...(printAction === "RESET_KUOTA"
+              ? [{ label: "Area / Lokasi", value: selectedAreas.join(", ") }]
+              : [{ label: "User ID Print", value: printUserId.trim() }]),
             ...(printAction === "TAMBAH_KUOTA" ? [{ label: "Alasan / Keperluan", value: printReason.trim() }] : []),
           ],
         });
@@ -166,7 +181,7 @@ export default function RequestPage() {
               <div>
                 <div style={{ fontSize: 15.5, fontWeight: 800, color: "#0f2847", lineHeight: 1.3 }}>{COMPANY_NAME}</div>
                 <div style={{ fontSize: 12.5, color: "#435773", fontWeight: 600 }}>{SYSTEM_NAME}</div>
-                <div style={{ fontSize: 11, color: "#94a3b8" }}>Departemen General Affair</div>
+                <div style={{ fontSize: 11, color: "#94a3b8" }}>Departemen Facility Management</div>
               </div>
             </div>
 
@@ -265,7 +280,7 @@ export default function RequestPage() {
             <img src="/logo.png" alt="CIKOPS" style={{ width: "78%", height: "78%", objectFit: "contain" }} />
           </div>
           <div style={{ fontSize: 19, fontWeight: 800, color: "#0f2847" }}>Form Permintaan Karyawan</div>
-          <div style={{ fontSize: 13, color: "#7c8aa0", marginTop: 3 }}>CIKOPS FLEET — General Affair</div>
+          <div style={{ fontSize: 13, color: "#7c8aa0", marginTop: 3 }}>CIKOPS FLEET — Facility Management</div>
         </div>
 
         {error && (
@@ -367,17 +382,38 @@ export default function RequestPage() {
                 ))}
               </div>
             </div>
-            <div style={{ marginBottom: 14 }}>
-              <label style={labelStyle}>USER ID PRINT *</label>
-              <input value={printUserId} onChange={(e) => setPrintUserId(e.target.value)} placeholder="Contoh: budi.santoso" style={inputStyle} />
-            </div>
-            {printAction === "TAMBAH_KUOTA" && (
+            {printAction === "RESET_KUOTA" ? (
               <div style={{ marginBottom: 22 }}>
-                <label style={labelStyle}>ALASAN / KEPERLUAN *</label>
-                <textarea value={printReason} onChange={(e) => setPrintReason(e.target.value)} rows={2} placeholder="Contoh: Kuota habis, butuh cetak laporan bulanan" style={{ ...inputStyle, resize: "vertical", fontFamily: "inherit" }} />
+                <label style={labelStyle}>PILIH AREA / LOKASI * {selectedAreas.length > 0 ? `(${selectedAreas.length} dipilih)` : ""}</label>
+                {printerLocations.length === 0 ? (
+                  <div style={{ ...inputStyle, color: "#a0aabb", fontSize: 13 }}>Memuat daftar area...</div>
+                ) : (
+                  <div style={{ border: "1.5px solid #e1e7f1", borderRadius: 12, maxHeight: 220, overflowY: "auto" }}>
+                    {printerLocations.map((loc) => (
+                      <label
+                        key={loc}
+                        style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px 14px", cursor: "pointer", borderBottom: "1px solid #f2f5fa" }}
+                      >
+                        <input type="checkbox" checked={selectedAreas.includes(loc)} onChange={() => toggleArea(loc)} style={{ width: 16, height: 16, accentColor: "#2f5fe0" }} />
+                        <span style={{ fontSize: 14, color: "#0f2847", fontWeight: 600 }}>{loc}</span>
+                      </label>
+                    ))}
+                  </div>
+                )}
+                <div style={{ fontSize: 11.5, color: "#94a3b8", marginTop: 6 }}>Bisa pilih lebih dari 1 area — tiap area akan dicatat sebagai permintaan terpisah.</div>
               </div>
+            ) : (
+              <>
+                <div style={{ marginBottom: 14 }}>
+                  <label style={labelStyle}>USER ID PRINT *</label>
+                  <input value={printUserId} onChange={(e) => setPrintUserId(e.target.value)} placeholder="Contoh: budi.santoso" style={inputStyle} />
+                </div>
+                <div style={{ marginBottom: 22 }}>
+                  <label style={labelStyle}>ALASAN / KEPERLUAN *</label>
+                  <textarea value={printReason} onChange={(e) => setPrintReason(e.target.value)} rows={2} placeholder="Contoh: Kuota habis, butuh cetak laporan bulanan" style={{ ...inputStyle, resize: "vertical", fontFamily: "inherit" }} />
+                </div>
+              </>
             )}
-            {printAction === "RESET_KUOTA" && <div style={{ marginBottom: 8 }} />}
           </>
         )}
 
