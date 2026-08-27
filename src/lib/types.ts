@@ -78,8 +78,21 @@ export interface Claim {
 export type EmployeeRequestType = "DRIVER" | "TONER" | "OTHER";
 export type EmployeeRequestStatus = "PENDING" | "IN_PROGRESS" | "DONE" | "REJECTED";
 
-/** Permintaan karyawan dari form publik (/request) — request driver,
- *  request toner, atau lainnya — masuk ke Dashboard untuk dieksekusi. */
+/** Field spesifik untuk permintaan jenis DRIVER — disimpan di kolom
+ *  `details` (jsonb) supaya skema employee_requests tetap fleksibel
+ *  kalau nanti ada jenis permintaan baru lagi. */
+export interface DriverRequestDetails {
+  eventDate: string;       // Tanggal Event/Acara
+  destination: string;     // Tujuan
+  departureTime: string;   // Jam Berangkat
+  purpose: string;         // Keperluan
+  additionalNotes: string; // Catatan Tambahan
+}
+
+/** Permintaan karyawan dari form publik (/request) — request driver
+ *  atau lainnya (permintaan terkait printer masuk langsung ke tabel
+ *  printer_requests, lihat PrinterRequest di bawah, supaya otomatis
+ *  sinkron dengan log yang dipakai admin). */
 export interface EmployeeRequest {
   id: string;
   requestType: EmployeeRequestType;
@@ -87,6 +100,7 @@ export interface EmployeeRequest {
   department: string;
   phone: string;
   description: string;
+  details: Partial<DriverRequestDetails>;
   status: EmployeeRequestStatus;
   adminNotes: string;
   createdAt: string;
@@ -105,12 +119,15 @@ export interface Printer {
 }
 
 export type PrinterRequestType = "RESET_KUOTA" | "TAMBAH_KUOTA" | "AMBIL_TONER";
+export type PrinterRequestSource = "ADMIN" | "EMPLOYEE";
 
 export interface PrinterRequest {
   id: string;
-  printerId: string;
+  printerId: string | null;
   printerNoEq: string;
   printerLocation: string;
+  printUserId: string;
+  source: PrinterRequestSource;
   requestType: PrinterRequestType;
   employeeName: string;
   department: string;

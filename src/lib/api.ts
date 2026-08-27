@@ -26,6 +26,8 @@ import type {
   EmployeeRequest,
   EmployeeRequestType,
   EmployeeRequestStatus,
+  DriverRequestDetails,
+  PrinterRequestSource,
 } from "./types";
 
 /* ════════════════════════════════════════════════════════════
@@ -942,7 +944,9 @@ export async function deletePrinter(id: string): Promise<void> {
 
 interface PrinterRequestRow {
   id: string;
-  printer_id: string;
+  printer_id: string | null;
+  print_user_id: string | null;
+  source: PrinterRequestSource;
   request_type: PrinterRequestType;
   employee_name: string;
   department: string | null;
@@ -958,6 +962,8 @@ function mapPrinterRequestRow(r: PrinterRequestRow): PrinterRequest {
     printerId: r.printer_id,
     printerNoEq: r.printers?.no_eq ?? "-",
     printerLocation: r.printers?.location ?? "-",
+    printUserId: r.print_user_id ?? "",
+    source: r.source,
     requestType: r.request_type,
     employeeName: r.employee_name,
     department: r.department ?? "",
@@ -988,9 +994,12 @@ export interface AddPrinterRequestInput {
   notes: string;
 }
 
+/** Dipanggil dari Dashboard Admin (Tab Printer) — admin input manual
+ *  atas nama karyawan, terkait 1 unit printer fisik tertentu. */
 export async function addPrinterRequest(input: AddPrinterRequestInput): Promise<void> {
   const { error } = await supabase.from("printer_requests").insert({
     printer_id: input.printerId,
+    source: "ADMIN",
     request_type: input.requestType,
     employee_name: input.employeeName,
     department: input.department || null,
@@ -1000,14 +1009,44 @@ export async function addPrinterRequest(input: AddPrinterRequestInput): Promise<
   if (error) throw error;
 }
 
+export interface SubmitPrinterRequestPublicInput {
+  requestType: "RESET_KUOTA" | "TAMBAH_KUOTA";
+  employeeName: string;
+  department: string;
+  printUserId: string;
+  notes: string;
+}
+
+/** Dipanggil dari form publik /request — TIDAK butuh login. Karyawan
+ *  submit berdasarkan User ID Print (akun cetak), bukan pilih unit
+ *  printer fisik — masuk ke tabel yang SAMA dengan yang dibaca admin
+ *  di Tab Printer, jadi otomatis sinkron tanpa proses tambahan. */
+export async function submitPrinterRequestPublic(input: SubmitPrinterRequestPublicInput): Promise<{ id: string; createdAt: string }> {
+  const { data, error } = await supabase.from("printer_requests").insert({
+    printer_id: null,
+    print_user_id: input.printUserId,
+    source: "EMPLOYEE",
+    request_type: input.requestType,
+    employee_name: input.employeeName,
+    department: input.department || null,
+    quota_amount: null,
+    notes: input.notes || "",
+  }).select("id, created_at").single();
+  if (error) throw error;
+  return { id: data.id, createdAt: data.created_at };
+}
+
 export async function deletePrinterRequest(id: string): Promise<void> {
   const { error } = await supabase.from("printer_requests").delete().eq("id", id);
   if (error) throw error;
 }
 
 /* ════════════════════════════════════════════════════════════
-   EMPLOYEE REQUESTS — form publik (request driver, toner, lainnya)
-   yang masuk ke Dashboard untuk langsung dieksekusi admin.
+   EMPLOYEE REQUESTS — form publik (request driver, lainnya) yang
+   masuk ke Dashboard untuk langsung dieksekusi admin. Permintaan
+   terkait printer TIDAK lewat sini — lihat submitPrinterRequestPublic
+   di atas, yang menulis langsung ke printer_requests supaya sinkron
+   dengan log admin.
 ════════════════════════════════════════════════════════════ */
 
 interface EmployeeRequestRow {
@@ -1017,6 +1056,7 @@ interface EmployeeRequestRow {
   department: string | null;
   phone: string | null;
   description: string;
+  details: Partial<DriverRequestDetails> | null;
   status: EmployeeRequestStatus;
   admin_notes: string | null;
   created_at: string;
@@ -1031,6 +1071,7 @@ function mapEmployeeRequestRow(r: EmployeeRequestRow): EmployeeRequest {
     department: r.department ?? "",
     phone: r.phone ?? "",
     description: r.description,
+    details: r.details ?? {},
     status: r.status,
     adminNotes: r.admin_notes ?? "",
     createdAt: r.created_at,
@@ -1045,15 +1086,18 @@ export async function submitEmployeeRequest(input: {
   department: string;
   phone: string;
   description: string;
-}): Promise<void> {
-  const { error } = await supabase.from("employee_requests").insert({
+  details?: Partial<DriverRequestDetails>;
+}): Promise<{ id: string; createdAt: string }> {
+  const { data, error } = await supabase.from("employee_requests").insert({
     request_type: input.requestType,
     employee_name: input.employeeName,
     department: input.department || null,
     phone: input.phone || null,
     description: input.description,
-  });
+    details: input.details ?? {},
+  }).select("id, created_at").single();
   if (error) throw error;
+  return { id: data.id, createdAt: data.created_at };
 }
 
 /** Untuk Dashboard (authenticated) — daftar semua permintaan. */
