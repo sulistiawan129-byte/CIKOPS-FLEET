@@ -5,6 +5,13 @@ import { submitEmployeeRequest, submitPrinterRequestPublic } from "@/lib/api";
 
 type FormKind = "DRIVER" | "PRINTER" | "OTHER";
 
+/** Identitas dokumen resmi di bukti cetak — ubah di sini kalau ada
+ *  pergantian administrator atau data perusahaan. */
+const COMPANY_NAME = "PT Frieslandcampina Indonesia";
+const SYSTEM_NAME = "CIKOPS Fleet Management";
+const ADMIN_NAME = "Sulistiawan";
+const ADMIN_DEPARTMENT = "General Affair (GA)";
+
 const inputStyle: CSSProperties = {
   width: "100%",
   padding: "13px 15px",
@@ -131,7 +138,13 @@ export default function RequestPage() {
         });
       }
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Gagal mengirim permintaan. Coba lagi.");
+      const parts: string[] = [];
+      if (e instanceof Error) parts.push(e.message);
+      const anyE = e as { code?: string; details?: string; hint?: string } | null;
+      if (anyE?.code) parts.push(`Code: ${anyE.code}`);
+      if (anyE?.details) parts.push(`Details: ${anyE.details}`);
+      if (anyE?.hint) parts.push(`Hint: ${anyE.hint}`);
+      setError(parts.length > 0 ? parts.join(" — ") : `Gagal mengirim permintaan (unknown error): ${JSON.stringify(e)}`);
     } finally {
       setSubmitting(false);
     }
@@ -139,48 +152,84 @@ export default function RequestPage() {
 
   if (receipt) {
     const kindLabel = receipt.kind === "DRIVER" ? "Request Driver / Kendaraan" : receipt.kind === "PRINTER" ? "Permintaan Kuota Printer" : "Permintaan Lainnya";
+    const refNo = `REQ-${new Date(receipt.createdAt).toISOString().slice(0, 10).replace(/-/g, "")}-${receipt.refId.slice(0, 6).toUpperCase()}`;
     return (
       <div style={{ minHeight: "100vh", background: "#eef2f9", display: "flex", alignItems: "center", justifyContent: "center", padding: "24px 16px", fontFamily: "-apple-system,'Segoe UI',sans-serif" }}>
-        <div style={{ width: "100%", maxWidth: 460 }}>
-          <div id="receipt-print-area" style={{ background: "#fff", borderRadius: 20, padding: 30, boxShadow: "0 10px 40px rgba(15,40,71,0.12)" }}>
-            <div style={{ textAlign: "center", marginBottom: 20, paddingBottom: 20, borderBottom: "2px dashed #dbe4f0" }}>
-              <div style={{ width: 52, height: 52, borderRadius: "50%", background: "#0f2847", border: "2px solid #2f5fe0", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 10px", overflow: "hidden" }}>
-                <img src="/logo.png" alt="CIKOPS" style={{ width: "78%", height: "78%", objectFit: "contain" }} />
-              </div>
-              <div style={{ fontSize: 16, fontWeight: 800, color: "#0f2847" }}>BUKTI PERMINTAAN</div>
-              <div style={{ fontSize: 12, color: "#7c8aa0" }}>CIKOPS FLEET — General Affair</div>
-            </div>
+        <div style={{ width: "100%", maxWidth: 480 }}>
+          <div id="receipt-print-area" style={{ background: "#fff", borderRadius: 14, boxShadow: "0 10px 40px rgba(15,40,71,0.12)", overflow: "hidden", border: "1px solid #dbe4f0" }}>
 
-            <div style={{ fontSize: 12.5, color: "#7c8aa0", marginBottom: 4 }}>No. Referensi</div>
-            <div style={{ fontSize: 14, fontWeight: 700, color: "#0f2847", fontFamily: "monospace", marginBottom: 16 }}>{receipt.refId.slice(0, 8).toUpperCase()}</div>
-
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 16 }}>
-              <div>
-                <div style={{ fontSize: 11.5, color: "#7c8aa0" }}>Tanggal Pengajuan</div>
-                <div style={{ fontSize: 13.5, fontWeight: 700, color: "#0f2847" }}>{new Date(receipt.createdAt).toLocaleDateString("id-ID", { day: "2-digit", month: "long", year: "numeric" })}</div>
+            {/* ── Kop surat ── */}
+            <div style={{ padding: "24px 28px 18px", borderBottom: "3px solid #0f2847", display: "flex", alignItems: "center", gap: 14 }}>
+              <div style={{ width: 56, height: 56, borderRadius: 10, background: "#0f2847", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, overflow: "hidden" }}>
+                <img src="/logo.png" alt="CIKOPS" style={{ width: "80%", height: "80%", objectFit: "contain" }} />
               </div>
               <div>
-                <div style={{ fontSize: 11.5, color: "#7c8aa0" }}>Jenis Permintaan</div>
-                <div style={{ fontSize: 13.5, fontWeight: 700, color: "#0f2847" }}>{kindLabel}</div>
+                <div style={{ fontSize: 15.5, fontWeight: 800, color: "#0f2847", lineHeight: 1.3 }}>{COMPANY_NAME}</div>
+                <div style={{ fontSize: 12.5, color: "#435773", fontWeight: 600 }}>{SYSTEM_NAME}</div>
+                <div style={{ fontSize: 11, color: "#94a3b8" }}>Departemen General Affair</div>
               </div>
             </div>
 
-            <div style={{ background: "#f6f8fc", borderRadius: 12, padding: 14, marginBottom: 16 }}>
-              <div style={{ fontSize: 14, fontWeight: 800, color: "#0f2847" }}>{receipt.employeeName}</div>
-              <div style={{ fontSize: 12.5, color: "#7c8aa0" }}>{receipt.department || "-"}</div>
+            {/* ── Judul dokumen ── */}
+            <div style={{ padding: "18px 28px 14px", textAlign: "center", background: "#f8fafc" }}>
+              <div style={{ fontSize: 15, fontWeight: 800, color: "#0f2847", letterSpacing: "0.04em" }}>BUKTI PERMINTAAN</div>
+              <div style={{ fontSize: 11.5, color: "#7c8aa0", fontFamily: "monospace", marginTop: 3 }}>No. {refNo}</div>
             </div>
 
-            <div style={{ marginBottom: 20 }}>
-              {receipt.lines.map((l) => (
-                <div key={l.label} style={{ display: "flex", justifyContent: "space-between", gap: 12, padding: "8px 0", borderBottom: "1px solid #f2f5fa", fontSize: 13 }}>
-                  <span style={{ color: "#7c8aa0" }}>{l.label}</span>
-                  <span style={{ fontWeight: 700, color: "#0f2847", textAlign: "right" }}>{l.value}</span>
+            <div style={{ padding: "20px 28px" }}>
+              {/* ── Info dasar ── */}
+              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13, marginBottom: 16 }}>
+                <tbody>
+                  <tr>
+                    <td style={{ padding: "5px 0", color: "#7c8aa0", width: "38%" }}>Tanggal Pengajuan</td>
+                    <td style={{ padding: "5px 0", fontWeight: 700, color: "#0f2847" }}>: {new Date(receipt.createdAt).toLocaleDateString("id-ID", { day: "2-digit", month: "long", year: "numeric" })}</td>
+                  </tr>
+                  <tr>
+                    <td style={{ padding: "5px 0", color: "#7c8aa0" }}>Jenis Permintaan</td>
+                    <td style={{ padding: "5px 0", fontWeight: 700, color: "#0f2847" }}>: {kindLabel}</td>
+                  </tr>
+                  <tr>
+                    <td style={{ padding: "5px 0", color: "#7c8aa0" }}>Nama Pemohon</td>
+                    <td style={{ padding: "5px 0", fontWeight: 700, color: "#0f2847" }}>: {receipt.employeeName}</td>
+                  </tr>
+                  <tr>
+                    <td style={{ padding: "5px 0", color: "#7c8aa0" }}>Departemen</td>
+                    <td style={{ padding: "5px 0", fontWeight: 700, color: "#0f2847" }}>: {receipt.department || "-"}</td>
+                  </tr>
+                </tbody>
+              </table>
+
+              {/* ── Detail permintaan ── */}
+              <div style={{ fontSize: 11, fontWeight: 800, color: "#7c8aa0", letterSpacing: "0.06em", marginBottom: 8, borderTop: "1px solid #eef2f9", paddingTop: 14 }}>
+                DETAIL PERMINTAAN
+              </div>
+              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13, marginBottom: 18 }}>
+                <tbody>
+                  {receipt.lines.map((l) => (
+                    <tr key={l.label}>
+                      <td style={{ padding: "5px 0", color: "#7c8aa0", width: "38%", verticalAlign: "top" }}>{l.label}</td>
+                      <td style={{ padding: "5px 0", fontWeight: 700, color: "#0f2847" }}>: {l.value}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+
+              <div style={{ textAlign: "center", padding: "10px 0", background: "#fdf1e0", borderRadius: 8, fontSize: 12, fontWeight: 700, color: "#b25700", letterSpacing: "0.03em", marginBottom: 22 }}>
+                STATUS: MENUNGGU DIPROSES
+              </div>
+
+              {/* ── Blok administrator / penanggung jawab ── */}
+              <div style={{ borderTop: "1px dashed #dbe4f0", paddingTop: 16, display: "flex", justifyContent: "flex-end" }}>
+                <div style={{ textAlign: "center", minWidth: 170 }}>
+                  <div style={{ fontSize: 11, color: "#7c8aa0", marginBottom: 46 }}>Diterima &amp; diproses oleh,</div>
+                  <div style={{ fontSize: 13.5, fontWeight: 800, color: "#0f2847", borderTop: "1px solid #0f2847", paddingTop: 4 }}>{ADMIN_NAME}</div>
+                  <div style={{ fontSize: 11.5, color: "#7c8aa0" }}>{ADMIN_DEPARTMENT}</div>
                 </div>
-              ))}
+              </div>
             </div>
 
-            <div style={{ textAlign: "center", padding: "10px 0", background: "#fdf1e0", borderRadius: 10, fontSize: 12.5, fontWeight: 700, color: "#b25700" }}>
-              STATUS: MENUNGGU DIPROSES
+            <div style={{ textAlign: "center", padding: "10px 0", fontSize: 10, color: "#a0aabb", borderTop: "1px solid #eef2f9" }}>
+              Dokumen ini digenerate otomatis oleh sistem {SYSTEM_NAME}
             </div>
           </div>
 
@@ -190,16 +239,18 @@ export default function RequestPage() {
             </button>
             <button onClick={() => window.print()} style={{ flex: 1, padding: 14, borderRadius: 14, border: "none", background: "linear-gradient(135deg,#2f5fe0,#1f44b8)", color: "#fff", fontWeight: 700, fontSize: 14, cursor: "pointer" }}>
               🖨️ Cetak Bukti
+
             </button>
           </div>
         </div>
 
         <style>{`
           @media print {
+            @page { margin: 16mm; }
             .no-print { display: none !important; }
             body * { visibility: hidden; }
             #receipt-print-area, #receipt-print-area * { visibility: visible; }
-            #receipt-print-area { position: absolute; top: 0; left: 0; width: 100%; box-shadow: none !important; }
+            #receipt-print-area { position: absolute; top: 0; left: 0; width: 100%; box-shadow: none !important; border: none !important; }
           }
         `}</style>
       </div>
@@ -218,7 +269,7 @@ export default function RequestPage() {
         </div>
 
         {error && (
-          <div style={{ padding: "12px 14px", borderRadius: 10, background: "#fbe9e8", color: "#e0483f", fontSize: 13, marginBottom: 16 }}>{error}</div>
+          <div style={{ padding: "12px 14px", borderRadius: 10, background: "#fbe9e8", color: "#e0483f", fontSize: 12.5, marginBottom: 16, wordBreak: "break-word", fontFamily: "monospace", lineHeight: 1.5 }}>{error}</div>
         )}
 
         {/* Jenis Permintaan */}
