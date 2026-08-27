@@ -1022,7 +1022,17 @@ export interface SubmitPrinterRequestPublicInput {
  *  printer fisik — masuk ke tabel yang SAMA dengan yang dibaca admin
  *  di Tab Printer, jadi otomatis sinkron tanpa proses tambahan. */
 export async function submitPrinterRequestPublic(input: SubmitPrinterRequestPublicInput): Promise<{ id: string; createdAt: string }> {
-  const { data, error } = await supabase.from("printer_requests").insert({
+  // ID & waktu dibuat di sisi client, BUKAN dibaca-balik dari server —
+  // membaca balik lewat .select() butuh izin SELECT, yang sengaja
+  // dikunci authenticated-only untuk tabel ini. Kalau tetap pakai
+  // .select(), submission dari pengguna anonim (bukan admin yang
+  // sedang login) akan gagal di langkah baca-balik meskipun data
+  // sudah berhasil masuk — persis bug yang bikin cuma jalan di
+  // komputer admin.
+  const id = crypto.randomUUID();
+  const createdAt = new Date().toISOString();
+  const { error } = await supabase.from("printer_requests").insert({
+    id,
     printer_id: null,
     print_user_id: input.printUserId,
     source: "EMPLOYEE",
@@ -1031,9 +1041,10 @@ export async function submitPrinterRequestPublic(input: SubmitPrinterRequestPubl
     department: input.department || null,
     quota_amount: null,
     notes: input.notes || "",
-  }).select("id, created_at").single();
+    created_at: createdAt,
+  });
   if (error) throw error;
-  return { id: data.id, createdAt: data.created_at };
+  return { id, createdAt };
 }
 
 export async function deletePrinterRequest(id: string): Promise<void> {
@@ -1088,16 +1099,20 @@ export async function submitEmployeeRequest(input: {
   description: string;
   details?: Partial<DriverRequestDetails>;
 }): Promise<{ id: string; createdAt: string }> {
-  const { data, error } = await supabase.from("employee_requests").insert({
+  const id = crypto.randomUUID();
+  const createdAt = new Date().toISOString();
+  const { error } = await supabase.from("employee_requests").insert({
+    id,
     request_type: input.requestType,
     employee_name: input.employeeName,
     department: input.department || null,
     phone: input.phone || null,
     description: input.description,
     details: input.details ?? {},
-  }).select("id, created_at").single();
+    created_at: createdAt,
+  });
   if (error) throw error;
-  return { id: data.id, createdAt: data.created_at };
+  return { id, createdAt };
 }
 
 /** Untuk Dashboard (authenticated) — daftar semua permintaan. */
