@@ -8083,6 +8083,7 @@ function AtkTab() {
     { key: "barang", labelId: "Nama Barang", labelEn: "Item Name", get: (r) => r.namaBarang },
     { key: "jumlah", labelId: "Jumlah", labelEn: "Quantity", get: (r) => r.jumlah, align: "right" },
     { key: "satuan", labelId: "Satuan", labelEn: "Unit", get: (r) => r.satuan },
+    { key: "helper", labelId: "Helper (Pengambil Barang)", labelEn: "Helper (Item Picker)", get: (r) => r.helper },
   ];
   const restockColumns: ReportColumn<AtkRestock>[] = [
     { key: "updateId", labelId: "No. Update", labelEn: "Update No.", get: (r) => r.updateId },
@@ -8203,8 +8204,8 @@ function AtkTab() {
             <div style={{ textAlign: "center", padding: 40, color: "var(--t3)" }}>{lang === "en" ? "No requests in this period." : "Belum ada permintaan di periode ini."}</div>
           ) : (
             <div style={{ overflowX: "auto" }}>
-              <table className="tableCompact" style={{ minWidth: 800, width: "100%" }}>
-                <thead><tr><th>Tanggal</th><th>Pemohon</th><th>Departemen</th><th>Barang</th><th style={{ textAlign: "right" }}>Jumlah</th></tr></thead>
+              <table className="tableCompact" style={{ minWidth: 900, width: "100%" }}>
+                <thead><tr><th>Tanggal</th><th>Pemohon</th><th>Departemen</th><th>Barang</th><th style={{ textAlign: "right" }}>Jumlah</th><th>Helper</th></tr></thead>
                 <tbody>
                   {requests.map((r) => (
                     <tr key={r.id}>
@@ -8213,6 +8214,7 @@ function AtkTab() {
                       <td>{r.departemen || "-"}</td>
                       <td>{r.namaBarang}</td>
                       <td style={{ textAlign: "right", fontFamily: "var(--mono)" }}>{r.jumlah} {r.satuan}</td>
+                      <td style={{ color: "var(--t3)" }}>{r.helper || "-"}</td>
                     </tr>
                   ))}
                 </tbody>
