@@ -8128,6 +8128,10 @@ function AtkTab() {
   });
 
   return (
+    <>
+    {exportPicker.pending && (
+      <LanguagePickerModal key={exportPicker.pending} format={exportPicker.pending} onConfirm={exportPicker.confirm} onClose={exportPicker.cancel} />
+    )}
     <div style={{ padding: 20 }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 18, flexWrap: "wrap", gap: 10 }}>
         <div>
@@ -8195,7 +8199,6 @@ function AtkTab() {
             disabled={subView === "stok" ? items.length === 0 : subView === "permintaan" ? requests.length === 0 : restocks.length === 0}
           />
         </div>
-        {exportPicker.pending && <LanguagePickerModal format={exportPicker.pending} onConfirm={exportPicker.confirm} onClose={exportPicker.cancel} />}
 
         {subView !== "stok" && (
           <div style={{ padding: "0 18px 14px" }}>
@@ -8270,6 +8273,7 @@ function AtkTab() {
         )}
       </div>
     </div>
+    </>
   );
 }
 
