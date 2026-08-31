@@ -6,6 +6,9 @@ import dynamic from "next/dynamic";
 import styles from "./dashboard.module.css";
 import { ModalPortal } from "@/components/ModalPortal";
 import { TabErrorBoundary } from "@/components/TabErrorBoundary";
+import { ReportExportButtons, LanguagePickerModal, useExportLanguagePicker, ReportRangePicker, defaultReportRange } from "@/components/ReportControls";
+import { exportGenericCsv, exportGenericExcel, exportGenericPdf } from "@/lib/reportEngine";
+import type { ReportColumn } from "@/lib/reportEngine";
 import {
   getMyProfile,
   canAccessTab,
@@ -4420,6 +4423,35 @@ function OvertimeTab({ myProfile }: { myProfile: MyProfile | null }) {
   const inputStyle: CSSProperties = {};
   const labelStyle: CSSProperties = { fontSize: 13, fontWeight: 700, color: "var(--t2)", marginBottom: 5, display: "block" };
 
+  const driverNameMap = useMemo(() => new Map(drivers.map((d) => [d.id, d.nama])), [drivers]);
+  const overtimeColumns: ReportColumn<Overtime>[] = [
+    { key: "period", labelId: "Periode", labelEn: "Period", get: (o) => o.period },
+    { key: "plant", labelId: "Plant", labelEn: "Plant", get: (o) => o.plant },
+    { key: "driver", labelId: "Driver", labelEn: "Driver", get: (o) => driverNameMap.get(o.driver_id) ?? "-" },
+    { key: "hours", labelId: "Jam Lembur", labelEn: "OT Hours", get: (o) => o.hours, align: "right" },
+    { key: "amount", labelId: "Nominal (Rp)", labelEn: "Amount (Rp)", get: (o) => o.amount, align: "right" },
+    { key: "reason", labelId: "Alasan", labelEn: "Reason", get: (o) => o.reason || "-" },
+  ];
+  const monthsIdFull = MONTHS_ID;
+  const overtimeReportOpts = {
+    rows: filtered,
+    columns: overtimeColumns,
+    titleId: "Laporan Lembur (Overtime)",
+    titleEn: "Overtime Report",
+    periodLabel: `${monthsIdFull[filterMonth]} ${filterYear}${filterPlant !== "all" ? ` — ${filterPlant}` : ""}`,
+    filename: "Laporan_Overtime",
+    summaryRows: [
+      { label: "Total Jam / Total Hours", value: totalHours },
+      { label: "Total Nominal / Total Amount (Rp)", value: totalAmount.toLocaleString("id-ID") },
+    ],
+  };
+  const otExportPicker = useExportLanguagePicker((format, exportLang) => {
+    const opts = { ...overtimeReportOpts, lang: exportLang };
+    if (format === "csv") exportGenericCsv(opts);
+    else if (format === "excel") exportGenericExcel(opts);
+    else exportGenericPdf(opts);
+  });
+
   return (
     <div style={{ padding: 20 }}>
       <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap", marginBottom: 16 }}>
@@ -4434,8 +4466,10 @@ function OvertimeTab({ myProfile }: { myProfile: MyProfile | null }) {
           {OT_PLANTS.map((p) => <option key={p} value={p}>{p}</option>)}
         </select>
         <div style={{ flex: 1 }} />
+        <ReportExportButtons onExport={otExportPicker.requestExport} disabled={filtered.length === 0} />
         <button className="pillBtn" onClick={openAdd}>+ {lang === "en" ? "Add Overtime" : "Tambah OT"}</button>
       </div>
+      {otExportPicker.pending && <LanguagePickerModal format={otExportPicker.pending} onConfirm={otExportPicker.confirm} onClose={otExportPicker.cancel} />}
 
       {error && <div style={{ padding: 12, borderRadius: 10, background: "var(--red-soft)", color: "var(--red)", marginBottom: 14, fontSize: 13 }}>{error}</div>}
 
@@ -4843,6 +4877,30 @@ function DriverBudgetTab({ myProfile = null }: { myProfile?: MyProfile | null })
   const animatedTotalBudget = useCountUp(totalBudget);
   const animatedYearlyBudget = useCountUp(totalBudget * 12);
 
+  const tierColumns: ReportColumn<DriverTier>[] = [
+    { key: "name", labelId: "Nama Tier", labelEn: "Tier Name", get: (t) => t.name },
+    { key: "count", labelId: "Jumlah Driver Aktif", labelEn: "Active Drivers", get: (t) => t.activeDriverCount, align: "right" },
+    { key: "perMonth", labelId: "Nominal per Bulan (Rp)", labelEn: "Amount per Month (Rp)", get: (t) => t.amountPerMonth, align: "right" },
+    { key: "totalMonth", labelId: "Total per Bulan (Rp)", labelEn: "Total per Month (Rp)", get: (t) => t.amountPerMonth * t.activeDriverCount, align: "right" },
+    { key: "totalYear", labelId: "Total per Tahun (Rp)", labelEn: "Total per Year (Rp)", get: (t) => t.amountPerMonth * t.activeDriverCount * 12, align: "right" },
+  ];
+  const tierExportPicker = useExportLanguagePicker((format, exportLang) => {
+    const opts = {
+      rows: tiers, columns: tierColumns, lang: exportLang,
+      titleId: "Laporan Tier Uang Operasional Driver", titleEn: "Driver Operational Allowance Tier Report",
+      periodLabel: new Date().toLocaleDateString(exportLang === "en" ? "en-US" : "id-ID", { day: "2-digit", month: "long", year: "numeric" }),
+      filename: "Laporan_Driver_Budget",
+      summaryRows: [
+        { label: "Total Driver Aktif / Total Active Drivers", value: totalDrivers },
+        { label: "Total Budget per Bulan / Total Monthly Budget (Rp)", value: totalBudget.toLocaleString("id-ID") },
+        { label: "Total Budget per Tahun / Total Yearly Budget (Rp)", value: (totalBudget * 12).toLocaleString("id-ID") },
+      ],
+    };
+    if (format === "csv") exportGenericCsv(opts);
+    else if (format === "excel") exportGenericExcel(opts);
+    else exportGenericPdf(opts);
+  });
+
   function openAdd() {
     setEditing(null);
     setFormName("");
@@ -4935,6 +4993,11 @@ function DriverBudgetTab({ myProfile = null }: { myProfile?: MyProfile | null })
       </div>
 
       {error && <div style={{ padding: 12, borderRadius: 10, background: "var(--red-soft)", color: "var(--red)", marginBottom: 14, fontSize: 13 }}>{error}</div>}
+
+      <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 12 }}>
+        <ReportExportButtons onExport={tierExportPicker.requestExport} disabled={tiers.length === 0} />
+      </div>
+      {tierExportPicker.pending && <LanguagePickerModal format={tierExportPicker.pending} onConfirm={tierExportPicker.confirm} onClose={tierExportPicker.cancel} />}
 
       <div style={{ display: "grid", gridTemplateColumns: "1.2fr 1fr", gap: 16 }}>
         <div style={{ ...cardStyle, padding: 18 }}>
@@ -5419,6 +5482,29 @@ gap: h.allocOpDriver + h.allocEmergency + h.cashAvailable + h.claimSubmitted + h
     return `${x.toFixed(1)},${y.toFixed(1)}`;
   }).join(" ");
 
+  const kantongColumns: ReportColumn<Kantong>[] = [
+    { key: "period", labelId: "Periode", labelEn: "Period", get: (k) => k.period },
+    { key: "plant", labelId: "Plant", labelEn: "Plant", get: (k) => k.plant },
+    { key: "budget", labelId: "Total Budget (Rp)", labelEn: "Total Budget (Rp)", get: (k) => k.totalBudget, align: "right" },
+    { key: "opDriver", labelId: "Alokasi OP Driver (Rp)", labelEn: "OP Driver Allocation (Rp)", get: (k) => k.allocOpDriver, align: "right" },
+    { key: "emergency", labelId: "Alokasi Darurat (Rp)", labelEn: "Emergency Allocation (Rp)", get: (k) => k.allocEmergency, align: "right" },
+    { key: "cash", labelId: "Kas Tersedia (Rp)", labelEn: "Cash Available (Rp)", get: (k) => k.cashAvailable, align: "right" },
+    { key: "submitted", labelId: "Klaim Diajukan (Rp)", labelEn: "Claims Submitted (Rp)", get: (k) => k.claimSubmitted, align: "right" },
+    { key: "paid", labelId: "Klaim Dibayar (Rp)", labelEn: "Claims Paid (Rp)", get: (k) => k.claimPaid, align: "right" },
+    { key: "unsubmitted", labelId: "Belum Diajukan (Rp)", labelEn: "Not Yet Submitted (Rp)", get: (k) => k.unsubmittedClaim, align: "right" },
+  ];
+  const opFundExportPicker = useExportLanguagePicker((format, exportLang) => {
+    const opts = {
+      rows: history, columns: kantongColumns, lang: exportLang,
+      titleId: `Laporan Dana Operasional — ${viewPlant}`, titleEn: `Operational Fund Report — ${viewPlant}`,
+      periodLabel: history.length > 0 ? `${history[history.length - 1].period} s/d ${history[0].period}` : "-",
+      filename: `Laporan_OpFund_${viewPlant}`,
+    };
+    if (format === "csv") exportGenericCsv(opts);
+    else if (format === "excel") exportGenericExcel(opts);
+    else exportGenericPdf(opts);
+  });
+
   return (
     <div style={{ padding: 20 }}>
       {PlantSwitcher}
@@ -5434,8 +5520,10 @@ gap: h.allocOpDriver + h.allocEmergency + h.cashAvailable + h.claimSubmitted + h
           <button onClick={() => setShowResetConfirm(true)} style={{ padding: "8px 14px", borderRadius: 10, border: "1px solid var(--red)", background: "var(--red-soft)", color: "var(--red)", fontWeight: 700, fontSize: 12, cursor: "pointer" }}>
             🔄 {lang === "en" ? "Reset Period" : "Reset Periode"}
           </button>
+          <ReportExportButtons onExport={opFundExportPicker.requestExport} disabled={history.length === 0} />
         </div>
       </div>
+      {opFundExportPicker.pending && <LanguagePickerModal format={opFundExportPicker.pending} onConfirm={opFundExportPicker.confirm} onClose={opFundExportPicker.cancel} />}
 
       <div className="heroGlow statPop" style={{ borderRadius: "var(--r3)", boxShadow: "var(--shadow-lg)", padding: "24px 26px", marginBottom: 18 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 18 }}>
