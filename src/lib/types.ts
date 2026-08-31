@@ -107,6 +107,46 @@ export interface EmployeeRequest {
   processedAt: string | null;
 }
 
+/** ATK (alat tulis kantor) — data disinkronkan dari Excel/VBA lewat
+ *  tombol "Sinkron ke CIKOPS". CIKOPS cuma untuk laporan, input
+ *  tetap dilakukan di Excel. */
+export interface AtkItem {
+  id: string;
+  kodeBarang: string;
+  namaBarang: string;
+  satuan: string;
+  stok: number;
+  updatedAt: string;
+}
+
+export interface AtkRequest {
+  id: string;
+  requestId: string;
+  tanggal: string;
+  nama: string;
+  nik: string;
+  departemen: string;
+  kodeBarang: string;
+  namaBarang: string;
+  jumlah: number;
+  satuan: string;
+  createdAt: string;
+}
+
+export interface AtkRestock {
+  id: string;
+  updateId: string;
+  tanggal: string;
+  nama: string;
+  nik: string;
+  departemen: string;
+  kodeBarang: string;
+  namaBarang: string;
+  jumlah: number;
+  satuan: string;
+  createdAt: string;
+}
+
 export interface Printer {
   id: string;
   noEq: string;

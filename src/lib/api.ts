@@ -28,6 +28,9 @@ import type {
   EmployeeRequestStatus,
   DriverRequestDetails,
   PrinterRequestSource,
+  AtkItem,
+  AtkRequest,
+  AtkRestock,
 } from "./types";
 
 /* ════════════════════════════════════════════════════════════
@@ -1167,6 +1170,63 @@ export async function updateEmployeeRequestStatus(id: string, status: EmployeeRe
 export async function deleteEmployeeRequest(id: string): Promise<void> {
   const { error } = await supabase.from("employee_requests").delete().eq("id", id);
   if (error) throw error;
+}
+
+/* ════════════════════════════════════════════════════════════
+   ATK (ALAT TULIS KANTOR) — data disinkronkan dari Excel/VBA lewat
+   tombol "Sinkron ke CIKOPS" (lihat vba/modSyncCikops.bas). CIKOPS
+   murni untuk LAPORAN — tidak ada insert/update/delete dari sisi
+   Dashboard, semua input tetap dilakukan di Excel.
+════════════════════════════════════════════════════════════ */
+
+interface AtkItemRow {
+  id: string; kode_barang: string; nama_barang: string; satuan: string | null; stok: number; updated_at: string;
+}
+function mapAtkItemRow(r: AtkItemRow): AtkItem {
+  return { id: r.id, kodeBarang: r.kode_barang, namaBarang: r.nama_barang, satuan: r.satuan ?? "", stok: r.stok, updatedAt: r.updated_at };
+}
+export async function getAtkItems(): Promise<AtkItem[]> {
+  const { data, error } = await supabase.from("atk_items").select("*").order("nama_barang");
+  if (error) throw error;
+  return (data as AtkItemRow[] ?? []).map(mapAtkItemRow);
+}
+
+interface AtkRequestRow {
+  id: string; request_id: string; tanggal: string; nama: string; nik: string | null; departemen: string | null;
+  kode_barang: string; nama_barang: string; jumlah: number; satuan: string | null; created_at: string;
+}
+function mapAtkRequestRow(r: AtkRequestRow): AtkRequest {
+  return {
+    id: r.id, requestId: r.request_id, tanggal: r.tanggal, nama: r.nama, nik: r.nik ?? "", departemen: r.departemen ?? "",
+    kodeBarang: r.kode_barang, namaBarang: r.nama_barang, jumlah: r.jumlah, satuan: r.satuan ?? "", createdAt: r.created_at,
+  };
+}
+export async function getAtkRequests(params?: { dateFrom?: string; dateTo?: string }): Promise<AtkRequest[]> {
+  let q = supabase.from("atk_requests").select("*").order("tanggal", { ascending: false });
+  if (params?.dateFrom) q = q.gte("tanggal", params.dateFrom);
+  if (params?.dateTo) q = q.lte("tanggal", params.dateTo);
+  const { data, error } = await q;
+  if (error) throw error;
+  return (data as AtkRequestRow[] ?? []).map(mapAtkRequestRow);
+}
+
+interface AtkRestockRow {
+  id: string; update_id: string; tanggal: string; nama: string | null; nik: string | null; departemen: string | null;
+  kode_barang: string; nama_barang: string; jumlah: number; satuan: string | null; created_at: string;
+}
+function mapAtkRestockRow(r: AtkRestockRow): AtkRestock {
+  return {
+    id: r.id, updateId: r.update_id, tanggal: r.tanggal, nama: r.nama ?? "", nik: r.nik ?? "", departemen: r.departemen ?? "",
+    kodeBarang: r.kode_barang, namaBarang: r.nama_barang, jumlah: r.jumlah, satuan: r.satuan ?? "", createdAt: r.created_at,
+  };
+}
+export async function getAtkRestocks(params?: { dateFrom?: string; dateTo?: string }): Promise<AtkRestock[]> {
+  let q = supabase.from("atk_restocks").select("*").order("tanggal", { ascending: false });
+  if (params?.dateFrom) q = q.gte("tanggal", params.dateFrom);
+  if (params?.dateTo) q = q.lte("tanggal", params.dateTo);
+  const { data, error } = await q;
+  if (error) throw error;
+  return (data as AtkRestockRow[] ?? []).map(mapAtkRestockRow);
 }
 
 /* ════════════════════════════════════════════════════════════
