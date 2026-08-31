@@ -8,7 +8,8 @@ import { ModalPortal } from "@/components/ModalPortal";
 import { TabErrorBoundary } from "@/components/TabErrorBoundary";
 import { ReportExportButtons, LanguagePickerModal, useExportLanguagePicker, ReportRangePicker, defaultReportRange } from "@/components/ReportControls";
 import { exportGenericCsv, exportGenericExcel, exportGenericPdf } from "@/lib/reportEngine";
-import type { ReportColumn } from "@/lib/reportEngine";
+import type { ReportColumn, ReportRangeState } from "@/lib/reportEngine";
+import { reportRangeToDates, reportRangeLabel } from "@/lib/reportEngine";
 import {
   getMyProfile,
   canAccessTab,
@@ -126,7 +127,7 @@ const GasStationMap = dynamic(() => import("./GasStationMap"), {
     </div>
   ),
 });
-import { exportTasksToCsv, exportTasksToPdf, exportWreathsToCsv, exportGateLogsToCsv, exportPrinterRequestsToCsv } from "@/lib/report";
+import { exportTasksToCsv, exportTasksToPdf, exportWreathsToCsv, exportGateLogsToCsv, exportPrinterRequestsToCsv, statusLabelId, formatDateTime } from "@/lib/report";
 import { computeReportAnalytics, formatMinutes } from "@/lib/analytics";
 import type {
   Driver,
@@ -1201,10 +1202,8 @@ function ReportModal({
   onError: (msg: string) => void;
   onSuccess: (msg: string) => void;
 }) {
-  const [quickRange, setQuickRange] = useState<QuickRange>("7d");
-  const [dateFrom, setDateFrom] = useState(quickRangeToDates("7d").from);
-  const [dateTo, setDateTo] = useState(quickRangeToDates("7d").to);
-  const [busy, setBusy] = useState<"csv" | "pdf" | null>(null);
+  const [range, setRange] = useState<ReportRangeState>(defaultReportRange());
+  const { from: dateFrom, to: dateTo } = reportRangeToDates(range);
   const [reportTasks, setReportTasks] = useState<TaskDetail[]>([]);
   const [loadingPreview, setLoadingPreview] = useState(false);
 
@@ -1213,54 +1212,61 @@ function ReportModal({
     setLoadingPreview(true);
     try {
       const data = await getTasksByRange(dateFrom, dateTo, myProfile?.plantScope ?? null);
+      setReportTasks(data); // ⚠️ sebelumnya data hasil fetch tidak pernah disimpan ke state — makanya preview & export selalu kosong
     } catch (e) {
       onError(e instanceof Error ? e.message : "Gagal memuat data laporan");
     } finally {
       setLoadingPreview(false);
     }
-  }, [dateFrom, dateTo, onError]);
+  }, [dateFrom, dateTo, onError, myProfile?.plantScope]);
 
   useEffect(() => {
     loadPreview();
   }, [loadPreview]);
-
-  function applyQuickRange(range: QuickRange) {
-    setQuickRange(range);
-    const { from, to } = quickRangeToDates(range);
-    setDateFrom(from);
-    setDateTo(to);
-  }
 
   const analytics = useMemo(
     () => computeReportAnalytics(reportTasks, drivers),
     [reportTasks, drivers]
   );
 
-  async function handleDownload(format: "csv" | "pdf") {
-    if (!dateFrom || !dateTo) {
-      onError("Pilih rentang tanggal terlebih dahulu");
-      return;
-    }
-    setBusy(format);
-    try {
-      const tasks =
-        reportTasks.length > 0 || !loadingPreview
-          ? reportTasks
-          : await getTasksByRange(dateFrom, dateTo, myProfile?.plantScope ?? null);
-      if (format === "csv") {
-        exportTasksToCsv(tasks, dateFrom, dateTo);
-      } else {
-        await exportTasksToPdf(tasks, drivers, dateFrom, dateTo);
-      }
-      onSuccess(
-        `Laporan ${format.toUpperCase()} berhasil diunduh (${tasks.length} tugas)`
-      );
-    } catch (e) {
-      onError(e instanceof Error ? e.message : "Gagal membuat laporan");
-    } finally {
-      setBusy(null);
-    }
-  }
+  const driverNameMap = useMemo(() => new Map(drivers.map((d) => [d.id, d.nama])), [drivers]);
+  const taskColumns: ReportColumn<TaskDetail>[] = [
+    { key: "tanggal", labelId: "Tanggal", labelEn: "Date", get: (t) => t.tanggal },
+    { key: "driver", labelId: "Driver", labelEn: "Driver", get: (t) => t.driver_nama ?? "-" },
+    { key: "kendaraan", labelId: "Kendaraan", labelEn: "Vehicle", get: (t) => t.kendaraan ?? "-" },
+    { key: "jenisKendaraan", labelId: "Jenis Kendaraan", labelEn: "Vehicle Type", get: (t) => t.kendaraan_jenis ?? "-" },
+    { key: "jenisPekerjaan", labelId: "Jenis Pekerjaan", labelEn: "Job Type", get: (t) => t.jenis_pekerjaan },
+    { key: "tujuan", labelId: "Tujuan", labelEn: "Destination", get: (t) => t.tujuan },
+    { key: "requestor", labelId: "Requestor", labelEn: "Requestor", get: (t) => t.requestor },
+    { key: "departemen", labelId: "Departemen", labelEn: "Department", get: (t) => t.departement ?? "-" },
+    { key: "perihal", labelId: "Perihal", labelEn: "Subject", get: (t) => t.perihal ?? "-" },
+    { key: "status", labelId: "Status", labelEn: "Status", get: (t) => statusLabelId(t.status) },
+    { key: "dibuat", labelId: "Dibuat", labelEn: "Created", get: (t) => formatDateTime(t.created_at) },
+    { key: "diterima", labelId: "Diterima", labelEn: "Accepted", get: (t) => formatDateTime(t.accepted_at) },
+    { key: "selesai", labelId: "Selesai", labelEn: "Completed", get: (t) => formatDateTime(t.completed_at) },
+    { key: "dibatalkan", labelId: "Dibatalkan", labelEn: "Cancelled", get: (t) => formatDateTime(t.cancelled_at) },
+    { key: "dibatalkanOleh", labelId: "Dibatalkan Oleh", labelEn: "Cancelled By", get: (t) => t.cancelled_by ?? "-" },
+    { key: "alasanBatal", labelId: "Alasan Batal", labelEn: "Cancel Reason", get: (t) => t.cancel_reason ?? "-" },
+  ];
+
+  const exportPicker = useExportLanguagePicker((format, exportLang) => {
+    const periodLabel = reportRangeLabel(range, exportLang);
+    const opts = {
+      rows: reportTasks, columns: taskColumns, lang: exportLang,
+      titleId: "Laporan Tugas Driver", titleEn: "Driver Task Report",
+      periodLabel, filename: "Laporan_Tugas_Driver",
+      summaryRows: [
+        { label: exportLang === "en" ? "Total Tasks" : "Total Tugas", value: analytics.totalTask },
+        { label: exportLang === "en" ? "Completed" : "Selesai", value: analytics.done },
+        { label: exportLang === "en" ? "Cancelled" : "Dibatalkan", value: analytics.cancelled },
+        { label: exportLang === "en" ? "Completion Rate" : "Completion Rate", value: `${analytics.completionRate.toFixed(0)}%` },
+      ],
+    };
+    if (format === "csv") exportGenericCsv(opts);
+    else if (format === "excel") exportGenericExcel(opts);
+    else exportGenericPdf(opts);
+    onSuccess(`Laporan ${format.toUpperCase()} berhasil diunduh (${reportTasks.length} tugas)`);
+  });
 
   return (
     <div className={styles.reportOverlay}>
@@ -1277,65 +1283,13 @@ function ReportModal({
 
         <div className={styles.reportBody}>
           <div className={styles.reportFilterRow}>
-            <div className={styles.toolbarDate}>
-              <span>📅</span>
-              <input
-                type="date"
-                className={styles.toolbarDateInput}
-                value={dateFrom}
-                onChange={(e) => setDateFrom(e.target.value)}
-              />
-            </div>
-            <span className={styles.reportRangeDash}>s/d</span>
-            <div className={styles.toolbarDate}>
-              <input
-                type="date"
-                className={styles.toolbarDateInput}
-                value={dateTo}
-                onChange={(e) => setDateTo(e.target.value)}
-              />
-            </div>
-
-            <div className={styles.reportQuickChips}>
-              {(
-                [
-                  ["today", "Hari Ini"],
-                  ["7d", "7 Hari"],
-                  ["14d", "14 Hari"],
-                  ["30d", "30 Hari"],
-                  ["3m", "3 Bulan"],
-                  ["thisMonth", "Bulan Ini"],
-                ] as [QuickRange, string][]
-              ).map(([key, label]) => (
-                <button
-                  key={key}
-                  className={`${styles.statusChip} ${
-                    quickRange === key ? styles.statusChipOn : ""
-                  }`}
-                  onClick={() => applyQuickRange(key)}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
+            <ReportRangePicker value={range} onChange={setRange} inputClassName={styles.toolbarDateInput} />
           </div>
 
           <div className={styles.reportActionRow}>
-            <button
-              className={styles.btnReportCsv}
-              disabled={busy !== null || loadingPreview}
-              onClick={() => handleDownload("csv")}
-            >
-              {busy === "csv" ? "Menyiapkan..." : "⬇ Export CSV"}
-            </button>
-            <button
-              className={styles.btnSubmit}
-              disabled={busy !== null || loadingPreview}
-              onClick={() => handleDownload("pdf")}
-            >
-              {busy === "pdf" ? "Menyiapkan..." : "⬇ Export PDF"}
-            </button>
+            <ReportExportButtons onExport={exportPicker.requestExport} disabled={loadingPreview || reportTasks.length === 0} />
           </div>
+          {exportPicker.pending && <LanguagePickerModal format={exportPicker.pending} onConfirm={exportPicker.confirm} onClose={exportPicker.cancel} />}
 
           {loadingPreview ? (
             <div className={styles.tableWrap}>
