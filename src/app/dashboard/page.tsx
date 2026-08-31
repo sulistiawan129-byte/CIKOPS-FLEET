@@ -8102,22 +8102,28 @@ function AtkTab() {
   ];
 
   const exportPicker = useExportLanguagePicker((format, exportLang) => {
-    const periodLabel = reportRangeLabel(range, exportLang);
-    const runner = format === "csv" ? exportGenericCsv : format === "excel" ? exportGenericExcel : exportGenericPdf;
-    if (subView === "stok") {
-      runner({ rows: items, columns: itemColumns, lang: exportLang, titleId: "Laporan Stok ATK", titleEn: "Office Supplies Stock Report", filename: "Laporan_Stok_ATK" });
-    } else if (subView === "permintaan") {
-      runner({
-        rows: requests, columns: requestColumns, lang: exportLang, titleId: "Laporan Permintaan ATK", titleEn: "Office Supplies Request Report",
-        periodLabel, filename: "Laporan_Permintaan_ATK",
-        summaryRows: [{ label: exportLang === "en" ? "Total Quantity Requested" : "Total Jumlah Diminta", value: totalRequestQty }],
-      });
-    } else {
-      runner({
-        rows: restocks, columns: restockColumns, lang: exportLang, titleId: "Laporan Restock ATK", titleEn: "Office Supplies Restock Report",
-        periodLabel, filename: "Laporan_Restock_ATK",
-        summaryRows: [{ label: exportLang === "en" ? "Total Quantity Restocked" : "Total Jumlah Masuk", value: totalRestockQty }],
-      });
+    try {
+      const periodLabel = reportRangeLabel(range, exportLang);
+      const runner = format === "csv" ? exportGenericCsv : format === "excel" ? exportGenericExcel : exportGenericPdf;
+      if (subView === "stok") {
+        runner({ rows: items, columns: itemColumns, lang: exportLang, titleId: "Laporan Stok ATK", titleEn: "Office Supplies Stock Report", filename: "Laporan_Stok_ATK" });
+      } else if (subView === "permintaan") {
+        runner({
+          rows: requests, columns: requestColumns, lang: exportLang, titleId: "Laporan Permintaan ATK", titleEn: "Office Supplies Request Report",
+          periodLabel, filename: "Laporan_Permintaan_ATK",
+          summaryRows: [{ label: exportLang === "en" ? "Total Quantity Requested" : "Total Jumlah Diminta", value: totalRequestQty }],
+        });
+      } else {
+        runner({
+          rows: restocks, columns: restockColumns, lang: exportLang, titleId: "Laporan Restock ATK", titleEn: "Office Supplies Restock Report",
+          periodLabel, filename: "Laporan_Restock_ATK",
+          summaryRows: [{ label: exportLang === "en" ? "Total Quantity Restocked" : "Total Jumlah Masuk", value: totalRestockQty }],
+        });
+      }
+    } catch (e) {
+      // eslint-disable-next-line no-console
+      console.error("[AtkTab export error]", e);
+      alert(`Gagal membuat laporan: ${e instanceof Error ? e.message : String(e)}`);
     }
   });
 
