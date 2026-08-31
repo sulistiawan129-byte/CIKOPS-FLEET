@@ -1,5 +1,6 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import type { CSSProperties } from "react";
 import type { ReportLang, ReportRangeState } from "@/lib/reportEngine";
 
@@ -18,11 +19,14 @@ interface LanguagePickerModalProps {
 }
 
 export function LanguagePickerModal({ format, onConfirm, onClose }: LanguagePickerModalProps) {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+
   const formatLabel = format === "csv" ? "CSV" : format === "excel" ? "Excel" : "PDF";
-  return (
+  const modal = (
     <div
       onClick={onClose}
-      style={{ position: "fixed", inset: 0, background: "rgba(6,13,24,0.55)", backdropFilter: "blur(4px)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 500 }}
+      style={{ position: "fixed", inset: 0, background: "rgba(6,13,24,0.55)", backdropFilter: "blur(4px)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 9999 }}
     >
       <div onClick={(e) => e.stopPropagation()} style={{ background: "var(--surface)", borderRadius: "var(--r2)", padding: 26, width: 320, boxShadow: "var(--shadow-lg)" }}>
         <div style={{ fontSize: 15, fontWeight: 800, color: "var(--t1)", marginBottom: 4 }}>Pilih Bahasa Laporan</div>
@@ -47,6 +51,9 @@ export function LanguagePickerModal({ format, onConfirm, onClose }: LanguagePick
       </div>
     </div>
   );
+
+  if (!mounted) return null;
+  return createPortal(modal, document.body);
 }
 
 /** Hook kecil: kelola state modal pemilih bahasa + format yang sedang
