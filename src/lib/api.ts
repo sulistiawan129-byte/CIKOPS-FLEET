@@ -1193,12 +1193,12 @@ export async function getAtkItems(): Promise<AtkItem[]> {
 
 interface AtkRequestRow {
   id: string; request_id: string; tanggal: string; nama: string; nik: string | null; departemen: string | null;
-  kode_barang: string; nama_barang: string; jumlah: number; satuan: string | null; created_at: string;
+  kode_barang: string; nama_barang: string; jumlah: number; satuan: string | null; helper: string | null; created_at: string;
 }
 function mapAtkRequestRow(r: AtkRequestRow): AtkRequest {
   return {
     id: r.id, requestId: r.request_id, tanggal: r.tanggal, nama: r.nama, nik: r.nik ?? "", departemen: r.departemen ?? "",
-    kodeBarang: r.kode_barang, namaBarang: r.nama_barang, jumlah: r.jumlah, satuan: r.satuan ?? "", createdAt: r.created_at,
+    kodeBarang: r.kode_barang, namaBarang: r.nama_barang, jumlah: r.jumlah, satuan: r.satuan ?? "", helper: r.helper ?? "", createdAt: r.created_at,
   };
 }
 export async function getAtkRequests(params?: { dateFrom?: string; dateTo?: string }): Promise<AtkRequest[]> {

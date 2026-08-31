@@ -130,6 +130,7 @@ export interface AtkRequest {
   namaBarang: string;
   jumlah: number;
   satuan: string;
+  helper: string;
   createdAt: string;
 }
 
