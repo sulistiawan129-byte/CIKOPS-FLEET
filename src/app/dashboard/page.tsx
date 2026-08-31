@@ -8031,25 +8031,31 @@ function AtkTab() {
   const [requests, setRequests] = useState<AtkRequest[]>([]);
   const [restocks, setRestocks] = useState<AtkRestock[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [range, setRange] = useState<ReportRangeState>(defaultReportRange());
   const { from: dateFrom, to: dateTo } = reportRangeToDates(range);
 
   const load = useCallback(async () => {
     setLoading(true);
+    setLoadError(null);
+    const errors: string[] = [];
     try {
-      const [i, r, rs] = await Promise.all([
-        getAtkItems(),
-        getAtkRequests({ dateFrom, dateTo }),
-        getAtkRestocks({ dateFrom, dateTo }),
-      ]);
-      setItems(i);
-      setRequests(r);
-      setRestocks(rs);
+      setItems(await getAtkItems());
     } catch (e) {
-      console.warn("Gagal memuat data ATK:", e);
-    } finally {
-      setLoading(false);
+      errors.push(`Stok: ${e instanceof Error ? e.message : String(e)}`);
     }
+    try {
+      setRequests(await getAtkRequests({ dateFrom, dateTo }));
+    } catch (e) {
+      errors.push(`Permintaan: ${e instanceof Error ? e.message : String(e)}`);
+    }
+    try {
+      setRestocks(await getAtkRestocks({ dateFrom, dateTo }));
+    } catch (e) {
+      errors.push(`Restock: ${e instanceof Error ? e.message : String(e)}`);
+    }
+    if (errors.length > 0) setLoadError(errors.join(" | "));
+    setLoading(false);
   }, [dateFrom, dateTo]);
 
   useEffect(() => { load(); }, [load]);
@@ -8118,6 +8124,12 @@ function AtkTab() {
           </div>
         </div>
       </div>
+
+      {loadError && (
+        <div style={{ padding: 12, borderRadius: 10, background: "var(--red-soft)", color: "var(--red)", marginBottom: 16, fontSize: 12.5, fontFamily: "var(--mono)" }}>
+          ⚠️ {loadError}
+        </div>
+      )}
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 14, marginBottom: 20 }}>
         <div className="statPop" style={{ ...cardStyle, padding: 18 }}>
