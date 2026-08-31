@@ -8032,6 +8032,7 @@ function AtkTab() {
   const [restocks, setRestocks] = useState<AtkRestock[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [range, setRange] = useState<ReportRangeState>(defaultReportRange());
   const { from: dateFrom, to: dateTo } = reportRangeToDates(range);
 
@@ -8055,10 +8056,15 @@ function AtkTab() {
       errors.push(`Restock: ${e instanceof Error ? e.message : String(e)}`);
     }
     if (errors.length > 0) setLoadError(errors.join(" | "));
+    setLastUpdated(new Date());
     setLoading(false);
   }, [dateFrom, dateTo]);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    load();
+    const interval = setInterval(load, 20000); // auto-refresh tiap 20 detik, biar data selalu segar (termasuk sinkron baru dari Excel)
+    return () => clearInterval(interval);
+  }, [load]);
 
   const lowStockItems = items.filter((i) => i.stok <= 5);
   const totalRequestQty = requests.reduce((s, r) => s + r.jumlah, 0);
@@ -8123,6 +8129,20 @@ function AtkTab() {
           <div style={{ fontSize: 12, color: "var(--t3)", marginTop: 2 }}>
             {lang === "en" ? "Reporting only — data synced from Excel." : "Khusus laporan — data disinkron dari Excel."}
           </div>
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          {lastUpdated && (
+            <span style={{ fontSize: 11.5, color: "var(--t3)" }}>
+              {lang === "en" ? "Updated" : "Diperbarui"}: {lastUpdated.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit", second: "2-digit" })}
+            </span>
+          )}
+          <button
+            onClick={load}
+            disabled={loading}
+            style={{ padding: "8px 16px", borderRadius: "var(--pill)", border: "1px solid var(--border2)", background: "var(--bg2)", color: "var(--t2)", fontWeight: 700, fontSize: 12.5, cursor: loading ? "wait" : "pointer", display: "flex", alignItems: "center", gap: 6 }}
+          >
+            {loading ? "..." : "🔄"} {lang === "en" ? "Refresh Data" : "Refresh Data"}
+          </button>
         </div>
       </div>
 
