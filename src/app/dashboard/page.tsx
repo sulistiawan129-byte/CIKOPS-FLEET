@@ -79,6 +79,9 @@ import {
   getEmployeeRequests,
   updateEmployeeRequestStatus,
   deleteEmployeeRequest,
+  getAtkItems,
+  getAtkRequests,
+  getAtkRestocks,
   sendClaimNotificationEmails,
   getAppSetting,
   setAppSetting,
@@ -100,7 +103,7 @@ import {
   updateGasStation,
   deleteGasStation,
 } from "@/lib/api";
-import type { Claim, ClaimItem, Overtime, Plant, Kantong, DriverTier, GasStation, FuelEntry, CanteenReport, GiftEvent, GiftItemDef, GiftRegistration, Wreath, VehicleGateLog, Printer, PrinterRequest, PrinterRequestType, EmployeeRequest, EmployeeRequestType, EmployeeRequestStatus } from "@/lib/types";
+import type { Claim, ClaimItem, Overtime, Plant, Kantong, DriverTier, GasStation, FuelEntry, CanteenReport, GiftEvent, GiftItemDef, GiftRegistration, Wreath, VehicleGateLog, Printer, PrinterRequest, PrinterRequestType, EmployeeRequest, EmployeeRequestType, EmployeeRequestStatus, AtkItem, AtkRequest, AtkRestock } from "@/lib/types";
 import { computeCanteenKPI } from "@/lib/types";
 import { exportTandaTerima } from "@/lib/tandaTerima";
 import { buildRincianRows } from "@/lib/claimRecap";
@@ -168,6 +171,7 @@ export type DashboardTab =
   | "gift"
   | "printer"
   | "employeerequests"
+  | "atk"
   | "activitylog";
 
 interface NavTab { id: DashboardTab; icon: string; labelId: string; labelEn: string }
@@ -205,6 +209,7 @@ const NAV_GROUPS: NavGroup[] = [
       { id: "gift", icon: "🎁", labelId: "Pembagian", labelEn: "Gift Dist." },
       { id: "printer", icon: "🖨️", labelId: "Printer", labelEn: "Printer" },
       { id: "employeerequests", icon: "📨", labelId: "Permintaan Karyawan", labelEn: "Employee Requests" },
+      { id: "atk", icon: "📎", labelId: "ATK", labelEn: "Office Supplies" },
     ],
   },
   {
@@ -891,6 +896,7 @@ const [masterDataInitialSub, setMasterDataInitialSub] = useState<"drivers" | "em
           {activeTab === "gift" && <GiftMasterPanel cardStyle={{ background: "linear-gradient(180deg, var(--surface2), var(--surface))", border: "1px solid var(--border2)", borderRadius: "var(--r2)", boxShadow: "var(--shadow-md)" }} />}
           {activeTab === "printer" && <PrinterTab />}
           {activeTab === "employeerequests" && <EmployeeRequestsTab />}
+          {activeTab === "atk" && <AtkTab />}
           {activeTab === "activitylog" && <ActivityLogTab />}
           </TabErrorBoundary>
         </div>
@@ -8005,6 +8011,224 @@ function EmployeeRequestsTab() {
           </div>
         </ModalPortal>
       )}
+    </div>
+  );
+}
+
+/* ════════════════════════════════════════════════════════════
+   ATK (ALAT TULIS KANTOR) — murni laporan. Input tetap dilakukan di
+   Excel (form VBA yang sudah ada), data masuk ke sini lewat tombol
+   "Sinkron ke CIKOPS" (lihat vba/modSyncCikops.bas). Tidak ada
+   tambah/edit/hapus dari Dashboard — cuma lihat & export laporan.
+════════════════════════════════════════════════════════════ */
+
+function AtkTab() {
+  const { lang } = useLang();
+  const cardStyle: CSSProperties = { borderRadius: "var(--r2)" };
+  const [subView, setSubView] = useState<"stok" | "permintaan" | "restock">("permintaan");
+
+  const [items, setItems] = useState<AtkItem[]>([]);
+  const [requests, setRequests] = useState<AtkRequest[]>([]);
+  const [restocks, setRestocks] = useState<AtkRestock[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [range, setRange] = useState<ReportRangeState>(defaultReportRange());
+  const { from: dateFrom, to: dateTo } = reportRangeToDates(range);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const [i, r, rs] = await Promise.all([
+        getAtkItems(),
+        getAtkRequests({ dateFrom, dateTo }),
+        getAtkRestocks({ dateFrom, dateTo }),
+      ]);
+      setItems(i);
+      setRequests(r);
+      setRestocks(rs);
+    } catch (e) {
+      console.warn("Gagal memuat data ATK:", e);
+    } finally {
+      setLoading(false);
+    }
+  }, [dateFrom, dateTo]);
+
+  useEffect(() => { load(); }, [load]);
+
+  const lowStockItems = items.filter((i) => i.stok <= 5);
+  const totalRequestQty = requests.reduce((s, r) => s + r.jumlah, 0);
+  const totalRestockQty = restocks.reduce((s, r) => s + r.jumlah, 0);
+  const animatedItems = useCountUp(items.length);
+  const animatedLowStock = useCountUp(lowStockItems.length);
+  const animatedRequests = useCountUp(requests.length);
+
+  const itemColumns: ReportColumn<AtkItem>[] = [
+    { key: "kode", labelId: "Kode Barang", labelEn: "Item Code", get: (i) => i.kodeBarang },
+    { key: "nama", labelId: "Nama Barang", labelEn: "Item Name", get: (i) => i.namaBarang },
+    { key: "satuan", labelId: "Satuan", labelEn: "Unit", get: (i) => i.satuan },
+    { key: "stok", labelId: "Stok Saat Ini", labelEn: "Current Stock", get: (i) => i.stok, align: "right" },
+    { key: "updated", labelId: "Terakhir Diperbarui", labelEn: "Last Updated", get: (i) => formatDateTime(i.updatedAt) },
+  ];
+  const requestColumns: ReportColumn<AtkRequest>[] = [
+    { key: "requestId", labelId: "No. Request", labelEn: "Request No.", get: (r) => r.requestId },
+    { key: "tanggal", labelId: "Tanggal", labelEn: "Date", get: (r) => r.tanggal },
+    { key: "nama", labelId: "Nama Pemohon", labelEn: "Requester", get: (r) => r.nama },
+    { key: "nik", labelId: "NIK", labelEn: "Employee ID", get: (r) => r.nik },
+    { key: "departemen", labelId: "Departemen", labelEn: "Department", get: (r) => r.departemen },
+    { key: "barang", labelId: "Nama Barang", labelEn: "Item Name", get: (r) => r.namaBarang },
+    { key: "jumlah", labelId: "Jumlah", labelEn: "Quantity", get: (r) => r.jumlah, align: "right" },
+    { key: "satuan", labelId: "Satuan", labelEn: "Unit", get: (r) => r.satuan },
+  ];
+  const restockColumns: ReportColumn<AtkRestock>[] = [
+    { key: "updateId", labelId: "No. Update", labelEn: "Update No.", get: (r) => r.updateId },
+    { key: "tanggal", labelId: "Tanggal", labelEn: "Date", get: (r) => r.tanggal },
+    { key: "petugas", labelId: "Petugas", labelEn: "Staff", get: (r) => r.nama },
+    { key: "departemen", labelId: "Departemen", labelEn: "Department", get: (r) => r.departemen },
+    { key: "barang", labelId: "Nama Barang", labelEn: "Item Name", get: (r) => r.namaBarang },
+    { key: "jumlah", labelId: "Jumlah Masuk", labelEn: "Quantity In", get: (r) => r.jumlah, align: "right" },
+    { key: "satuan", labelId: "Satuan", labelEn: "Unit", get: (r) => r.satuan },
+  ];
+
+  const exportPicker = useExportLanguagePicker((format, exportLang) => {
+    const periodLabel = reportRangeLabel(range, exportLang);
+    const runner = format === "csv" ? exportGenericCsv : format === "excel" ? exportGenericExcel : exportGenericPdf;
+    if (subView === "stok") {
+      runner({ rows: items, columns: itemColumns, lang: exportLang, titleId: "Laporan Stok ATK", titleEn: "Office Supplies Stock Report", filename: "Laporan_Stok_ATK" });
+    } else if (subView === "permintaan") {
+      runner({
+        rows: requests, columns: requestColumns, lang: exportLang, titleId: "Laporan Permintaan ATK", titleEn: "Office Supplies Request Report",
+        periodLabel, filename: "Laporan_Permintaan_ATK",
+        summaryRows: [{ label: exportLang === "en" ? "Total Quantity Requested" : "Total Jumlah Diminta", value: totalRequestQty }],
+      });
+    } else {
+      runner({
+        rows: restocks, columns: restockColumns, lang: exportLang, titleId: "Laporan Restock ATK", titleEn: "Office Supplies Restock Report",
+        periodLabel, filename: "Laporan_Restock_ATK",
+        summaryRows: [{ label: exportLang === "en" ? "Total Quantity Restocked" : "Total Jumlah Masuk", value: totalRestockQty }],
+      });
+    }
+  });
+
+  return (
+    <div style={{ padding: 20 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 18, flexWrap: "wrap", gap: 10 }}>
+        <div>
+          <div style={{ fontSize: 16, fontWeight: 800, color: "var(--t1)" }}>📎 {lang === "en" ? "Office Supplies (ATK)" : "Alat Tulis Kantor (ATK)"}</div>
+          <div style={{ fontSize: 12, color: "var(--t3)", marginTop: 2 }}>
+            {lang === "en" ? "Reporting only — data synced from Excel." : "Khusus laporan — data disinkron dari Excel."}
+          </div>
+        </div>
+      </div>
+
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 14, marginBottom: 20 }}>
+        <div className="statPop" style={{ ...cardStyle, padding: 18 }}>
+          <div style={{ fontSize: 12, fontWeight: 700, color: "var(--t3)", marginBottom: 6 }}>{lang === "en" ? "Total Items" : "Total Jenis Barang"}</div>
+          <div style={{ fontSize: 30, fontWeight: 800, color: "var(--t1)", fontFamily: "var(--mono)" }}>{animatedItems}</div>
+        </div>
+        <div className="statPop" style={{ ...cardStyle, padding: 18, background: lowStockItems.length > 0 ? "linear-gradient(135deg, var(--red), #c0392b)" : undefined }}>
+          <div style={{ fontSize: 12, fontWeight: 700, color: lowStockItems.length > 0 ? "rgba(255,255,255,0.85)" : "var(--t3)", marginBottom: 6 }}>⚠️ {lang === "en" ? "Low Stock (≤5)" : "Stok Menipis (≤5)"}</div>
+          <div style={{ fontSize: 30, fontWeight: 800, color: lowStockItems.length > 0 ? "#fff" : "var(--t1)", fontFamily: "var(--mono)" }}>{animatedLowStock}</div>
+        </div>
+        <div className="statPop" style={{ ...cardStyle, padding: 18 }}>
+          <div style={{ fontSize: 12, fontWeight: 700, color: "var(--t3)", marginBottom: 6 }}>{lang === "en" ? "Requests (period)" : "Permintaan (periode)"}</div>
+          <div style={{ fontSize: 30, fontWeight: 800, color: "var(--brand)", fontFamily: "var(--mono)" }}>{animatedRequests}</div>
+        </div>
+      </div>
+
+      <div className="neonCard" style={{ padding: 0, overflow: "hidden" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 10, padding: "16px 18px" }}>
+          <div style={{ display: "flex", gap: 8 }}>
+            {([
+              ["permintaan", lang === "en" ? "Requests" : "Permintaan"],
+              ["restock", "Restock"],
+              ["stok", lang === "en" ? "Current Stock" : "Stok Saat Ini"],
+            ] as const).map(([key, label]) => (
+              <button
+                key={key}
+                onClick={() => setSubView(key)}
+                style={{ padding: "7px 16px", borderRadius: "var(--pill)", border: "1px solid var(--border2)", cursor: "pointer", fontSize: 12.5, fontWeight: 700, background: subView === key ? "linear-gradient(135deg, var(--brand), var(--brand2))" : "transparent", color: subView === key ? "#fff" : "var(--t2)" }}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          <ReportExportButtons
+            onExport={exportPicker.requestExport}
+            disabled={subView === "stok" ? items.length === 0 : subView === "permintaan" ? requests.length === 0 : restocks.length === 0}
+          />
+        </div>
+        {exportPicker.pending && <LanguagePickerModal format={exportPicker.pending} onConfirm={exportPicker.confirm} onClose={exportPicker.cancel} />}
+
+        {subView !== "stok" && (
+          <div style={{ padding: "0 18px 14px" }}>
+            <ReportRangePicker value={range} onChange={setRange} inputClassName={styles.formInput} />
+          </div>
+        )}
+
+        {loading ? (
+          <SkeletonRows rows={5} />
+        ) : subView === "stok" ? (
+          items.length === 0 ? (
+            <div style={{ textAlign: "center", padding: 40, color: "var(--t3)" }}>{lang === "en" ? "No data yet — sync from Excel first." : "Belum ada data — sinkron dari Excel dulu."}</div>
+          ) : (
+            <div style={{ overflowX: "auto" }}>
+              <table className="tableCompact" style={{ minWidth: 600, width: "100%" }}>
+                <thead><tr><th>Kode</th><th>{lang === "en" ? "Item Name" : "Nama Barang"}</th><th>{lang === "en" ? "Unit" : "Satuan"}</th><th style={{ textAlign: "right" }}>Stok</th></tr></thead>
+                <tbody>
+                  {items.map((i) => (
+                    <tr key={i.id}>
+                      <td style={{ fontFamily: "var(--mono)" }}>{i.kodeBarang}</td>
+                      <td style={{ fontWeight: 700 }}>{i.namaBarang}</td>
+                      <td>{i.satuan}</td>
+                      <td style={{ textAlign: "right", fontWeight: 700, color: i.stok <= 5 ? "var(--red)" : "var(--t1)" }}>{i.stok}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )
+        ) : subView === "permintaan" ? (
+          requests.length === 0 ? (
+            <div style={{ textAlign: "center", padding: 40, color: "var(--t3)" }}>{lang === "en" ? "No requests in this period." : "Belum ada permintaan di periode ini."}</div>
+          ) : (
+            <div style={{ overflowX: "auto" }}>
+              <table className="tableCompact" style={{ minWidth: 800, width: "100%" }}>
+                <thead><tr><th>Tanggal</th><th>Pemohon</th><th>Departemen</th><th>Barang</th><th style={{ textAlign: "right" }}>Jumlah</th></tr></thead>
+                <tbody>
+                  {requests.map((r) => (
+                    <tr key={r.id}>
+                      <td>{formatDateLabel(r.tanggal)}</td>
+                      <td style={{ fontWeight: 700 }}>{r.nama}</td>
+                      <td>{r.departemen || "-"}</td>
+                      <td>{r.namaBarang}</td>
+                      <td style={{ textAlign: "right", fontFamily: "var(--mono)" }}>{r.jumlah} {r.satuan}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )
+        ) : (
+          restocks.length === 0 ? (
+            <div style={{ textAlign: "center", padding: 40, color: "var(--t3)" }}>{lang === "en" ? "No restock records in this period." : "Belum ada restock di periode ini."}</div>
+          ) : (
+            <div style={{ overflowX: "auto" }}>
+              <table className="tableCompact" style={{ minWidth: 800, width: "100%" }}>
+                <thead><tr><th>Tanggal</th><th>Petugas</th><th>Barang</th><th style={{ textAlign: "right" }}>Jumlah Masuk</th></tr></thead>
+                <tbody>
+                  {restocks.map((r) => (
+                    <tr key={r.id}>
+                      <td>{formatDateLabel(r.tanggal)}</td>
+                      <td style={{ fontWeight: 700 }}>{r.nama || "-"}</td>
+                      <td>{r.namaBarang}</td>
+                      <td style={{ textAlign: "right", fontFamily: "var(--mono)" }}>{r.jumlah} {r.satuan}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )
+        )}
+      </div>
     </div>
   );
 }
