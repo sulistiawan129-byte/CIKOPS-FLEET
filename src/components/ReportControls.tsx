@@ -92,7 +92,15 @@ export function ReportRangePicker({ value, onChange, inputClassName }: ReportRan
         Per Bulan
       </button>
       <button
-        onClick={() => onChange({ ...value, mode: "range" })}
+        onClick={() => {
+          if (value.mode !== "range") {
+            const today = new Date();
+            const yearAgo = new Date();
+            yearAgo.setFullYear(yearAgo.getFullYear() - 1);
+            const iso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+            onChange({ ...value, mode: "range", dateFrom: iso(yearAgo), dateTo: iso(today) });
+          }
+        }}
         style={{ ...pillBase, background: value.mode === "range" ? "linear-gradient(135deg, var(--brand), var(--brand2))" : "transparent", color: value.mode === "range" ? "#fff" : "var(--t2)" }}
       >
         Rentang Tanggal
