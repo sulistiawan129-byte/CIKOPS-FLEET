@@ -8,9 +8,10 @@ import { ModalPortal } from "@/components/ModalPortal";
 import { TabErrorBoundary } from "@/components/TabErrorBoundary";
 import { ReportExportButtons, LanguagePickerModal, useExportLanguagePicker, ReportRangePicker, defaultReportRange } from "@/components/ReportControls";
 import type { ExportFormat } from "@/components/ReportControls";
-import { exportGenericCsv, exportGenericExcel, exportGenericPdf } from "@/lib/reportEngine";
-import type { ReportColumn, ReportRangeState, ReportLang } from "@/lib/reportEngine";
+import { exportGenericCsv, exportGenericExcel, exportGenericPdf, exportSummaryCsv, exportSummaryExcel, exportSummaryPdf } from "@/lib/reportEngine";
+import type { ReportColumn, ReportRangeState, ReportLang, SummaryKpi, SummaryBreakdown } from "@/lib/reportEngine";
 import { reportRangeToDates, reportRangeLabel } from "@/lib/reportEngine";
+import type { DriverReportSummary } from "@/lib/analytics";
 import {
   getMyProfile,
   canAccessTab,
@@ -157,6 +158,7 @@ function todayStr() {
 /** Merged dashboard tabs — "tasks" is the original driver-assignment
  *  feature; the rest are FleetOS features ported into this same app. */
 export type DashboardTab =
+  | "home"
   | "overview"
   | "tasks"
   | "vehicles"
@@ -175,7 +177,7 @@ export type DashboardTab =
   | "atk"
   | "activitylog";
 
-interface NavTab { id: DashboardTab; icon: string; labelId: string; labelEn: string }
+interface NavTab { id: DashboardTab; icon: string; labelId: string; labelEn: string; descId?: string; descEn?: string }
 interface NavGroup { id: string; labelId: string; labelEn: string; tabs: NavTab[] }
 
 const NAV_GROUPS: NavGroup[] = [
@@ -184,9 +186,9 @@ const NAV_GROUPS: NavGroup[] = [
     labelId: "Fleet & Kendaraan",
     labelEn: "Fleet & Vehicles",
     tabs: [
-      { id: "tasks", icon: "🗂️", labelId: "Penugasan", labelEn: "Tasks" },
-      { id: "vehicles", icon: "🚗", labelId: "Armada", labelEn: "Vehicles" },
-      { id: "gasstations", icon: "⛽", labelId: "Pom Bensin", labelEn: "Gas Stations" },
+      { id: "tasks", icon: "🗂️", labelId: "Penugasan", labelEn: "Tasks", descId: "Kelola penugasan kendaraan & driver", descEn: "Manage vehicle & driver tasks" },
+      { id: "vehicles", icon: "🚗", labelId: "Armada", labelEn: "Vehicles", descId: "Data kendaraan & kelengkapannya", descEn: "Vehicle data & documents" },
+      { id: "gasstations", icon: "⛽", labelId: "Pom Bensin", labelEn: "Gas Stations", descId: "Mapping & transaksi bahan bakar", descEn: "Fuel mapping & transactions" },
     ],
   },
   {
@@ -194,10 +196,10 @@ const NAV_GROUPS: NavGroup[] = [
     labelId: "Finance",
     labelEn: "Finance",
     tabs: [
-      { id: "claims", icon: "🧾", labelId: "Klaim", labelEn: "Claims" },
-      { id: "overtime", icon: "⏱️", labelId: "Overtime", labelEn: "Overtime" },
-      { id: "driverbudget", icon: "💳", labelId: "Budget Driver", labelEn: "Driver Budget" },
-      { id: "opfund", icon: "💰", labelId: "Dana Operasional", labelEn: "Operational Fund" },
+      { id: "claims", icon: "🧾", labelId: "Klaim", labelEn: "Claims", descId: "Pengajuan & monitoring klaim", descEn: "Claim submission & monitoring" },
+      { id: "overtime", icon: "⏱️", labelId: "Overtime", labelEn: "Overtime", descId: "Lembur driver & rekapitulasi", descEn: "Driver overtime & recap" },
+      { id: "driverbudget", icon: "💳", labelId: "Budget Driver", labelEn: "Driver Budget", descId: "Budget rutin & penggunaan", descEn: "Routine budget & usage" },
+      { id: "opfund", icon: "💰", labelId: "Dana Operasional", labelEn: "Operational Fund", descId: "Pengajuan dana operasional", descEn: "Operational fund requests" },
     ],
   },
   {
@@ -205,12 +207,12 @@ const NAV_GROUPS: NavGroup[] = [
     labelId: "Fasilitas",
     labelEn: "Facility",
     tabs: [
-      { id: "canteen", icon: "🍱", labelId: "Kantin", labelEn: "Canteen" },
-      { id: "locker", icon: "🔐", labelId: "Locker", labelEn: "Locker" },
-      { id: "gift", icon: "🎁", labelId: "Pembagian", labelEn: "Gift Dist." },
-      { id: "printer", icon: "🖨️", labelId: "Printer", labelEn: "Printer" },
-      { id: "employeerequests", icon: "📨", labelId: "Permintaan Karyawan", labelEn: "Employee Requests" },
-      { id: "atk", icon: "📎", labelId: "ATK", labelEn: "Office Supplies" },
+      { id: "canteen", icon: "🍱", labelId: "Kantin", labelEn: "Canteen", descId: "Manajemen kantin perusahaan", descEn: "Company canteen management" },
+      { id: "locker", icon: "🔐", labelId: "Locker", labelEn: "Locker", descId: "Pemesanan & pengelolaan locker", descEn: "Locker booking & management" },
+      { id: "gift", icon: "🎁", labelId: "Pembagian", labelEn: "Gift Dist.", descId: "Distribusi barang & perlengkapan", descEn: "Item & supply distribution" },
+      { id: "printer", icon: "🖨️", labelId: "Printer", labelEn: "Printer", descId: "Manajemen printer & permintaan", descEn: "Printer management & requests" },
+      { id: "employeerequests", icon: "📨", labelId: "Permintaan Karyawan", labelEn: "Employee Requests", descId: "Pengajuan permintaan dari karyawan", descEn: "Employee-submitted requests" },
+      { id: "atk", icon: "✏️", labelId: "ATK", labelEn: "Office Supplies", descId: "Pengajuan ATK & perlengkapan", descEn: "Office supplies requests" },
     ],
   },
   {
@@ -218,9 +220,9 @@ const NAV_GROUPS: NavGroup[] = [
     labelId: "Sistem",
     labelEn: "System",
     tabs: [
-      { id: "reports", icon: "📈", labelId: "Report", labelEn: "Reports" },
-      { id: "masterdata", icon: "🗄️", labelId: "Master Data", labelEn: "Master Data" },
-      { id: "activitylog", icon: "📋", labelId: "Log Aktivitas", labelEn: "Activity Log" },
+      { id: "reports", icon: "📈", labelId: "Report", labelEn: "Reports", descId: "Laporan & analisis data", descEn: "Reports & data analysis" },
+      { id: "masterdata", icon: "🗄️", labelId: "Master Data", labelEn: "Master Data", descId: "Kelola master data sistem", descEn: "Manage system master data" },
+      { id: "activitylog", icon: "📋", labelId: "Log Aktivitas", labelEn: "Activity Log", descId: "Riwayat aktivitas sistem", descEn: "System activity history" },
     ],
   },
 ];
@@ -285,7 +287,7 @@ export default function DashboardPage() {
     }
    }, [user?.id]);
   const isMobile = useIsMobile();
-  const [activeTab, setActiveTab] = useState<DashboardTab>("overview");
+  const [activeTab, setActiveTab] = useState<DashboardTab>("home");
   const [globalSearch, setGlobalSearch] = useState("");
   const [showSearchDropdown, setShowSearchDropdown] = useState(false);
   const searchBoxRef = useRef<HTMLDivElement>(null);
@@ -586,6 +588,13 @@ const [masterDataInitialSub, setMasterDataInitialSub] = useState<"drivers" | "em
         </div>
        <nav style={{ flex: 1, overflowY: "auto", padding: "10px 10px" }}>
           <button
+            className={`navItem ${activeTab === "home" ? "navItemActive" : ""}`}
+            onClick={() => { setActiveTab("home"); setSidebarOpen(false); }}
+          >
+            <span>🏠</span>
+            {lang === "id" ? "Dashboard" : "Dashboard"}
+          </button>
+          <button
             className={`navItem ${activeTab === "overview" ? "navItemActive" : ""}`}
             onClick={() => { setActiveTab("overview"); setSidebarOpen(false); }}
             style={{ marginBottom: 16 }}
@@ -877,6 +886,7 @@ const [masterDataInitialSub, setMasterDataInitialSub] = useState<"drivers" | "em
       {activeTab !== "tasks" && (
         <div key={activeTab} className="tabContent">
           <TabErrorBoundary label={activeTab}>
+          {activeTab === "home" && <HomeTab setActiveTab={setActiveTab} myProfile={myProfile} />}
           {activeTab === "overview" && <OverviewTab setActiveTab={setActiveTab} myProfile={myProfile} />}
           {activeTab === "vehicles" && <VehiclesTab myProfile={myProfile} />}
           {activeTab === "claims" && <ClaimsTab myProfile={myProfile} />}
@@ -1237,42 +1247,60 @@ function ReportModal({
   );
 
   const driverNameMap = useMemo(() => new Map(drivers.map((d) => [d.id, d.nama])), [drivers]);
-  const taskColumns: ReportColumn<TaskDetail>[] = [
-    { key: "tanggal", labelId: "Tanggal", labelEn: "Date", get: (t) => t.tanggal },
-    { key: "driver", labelId: "Driver", labelEn: "Driver", get: (t) => t.driver_nama ?? "-" },
-    { key: "kendaraan", labelId: "Kendaraan", labelEn: "Vehicle", get: (t) => t.kendaraan ?? "-" },
-    { key: "jenisKendaraan", labelId: "Jenis Kendaraan", labelEn: "Vehicle Type", get: (t) => t.kendaraan_jenis ?? "-" },
-    { key: "jenisPekerjaan", labelId: "Jenis Pekerjaan", labelEn: "Job Type", get: (t) => t.jenis_pekerjaan },
-    { key: "tujuan", labelId: "Tujuan", labelEn: "Destination", get: (t) => t.tujuan },
-    { key: "requestor", labelId: "Requestor", labelEn: "Requestor", get: (t) => t.requestor },
-    { key: "departemen", labelId: "Departemen", labelEn: "Department", get: (t) => t.departement ?? "-" },
-    { key: "perihal", labelId: "Perihal", labelEn: "Subject", get: (t) => t.perihal ?? "-" },
-    { key: "status", labelId: "Status", labelEn: "Status", get: (t) => statusLabelId(t.status) },
-    { key: "dibuat", labelId: "Dibuat", labelEn: "Created", get: (t) => formatDateTime(t.created_at) },
-    { key: "diterima", labelId: "Diterima", labelEn: "Accepted", get: (t) => formatDateTime(t.accepted_at) },
-    { key: "selesai", labelId: "Selesai", labelEn: "Completed", get: (t) => formatDateTime(t.completed_at) },
-    { key: "dibatalkan", labelId: "Dibatalkan", labelEn: "Cancelled", get: (t) => formatDateTime(t.cancelled_at) },
-    { key: "dibatalkanOleh", labelId: "Dibatalkan Oleh", labelEn: "Cancelled By", get: (t) => t.cancelled_by ?? "-" },
-    { key: "alasanBatal", labelId: "Alasan Batal", labelEn: "Cancel Reason", get: (t) => t.cancel_reason ?? "-" },
+
+  const driverSummaryColumns: ReportColumn<DriverReportSummary>[] = [
+    { key: "driver", labelId: "Driver", labelEn: "Driver", get: (d) => d.driverNama },
+    { key: "total", labelId: "Total Tugas", labelEn: "Total Tasks", get: (d) => d.totalTask, align: "right" },
+    { key: "selesai", labelId: "Selesai", labelEn: "Completed", get: (d) => d.selesai, align: "right" },
+    { key: "dibatalkan", labelId: "Dibatalkan", labelEn: "Cancelled", get: (d) => d.dibatalkan, align: "right" },
+    { key: "aktif", labelId: "Aktif", labelEn: "Active", get: (d) => d.aktif, align: "right" },
+    { key: "rate", labelId: "Completion Rate", labelEn: "Completion Rate", get: (d) => `${d.completionRate.toFixed(0)}%`, align: "right" },
+    { key: "avgDur", labelId: "Rata-rata Durasi", labelEn: "Avg Duration", get: (d) => (d.avgDurationMinutes != null ? formatMinutes(d.avgDurationMinutes) : "-") },
   ];
 
   const exportPicker = useExportLanguagePicker((format, exportLang) => {
     const periodLabel = reportRangeLabel(range, exportLang);
     const opts = {
-      rows: reportTasks, columns: taskColumns, lang: exportLang,
+      lang: exportLang,
       titleId: "Laporan Tugas Driver", titleEn: "Driver Task Report",
       periodLabel, filename: "Laporan_Tugas_Driver",
-      summaryRows: [
-        { label: exportLang === "en" ? "Total Tasks" : "Total Tugas", value: analytics.totalTask },
-        { label: exportLang === "en" ? "Completed" : "Selesai", value: analytics.done },
-        { label: exportLang === "en" ? "Cancelled" : "Dibatalkan", value: analytics.cancelled },
-        { label: exportLang === "en" ? "Completion Rate" : "Completion Rate", value: `${analytics.completionRate.toFixed(0)}%` },
+      kpis: [
+        { labelId: "Total Tugas", labelEn: "Total Tasks", value: analytics.totalTask },
+        { labelId: "Selesai", labelEn: "Completed", value: analytics.done },
+        { labelId: "Dibatalkan", labelEn: "Cancelled", value: analytics.cancelled },
+        { labelId: "Sedang Berjalan", labelEn: "Ongoing", value: analytics.assigned + analytics.ongoing },
+        { labelId: "Completion Rate", labelEn: "Completion Rate", value: `${analytics.completionRate.toFixed(0)}%` },
+        { labelId: "Driver Aktif", labelEn: "Active Drivers", value: analytics.driverAktif },
       ],
+      breakdowns: [
+        {
+          titleId: "Top Driver (Jumlah Tugas)", titleEn: "Top Driver (Task Count)",
+          valueLabelId: "Jumlah Tugas", valueLabelEn: "Task Count",
+          items: analytics.topDriverByTask.map((e) => ({ label: e.label, value: e.value })),
+        },
+        {
+          titleId: "Top Departemen Requestor", titleEn: "Top Requesting Department",
+          valueLabelId: "Jumlah Tugas", valueLabelEn: "Task Count",
+          items: analytics.topDepartementRequestor.map((e) => ({ label: e.label, value: e.value })),
+        },
+        {
+          titleId: "Top Jenis Pekerjaan", titleEn: "Top Job Type",
+          valueLabelId: "Jumlah", valueLabelEn: "Count",
+          items: analytics.topJenisPekerjaan.map((e) => ({ label: e.label, value: e.value })),
+        },
+        {
+          titleId: "Utilisasi Kendaraan", titleEn: "Vehicle Utilization",
+          valueLabelId: "Jumlah Pemakaian", valueLabelEn: "Usage Count",
+          items: analytics.utilisasiKendaraan.map((e) => ({ label: e.label, value: e.value })),
+        },
+      ],
+      tableTitleId: "Rekap per Driver", tableTitleEn: "Per-Driver Recap",
+      tableRows: analytics.driverSummaries, tableColumns: driverSummaryColumns,
     };
-    if (format === "csv") exportGenericCsv(opts);
-    else if (format === "excel") exportGenericExcel(opts);
-    else exportGenericPdf(opts);
-    onSuccess(`Laporan ${format.toUpperCase()} berhasil diunduh (${reportTasks.length} tugas)`);
+    if (format === "csv") exportSummaryCsv(opts);
+    else if (format === "excel") exportSummaryExcel(opts);
+    else exportSummaryPdf(opts);
+    onSuccess(`Laporan ${format.toUpperCase()} berhasil diunduh`);
   });
 
   return (
@@ -2254,6 +2282,70 @@ async function getOverviewKantong(profile: MyProfile | null): Promise<Kantong | 
     unsubmittedClaim: (cik?.unsubmittedClaim ?? 0) + (prb?.unsubmittedClaim ?? 0),
     lastReset: cik?.lastReset ?? prb?.lastReset ?? "",
   };
+}
+
+/* ════════════════════════════════════════════════════════════
+   HOME TAB — halaman utama baru: kartu ikon per modul, dikelompokkan
+   per kategori (tab horizontal), supaya sidebar bisa dibikin ramping
+   tanpa kehilangan kemudahan navigasi. Konten "Ringkasan" (KPI dsb.)
+   yang lama tetap ada terpisah, tidak diganti.
+════════════════════════════════════════════════════════════ */
+function HomeTab({ setActiveTab, myProfile }: { setActiveTab: (t: DashboardTab) => void; myProfile: MyProfile | null }) {
+  const { lang } = useLang();
+  const visibleGroups = NAV_GROUPS.map((g) => ({ ...g, tabs: g.tabs.filter((t) => canAccessTab(myProfile, t.id)) })).filter((g) => g.tabs.length > 0);
+  const [activeGroupId, setActiveGroupId] = useState(visibleGroups[0]?.id ?? "");
+  const activeGroup = visibleGroups.find((g) => g.id === activeGroupId) ?? visibleGroups[0];
+
+  const cardColors = ["#EEF3FF", "#E8F8F2", "#FFF1EC", "#F5F0FF", "#FFF8E6", "#EFFAF6"];
+
+  return (
+    <div style={{ padding: 24 }}>
+      <div style={{ marginBottom: 20 }}>
+        <div style={{ fontSize: 12, color: "var(--t3)", marginBottom: 4 }}>{lang === "en" ? "Home" : "Halaman Utama"}</div>
+        <div style={{ fontSize: 22, fontWeight: 800, color: "var(--t1)" }}>{lang === "en" ? "What would you like to do?" : "Mau kerjakan apa hari ini?"}</div>
+      </div>
+
+      <div style={{ display: "flex", gap: 8, overflowX: "auto", paddingBottom: 16, marginBottom: 22, borderBottom: "1px solid var(--border)" }}>
+        {visibleGroups.map((g) => (
+          <button
+            key={g.id}
+            onClick={() => setActiveGroupId(g.id)}
+            style={{
+              padding: "9px 18px", borderRadius: "var(--pill)", border: "none", cursor: "pointer", fontSize: 13, fontWeight: 700, whiteSpace: "nowrap",
+              background: activeGroupId === g.id ? "linear-gradient(135deg, var(--brand), var(--brand2))" : "var(--bg2)",
+              color: activeGroupId === g.id ? "#fff" : "var(--t2)",
+            }}
+          >
+            {lang === "id" ? g.labelId : g.labelEn}
+          </button>
+        ))}
+      </div>
+
+      {activeGroup && (
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: 16 }}>
+          {activeGroup.tabs.map((tabItem, i) => (
+            <button
+              key={tabItem.id}
+              onClick={() => setActiveTab(tabItem.id)}
+              className="statPop"
+              style={{
+                textAlign: "left", cursor: "pointer", border: "1px solid var(--border2)", borderRadius: "var(--r2)",
+                padding: 20, display: "flex", flexDirection: "column", gap: 12, background: "var(--surface)",
+              }}
+            >
+              <div style={{ width: 52, height: 52, borderRadius: 16, background: cardColors[i % cardColors.length], display: "flex", alignItems: "center", justifyContent: "center", fontSize: 26 }}>
+                {tabItem.icon}
+              </div>
+              <div>
+                <div style={{ fontSize: 15, fontWeight: 800, color: "var(--t1)", marginBottom: 3 }}>{lang === "id" ? tabItem.labelId : tabItem.labelEn}</div>
+                <div style={{ fontSize: 12, color: "var(--t3)", lineHeight: 1.4 }}>{lang === "id" ? tabItem.descId : tabItem.descEn}</div>
+              </div>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
 }
 
 function OverviewTab({ setActiveTab, myProfile }: { setActiveTab: (t: DashboardTab) => void; myProfile: MyProfile | null }) {
