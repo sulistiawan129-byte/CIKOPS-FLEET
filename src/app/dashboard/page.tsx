@@ -84,6 +84,11 @@ import {
   getAtkItems,
   getAtkRequests,
   getAtkRestocks,
+  getAgendaEvents,
+  addAgendaEvent,
+  deleteAgendaEvent,
+  getAnnouncements,
+  addAnnouncement,
   sendClaimNotificationEmails,
   getAppSetting,
   setAppSetting,
@@ -105,7 +110,7 @@ import {
   updateGasStation,
   deleteGasStation,
 } from "@/lib/api";
-import type { Claim, ClaimItem, Overtime, Plant, Kantong, DriverTier, GasStation, FuelEntry, CanteenReport, GiftEvent, GiftItemDef, GiftRegistration, Wreath, VehicleGateLog, Printer, PrinterRequest, PrinterRequestType, EmployeeRequest, EmployeeRequestType, EmployeeRequestStatus, AtkItem, AtkRequest, AtkRestock } from "@/lib/types";
+import type { Claim, ClaimItem, Overtime, Plant, Kantong, DriverTier, GasStation, FuelEntry, CanteenReport, GiftEvent, GiftItemDef, GiftRegistration, Wreath, VehicleGateLog, Printer, PrinterRequest, PrinterRequestType, EmployeeRequest, EmployeeRequestType, EmployeeRequestStatus, AtkItem, AtkRequest, AtkRestock, AgendaEvent, Announcement } from "@/lib/types";
 import { computeCanteenKPI } from "@/lib/types";
 import { exportTandaTerima } from "@/lib/tandaTerima";
 import { buildRincianRows } from "@/lib/claimRecap";
@@ -2382,6 +2387,211 @@ async function getOverviewKantong(profile: MyProfile | null): Promise<Kantong | 
    tanpa kehilangan kemudahan navigasi. Konten "Ringkasan" (KPI dsb.)
    yang lama tetap ada terpisah, tidak diganti.
 ════════════════════════════════════════════════════════════ */
+/* ════════════════════════════════════════════════════════════
+   WIDGET — Kalender bulan interaktif, titik penanda di tanggal yang
+   ada agenda-nya.
+════════════════════════════════════════════════════════════ */
+function CalendarWidget({ events, onPickDate }: { events: AgendaEvent[]; onPickDate?: (dateStr: string) => void }) {
+  const { lang } = useLang();
+  const [viewDate, setViewDate] = useState(new Date());
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const eventDates = useMemo(() => new Set(events.map((e) => e.eventDate)), [events]);
+
+  const year = viewDate.getFullYear();
+  const month = viewDate.getMonth();
+  const firstDay = new Date(year, month, 1);
+  const startOffset = (firstDay.getDay() + 6) % 7; // Senin = 0
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const monthsId = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"];
+  const monthsEn = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+  const dowId = ["Sen", "Sel", "Rab", "Kam", "Jum", "Sab", "Min"];
+  const dowEn = ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"];
+
+  const cells: (number | null)[] = Array(startOffset).fill(null).concat(Array.from({ length: daysInMonth }, (_, i) => i + 1));
+
+  return (
+    <div className="neonCard" style={{ padding: 18 }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
+        <button onClick={() => setViewDate(new Date(year, month - 1, 1))} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 15, color: "var(--t2)" }}>‹</button>
+        <div style={{ fontSize: 13.5, fontWeight: 800, color: "var(--t1)" }}>{(lang === "id" ? monthsId : monthsEn)[month]} {year}</div>
+        <button onClick={() => setViewDate(new Date(year, month + 1, 1))} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 15, color: "var(--t2)" }}>›</button>
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 2, marginBottom: 4 }}>
+        {(lang === "id" ? dowId : dowEn).map((d) => (
+          <div key={d} style={{ textAlign: "center", fontSize: 10.5, fontWeight: 700, color: "var(--t3)", padding: "4px 0" }}>{d}</div>
+        ))}
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 2 }}>
+        {cells.map((d, i) => {
+          if (d === null) return <div key={i} />;
+          const dateStr = `${year}-${String(month + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+          const isToday = dateStr === todayStr;
+          const hasEvent = eventDates.has(dateStr);
+          return (
+            <button
+              key={i}
+              onClick={() => onPickDate?.(dateStr)}
+              style={{
+                position: "relative", aspectRatio: "1", border: "none", borderRadius: 8, cursor: "pointer",
+                background: isToday ? "var(--accent-solid)" : "transparent",
+                color: isToday ? "var(--accent-solid-text)" : "var(--t2)",
+                fontSize: 12, fontWeight: isToday ? 800 : 500,
+              }}
+            >
+              {d}
+              {hasEvent && !isToday && <span style={{ position: "absolute", bottom: 3, left: "50%", transform: "translateX(-50%)", width: 4, height: 4, borderRadius: "50%", background: "var(--brand)" }} />}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+/* ════════════════════════════════════════════════════════════
+   WIDGET — Agenda Mendatang
+════════════════════════════════════════════════════════════ */
+const AGENDA_COLORS: Record<string, string> = { blue: "var(--brand)", green: "var(--green)", orange: "var(--orange)", red: "var(--red)", purple: "#8b5cf6" };
+
+function AgendaWidget({ events, onAdd, onDelete }: { events: AgendaEvent[]; onAdd: (e: { title: string; location: string; eventDate: string; eventTime: string }) => void; onDelete: (id: string) => void }) {
+  const { lang } = useLang();
+  const [showForm, setShowForm] = useState(false);
+  const [title, setTitle] = useState("");
+  const [location, setLocation] = useState("");
+  const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
+  const [time, setTime] = useState("09:00");
+  const upcoming = events.filter((e) => e.eventDate >= new Date().toISOString().slice(0, 10)).slice(0, 5);
+
+  return (
+    <div className="neonCard" style={{ padding: 18 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+        <div style={{ fontSize: 13.5, fontWeight: 800, color: "var(--t1)" }}>{lang === "en" ? "Upcoming Agenda" : "Agenda Mendatang"}</div>
+        <button onClick={() => setShowForm((v) => !v)} style={{ background: "none", border: "none", color: "var(--brand)", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
+          {showForm ? (lang === "en" ? "Cancel" : "Batal") : `+ ${lang === "en" ? "Add" : "Tambah"}`}
+        </button>
+      </div>
+
+      {showForm && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 14, padding: 12, borderRadius: 10, background: "var(--bg2)" }}>
+          <input className={styles.formInput} placeholder={lang === "en" ? "Title" : "Judul"} value={title} onChange={(e) => setTitle(e.target.value)} />
+          <input className={styles.formInput} placeholder={lang === "en" ? "Location" : "Lokasi"} value={location} onChange={(e) => setLocation(e.target.value)} />
+          <div style={{ display: "flex", gap: 8 }}>
+            <input type="date" className={styles.formInput} value={date} onChange={(e) => setDate(e.target.value)} />
+            <input type="time" className={styles.formInput} value={time} onChange={(e) => setTime(e.target.value)} />
+          </div>
+          <button
+            className="pillBtn"
+            disabled={!title.trim()}
+            onClick={() => { onAdd({ title: title.trim(), location: location.trim(), eventDate: date, eventTime: time }); setTitle(""); setLocation(""); setShowForm(false); }}
+          >
+            {lang === "en" ? "Save" : "Simpan"}
+          </button>
+        </div>
+      )}
+
+      {upcoming.length === 0 ? (
+        <div style={{ fontSize: 12.5, color: "var(--t3)", textAlign: "center", padding: "12px 0" }}>{lang === "en" ? "No upcoming agenda." : "Belum ada agenda mendatang."}</div>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          {upcoming.map((e) => (
+            <div key={e.id} style={{ display: "flex", gap: 10, alignItems: "flex-start", position: "relative" }}>
+              <div style={{ width: 3, alignSelf: "stretch", borderRadius: 2, background: AGENDA_COLORS[e.color] ?? "var(--brand)", flexShrink: 0 }} />
+              <div style={{ fontSize: 11.5, fontWeight: 700, color: "var(--t3)", width: 42, flexShrink: 0, paddingTop: 1 }}>{e.eventTime || "-"}</div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 13, fontWeight: 700, color: "var(--t1)" }}>{e.title}</div>
+                {e.location && <div style={{ fontSize: 11.5, color: "var(--t3)" }}>{e.location}</div>}
+              </div>
+              <button onClick={() => onDelete(e.id)} style={{ background: "none", border: "none", color: "var(--t3)", cursor: "pointer", fontSize: 12, padding: 2 }}>✕</button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ════════════════════════════════════════════════════════════
+   WIDGET — Aksi Cepat
+════════════════════════════════════════════════════════════ */
+function QuickActionsWidget({ setActiveTab }: { setActiveTab: (t: DashboardTab) => void }) {
+  const { lang } = useLang();
+  const actions: { icon: string; labelId: string; labelEn: string; tab: DashboardTab; color: string }[] = [
+    { icon: "🗂️", labelId: "Permintaan Baru", labelEn: "New Request", tab: "employeerequests", color: "#fde8ec" },
+    { icon: "📈", labelId: "Laporan Cepat", labelEn: "Quick Report", tab: "reports", color: "#e8effd" },
+    { icon: "🚗", labelId: "Tambah Armada", labelEn: "Add Vehicle", tab: "vehicles", color: "#e6f7ee" },
+    { icon: "🧾", labelId: "Pengajuan Klaim", labelEn: "Submit Claim", tab: "claims", color: "#eaf4ff" },
+  ];
+  return (
+    <div className="neonCard" style={{ padding: 18 }}>
+      <div style={{ fontSize: 13.5, fontWeight: 800, color: "var(--t1)", marginBottom: 14 }}>{lang === "en" ? "Quick Actions" : "Aksi Cepat"}</div>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+        {actions.map((a) => (
+          <button
+            key={a.tab}
+            onClick={() => setActiveTab(a.tab)}
+            style={{ display: "flex", alignItems: "center", gap: 8, padding: "12px 10px", borderRadius: 12, border: "1px solid var(--border2)", background: a.color, cursor: "pointer", textAlign: "left" }}
+          >
+            <span style={{ fontSize: 17 }}>{a.icon}</span>
+            <span style={{ fontSize: 12, fontWeight: 700, color: "#0f2847", lineHeight: 1.25 }}>{lang === "id" ? a.labelId : a.labelEn}</span>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* ════════════════════════════════════════════════════════════
+   WIDGET — Pengumuman
+════════════════════════════════════════════════════════════ */
+function AnnouncementWidget({ announcements, onAdd, canManage }: { announcements: Announcement[]; onAdd: (a: { title: string; body: string }) => void; canManage: boolean }) {
+  const { lang } = useLang();
+  const [showForm, setShowForm] = useState(false);
+  const [title, setTitle] = useState("");
+  const [body, setBody] = useState("");
+  const latest = announcements[0];
+  const isNew = latest ? Date.now() - new Date(latest.createdAt).getTime() < 1000 * 60 * 60 * 24 * 3 : false;
+
+  return (
+    <div className="neonCard" style={{ padding: 18 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+        <div style={{ fontSize: 13.5, fontWeight: 800, color: "var(--t1)" }}>{lang === "en" ? "Announcement" : "Pengumuman"}</div>
+        {latest && isNew && <span style={{ fontSize: 10, fontWeight: 800, padding: "3px 9px", borderRadius: "var(--pill)", background: "var(--red)", color: "#fff" }}>{lang === "en" ? "NEW" : "BARU"}</span>}
+      </div>
+      {canManage && (
+        <button onClick={() => setShowForm((v) => !v)} style={{ background: "none", border: "none", color: "var(--brand)", fontSize: 12, fontWeight: 700, cursor: "pointer", marginBottom: 12 }}>
+          {showForm ? (lang === "en" ? "Cancel" : "Batal") : `+ ${lang === "en" ? "Post announcement" : "Buat pengumuman"}`}
+        </button>
+      )}
+      {showForm && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 14, padding: 12, borderRadius: 10, background: "var(--bg2)" }}>
+          <input className={styles.formInput} placeholder={lang === "en" ? "Title" : "Judul"} value={title} onChange={(e) => setTitle(e.target.value)} />
+          <textarea className={styles.formTextarea} rows={3} placeholder={lang === "en" ? "Message" : "Isi pesan"} value={body} onChange={(e) => setBody(e.target.value)} />
+          <button className="pillBtn" disabled={!title.trim() || !body.trim()} onClick={() => { onAdd({ title: title.trim(), body: body.trim() }); setTitle(""); setBody(""); setShowForm(false); }}>
+            {lang === "en" ? "Post" : "Terbitkan"}
+          </button>
+        </div>
+      )}
+      {latest ? (
+        <div style={{ display: "flex", gap: 10, padding: 12, borderRadius: 12, background: "var(--bg2)" }}>
+          <span style={{ fontSize: 20 }}>📢</span>
+          <div>
+            <div style={{ fontSize: 13, fontWeight: 700, color: "var(--t1)", marginBottom: 3 }}>{latest.title}</div>
+            <div style={{ fontSize: 12, color: "var(--t3)", lineHeight: 1.4 }}>{latest.body}</div>
+          </div>
+        </div>
+      ) : (
+        <div style={{ fontSize: 12.5, color: "var(--t3)", textAlign: "center", padding: "12px 0" }}>{lang === "en" ? "No announcements." : "Belum ada pengumuman."}</div>
+      )}
+    </div>
+  );
+}
+
+/* ════════════════════════════════════════════════════════════
+   HOME TAB — halaman utama baru: sapaan + KPI ringkas, Modul Utama
+   (kartu ikon per kategori), dan panel kanan (Kalender, Agenda,
+   Aksi Cepat, Pengumuman). Konten "Ringkasan" (KPI detail lama)
+   tetap ada terpisah, tidak diganti.
+════════════════════════════════════════════════════════════ */
 function HomeTab({
   setActiveTab,
   myProfile,
@@ -2397,10 +2607,102 @@ function HomeTab({
   const visibleGroups = NAV_GROUPS.map((g) => ({ ...g, tabs: g.tabs.filter((t) => canAccessTab(myProfile, t.id)) })).filter((g) => g.tabs.length > 0);
   const cardColors = ["#EEF3FF", "#E8F8F2", "#FFF1EC", "#F5F0FF", "#FFF8E6", "#EFFAF6"];
 
-  // Kalau ada kategori terpilih (klik ikon kategori di sidebar) -> tampilkan
-  // CUMA kategori itu saja (filtered), beda dari klik Home yang tampilkan semua.
   const filteredGroup = activeGroupId ? visibleGroups.find((g) => g.id === activeGroupId) : undefined;
-  const groupsToShow = filteredGroup ? [filteredGroup] : visibleGroups;
+
+  const [agendaEvents, setAgendaEvents] = useState<AgendaEvent[]>([]);
+  const [announcements, setAnnouncements] = useState<Announcement[]>([]);
+  const [kpi, setKpi] = useState<{
+    claimWeekTotal: number;
+    tasksToday: number;
+    canteenTodayTotal: number;
+    opBudgetAvailable: number;
+    vehiclesActive: number;
+    driversActive: number;
+  } | null>(null);
+
+  const loadWidgets = useCallback(async () => {
+    try {
+      const [ag, an] = await Promise.all([getAgendaEvents(), getAnnouncements()]);
+      setAgendaEvents(ag);
+      setAnnouncements(an);
+    } catch (e) {
+      console.warn("Gagal memuat widget dashboard:", e);
+    }
+  }, []);
+
+  useEffect(() => { loadWidgets(); }, [loadWidgets]);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const now = new Date();
+        const todayStr = now.toISOString().slice(0, 10);
+        const monthStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+        // Senin s/d hari ini minggu berjalan
+        const dow = (now.getDay() + 6) % 7; // Senin = 0
+        const monday = new Date(now);
+        monday.setDate(now.getDate() - dow);
+        const mondayStr = monday.toISOString().slice(0, 10);
+
+        const [claims, tasksToday, canteenMonth, kantongCik, kantongPrb, vehicles, drivers] = await Promise.all([
+          getClaims(),
+          getTasksByRange(todayStr, todayStr, null),
+          getCanteenReportsForMonth(monthStr),
+          getCurrentKantong("CIK").catch(() => null),
+          getCurrentKantong("PRB").catch(() => null),
+          getVehicles(),
+          getDrivers(),
+        ]);
+
+        const claimWeekTotal = claims
+          .filter((c) => c.submissionDate >= mondayStr && c.submissionDate <= todayStr)
+          .reduce((s, c) => s + c.total, 0);
+
+        const canteenToday = canteenMonth.find((r) => r.reportDate === todayStr);
+        const canteenTodayTotal = canteenToday
+          ? canteenToday.snackOrder.reduce((a, b) => a + b, 0) + canteenToday.mealOrder.reduce((a, b) => a + b, 0)
+          : 0;
+
+        const opBudgetAvailable = (kantongCik?.cashAvailable ?? 0) + (kantongPrb?.cashAvailable ?? 0);
+
+        setKpi({
+          claimWeekTotal,
+          tasksToday: tasksToday.length,
+          canteenTodayTotal,
+          opBudgetAvailable,
+          vehiclesActive: vehicles.filter((v) => v.aktif).length,
+          driversActive: drivers.filter((d) => d.aktif).length,
+        });
+      } catch (e) {
+        console.warn("Gagal memuat KPI Home:", e);
+      }
+    })();
+  }, []);
+
+  async function handleAddAgenda(e: { title: string; location: string; eventDate: string; eventTime: string }) {
+    try {
+      await addAgendaEvent(e);
+      loadWidgets();
+    } catch (err) {
+      alert(`Gagal menambah agenda: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  }
+  async function handleDeleteAgenda(id: string) {
+    try {
+      await deleteAgendaEvent(id);
+      loadWidgets();
+    } catch (err) {
+      alert(`Gagal menghapus agenda: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  }
+  async function handleAddAnnouncement(a: { title: string; body: string }) {
+    try {
+      await addAnnouncement({ ...a, createdBy: myProfile?.fullName ?? "" });
+      loadWidgets();
+    } catch (err) {
+      alert(`Gagal menerbitkan pengumuman: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  }
 
   function renderCard(tabItem: NavTab, i: number) {
     return (
@@ -2425,49 +2727,102 @@ function HomeTab({
   }
 
   return (
-    <div style={{ padding: 24 }}>
-      <div style={{ marginBottom: 28, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-        <div>
-          <div style={{ fontSize: 12, color: "var(--t3)", marginBottom: 4 }}>
-            {filteredGroup
-              ? `${lang === "en" ? "Home" : "Halaman Utama"} / ${lang === "id" ? filteredGroup.labelId : filteredGroup.labelEn}`
-              : (lang === "en" ? "Home" : "Halaman Utama")}
+    <div style={{ padding: 28, display: "grid", gridTemplateColumns: "1fr 320px", gap: 26, alignItems: "start" }}>
+      {/* ── Kolom kiri: sapaan, KPI, Modul Utama ── */}
+      <div style={{ minWidth: 0 }}>
+        {!filteredGroup && (
+          <>
+            <div style={{ marginBottom: 6, fontSize: 24, fontWeight: 800, color: "var(--t1)" }}>
+              {lang === "en" ? "Hi" : "Halo"}, {(myProfile?.fullName || "").split(" ")[0] || "Admin"}! 👋
+            </div>
+            <div style={{ fontSize: 13.5, color: "var(--t3)", marginBottom: 26 }}>
+              {lang === "en" ? "Welcome back to CIKOPS-FM. Manage operations more easily." : "Selamat datang kembali di CIKOPS-FM. Kelola operasional dengan lebih mudah."}
+            </div>
+
+            {kpi && (
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 14, marginBottom: 34 }}>
+                <HomeKpiCard icon="🧾" iconBg="#e8effd" labelId="Total Klaim Minggu Ini" labelEn="Claims This Week" value={kpi.claimWeekTotal} isCurrency />
+                <HomeKpiCard icon="🗂️" iconBg="#fdeeea" labelId="Tugas Driver Hari Ini" labelEn="Driver Tasks Today" value={kpi.tasksToday} />
+                <HomeKpiCard icon="🍱" iconBg="#e6f7ee" labelId="Rekap Kantin Hari Ini" labelEn="Canteen Today" value={kpi.canteenTodayTotal} />
+                <HomeKpiCard icon="💰" iconBg="#fff6e0" labelId="Budget Operasional" labelEn="Operational Budget" value={kpi.opBudgetAvailable} isCurrency />
+                <HomeKpiCard icon="🚗" iconBg="#f1eaff" labelId="Kendaraan & Driver Tersedia" labelEn="Vehicles & Drivers Available" value={kpi.vehiclesActive} subValue={kpi.driversActive} subLabelId="Driver" subLabelEn="Drivers" />
+              </div>
+            )}
+          </>
+        )}
+
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
+          <div style={{ fontSize: 15, fontWeight: 800, color: "var(--t1)", display: "flex", alignItems: "center", gap: 8 }}>
+            <span>{filteredGroup ? filteredGroup.icon : "🧩"}</span>
+            {filteredGroup ? (lang === "id" ? filteredGroup.labelId : filteredGroup.labelEn) : (lang === "en" ? "Main Modules" : "Modul Utama")}
           </div>
-          <div style={{ fontSize: 22, fontWeight: 800, color: "var(--t1)" }}>
-            {filteredGroup ? (lang === "id" ? filteredGroup.labelId : filteredGroup.labelEn) : (lang === "en" ? "What would you like to do?" : "Mau kerjakan apa hari ini?")}
-          </div>
+          {filteredGroup && (
+            <button
+              onClick={() => setActiveGroupId(undefined)}
+              style={{ padding: "7px 14px", borderRadius: "var(--pill)", border: "1px solid var(--border2)", background: "var(--bg2)", color: "var(--t2)", fontWeight: 700, fontSize: 12, cursor: "pointer" }}
+            >
+              ← {lang === "en" ? "All Modules" : "Semua Modul"}
+            </button>
+          )}
         </div>
-        {filteredGroup && (
-          <button
-            onClick={() => setActiveGroupId(undefined)}
-            style={{ padding: "8px 16px", borderRadius: "var(--pill)", border: "1px solid var(--border2)", background: "var(--bg2)", color: "var(--t2)", fontWeight: 700, fontSize: 12.5, cursor: "pointer" }}
-          >
-            ← {lang === "en" ? "All Modules" : "Semua Modul"}
-          </button>
+
+        {filteredGroup ? (
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, 200px)", gap: 16 }}>
+            {filteredGroup.tabs.map((tabItem, i) => renderCard(tabItem, i))}
+          </div>
+        ) : (
+          visibleGroups.map((group) => (
+            <div key={group.id} style={{ marginBottom: 28 }}>
+              <div style={{ fontSize: 12.5, fontWeight: 700, color: "var(--t3)", marginBottom: 12, display: "flex", alignItems: "center", gap: 7 }}>
+                <span>{group.icon}</span> {lang === "id" ? group.labelId : group.labelEn}
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, 200px)", gap: 16 }}>
+                {group.tabs.map((tabItem, i) => renderCard(tabItem, i))}
+              </div>
+            </div>
+          ))
         )}
       </div>
 
-      {filteredGroup ? (
-        // Mode filter — cuma 1 kategori, tanpa header section (sudah jelas dari judul di atas)
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, 200px)", gap: 16 }}>
-          {filteredGroup.tabs.map((tabItem, i) => renderCard(tabItem, i))}
-        </div>
-      ) : (
-        // Mode overview — semua kategori sekaligus, dengan header section
-        groupsToShow.map((group) => (
-          <div key={group.id} style={{ marginBottom: 34 }}>
-            <div style={{ fontSize: 14, fontWeight: 800, color: "var(--t1)", marginBottom: 14, display: "flex", alignItems: "center", gap: 8 }}>
-              <span>{group.icon}</span> {lang === "id" ? group.labelId : group.labelEn}
-            </div>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, 200px)", gap: 16 }}>
-              {group.tabs.map((tabItem, i) => renderCard(tabItem, i))}
-            </div>
-          </div>
-        ))
-      )}
+      {/* ── Kolom kanan: Kalender, Agenda, Aksi Cepat, Pengumuman ── */}
+      <div style={{ display: "flex", flexDirection: "column", gap: 18, minWidth: 0 }}>
+        <CalendarWidget events={agendaEvents} />
+        <AgendaWidget events={agendaEvents} onAdd={handleAddAgenda} onDelete={handleDeleteAgenda} />
+        <QuickActionsWidget setActiveTab={setActiveTab} />
+        <AnnouncementWidget announcements={announcements} onAdd={handleAddAnnouncement} canManage={myProfile?.role === "admin"} />
+      </div>
     </div>
   );
 }
+
+function HomeKpiCard({
+  icon, iconBg, labelId, labelEn, value, isCurrency, subValue, subLabelId, subLabelEn,
+}: {
+  icon: string; iconBg: string; labelId: string; labelEn: string; value: number;
+  isCurrency?: boolean; subValue?: number; subLabelId?: string; subLabelEn?: string;
+}) {
+  const { lang } = useLang();
+  const animated = useCountUp(value);
+  const animatedSub = useCountUp(subValue ?? 0);
+  const displayValue = isCurrency ? `Rp ${animated.toLocaleString("id-ID")}` : animated.toLocaleString("id-ID");
+  return (
+    <div className="statPop" style={{ borderRadius: "var(--r2)", padding: 18, background: "var(--surface)", border: "1px solid var(--border2)", display: "flex", alignItems: "center", gap: 14 }}>
+      <div style={{ width: 44, height: 44, borderRadius: 12, background: iconBg, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, flexShrink: 0 }}>{icon}</div>
+      <div style={{ minWidth: 0 }}>
+        <div style={{ fontSize: 11.5, fontWeight: 700, color: "var(--t3)", marginBottom: 2 }}>{lang === "id" ? labelId : labelEn}</div>
+        <div style={{ fontSize: isCurrency ? 17 : 22, fontWeight: 800, color: "var(--t1)", fontFamily: "var(--mono)" }}>
+          {displayValue}
+          {subValue !== undefined && (
+            <span style={{ fontSize: 13, color: "var(--t3)", fontWeight: 600 }}>
+              {" "}/ {animatedSub} {lang === "id" ? subLabelId : subLabelEn}
+            </span>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 
 function OverviewTab({ setActiveTab, myProfile }: { setActiveTab: (t: DashboardTab) => void; myProfile: MyProfile | null }) {
   const { lang } = useLang();
