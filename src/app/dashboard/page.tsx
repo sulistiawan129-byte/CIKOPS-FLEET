@@ -602,6 +602,7 @@ const [masterDataInitialSub, setMasterDataInitialSub] = useState<"drivers" | "em
 
       {/* ── Sidebar ── */}
       <aside
+        className="premiumChrome"
         style={{
           width: isMobile ? 240 : 72,
           flexShrink: 0,
@@ -723,7 +724,7 @@ const [masterDataInitialSub, setMasterDataInitialSub] = useState<"drivers" | "em
       {/* ── Main content wrapper ── */}
       <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0 }}>
         {/* Topbar */}
-        <div style={{ display: "flex", alignItems: "center", gap: 14, padding: "14px 24px", borderBottom: "1px solid var(--border)", background: "var(--surface)", position: "sticky", top: 0, zIndex: 100 }}>
+        <div className="premiumChrome" style={{ display: "flex", alignItems: "center", gap: 14, padding: "14px 24px", borderBottom: "1px solid var(--border)", background: "var(--surface)", position: "sticky", top: 0, zIndex: 100 }}>
           {isMobile && (
             <button onClick={() => setSidebarOpen(true)} style={{ background: "none", border: "none", fontSize: 20, cursor: "pointer", color: "var(--t1)" }}>
               ☰
@@ -731,17 +732,23 @@ const [masterDataInitialSub, setMasterDataInitialSub] = useState<"drivers" | "em
           )}
           {!isMobile && (
             <div ref={searchBoxRef} style={{ flex: 1, position: "relative", maxWidth: 400 }}>
-              <span style={{ position: "absolute", left: 13, top: "50%", transform: "translateY(-50%)", color: "var(--t3)", fontSize: 13 }}>🔍</span>
+              <span style={{ position: "absolute", left: 13, top: "50%", transform: "translateY(-50%)", color: "var(--navy)", opacity: 0.55, fontSize: 13 }}>🔍</span>
               <input
                 placeholder={lang === "en" ? "Search menu, data, or module..." : "Cari menu, data, atau modul..."}
                 className={styles.formInput}
-                style={{ borderRadius: "var(--pill)", paddingLeft: 36 }}
+                style={{ borderRadius: "var(--pill)", paddingLeft: 36, background: "#ffffff", color: "var(--navy)", border: "1.5px solid rgba(255,255,255,0.25)" }}
                 value={globalSearch}
                 onChange={(e) => { setGlobalSearch(e.target.value); setShowSearchDropdown(true); }}
                 onFocus={() => setShowSearchDropdown(true)}
               />
               {showSearchDropdown && globalSearch.trim() !== "" && (
-                <div style={{ position: "absolute", top: "calc(100% + 6px)", left: 0, right: 0, background: "var(--surface)", border: "1px solid var(--border2)", borderRadius: 14, boxShadow: "var(--shadow-lg)", maxHeight: 360, overflowY: "auto", zIndex: 200 }}>
+                <div
+                  style={{
+                    position: "absolute", top: "calc(100% + 6px)", left: 0, right: 0, background: "#ffffff", border: "1px solid #e1e7f1", borderRadius: 14, boxShadow: "var(--shadow-lg)", maxHeight: 360, overflowY: "auto", zIndex: 200,
+                    // reset variabel warna ke normal — dropdown ini nested di dalam .premiumChrome (navy), jadi perlu "keluar" dari cascade itu
+                    ["--t1" as string]: "#0f2847", ["--t2" as string]: "#435773", ["--t3" as string]: "#7c8aa0", ["--bg2" as string]: "#eef2f9", ["--border" as string]: "#e1e7f1",
+                  } as CSSProperties}
+                >
                   {menuSearchResults.length === 0 && dataSearchResults.length === 0 ? (
                     <div style={{ padding: 18, textAlign: "center", color: "var(--t3)", fontSize: 13 }}>
                       {lang === "en" ? "No results found." : "Tidak ada hasil ditemukan."}
