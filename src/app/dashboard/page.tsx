@@ -2397,64 +2397,74 @@ function HomeTab({
   const visibleGroups = NAV_GROUPS.map((g) => ({ ...g, tabs: g.tabs.filter((t) => canAccessTab(myProfile, t.id)) })).filter((g) => g.tabs.length > 0);
   const cardColors = ["#EEF3FF", "#E8F8F2", "#FFF1EC", "#F5F0FF", "#FFF8E6", "#EFFAF6"];
 
-  function scrollToGroup(groupId: string) {
-    setActiveGroupId(groupId);
-    document.getElementById(`home-group-${groupId}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
+  // Kalau ada kategori terpilih (klik ikon kategori di sidebar) -> tampilkan
+  // CUMA kategori itu saja (filtered), beda dari klik Home yang tampilkan semua.
+  const filteredGroup = activeGroupId ? visibleGroups.find((g) => g.id === activeGroupId) : undefined;
+  const groupsToShow = filteredGroup ? [filteredGroup] : visibleGroups;
+
+  function renderCard(tabItem: NavTab, i: number) {
+    return (
+      <button
+        key={tabItem.id}
+        onClick={() => setActiveTab(tabItem.id)}
+        className="statPop"
+        style={{
+          textAlign: "left", cursor: "pointer", border: "1px solid var(--border2)", borderRadius: "var(--r2)",
+          padding: 20, display: "flex", flexDirection: "column", gap: 12, background: "var(--surface)",
+        }}
+      >
+        <div style={{ width: 52, height: 52, borderRadius: 16, background: cardColors[i % cardColors.length], display: "flex", alignItems: "center", justifyContent: "center", fontSize: 26 }}>
+          {tabItem.icon}
+        </div>
+        <div>
+          <div style={{ fontSize: 15, fontWeight: 800, color: "var(--t1)", marginBottom: 3 }}>{lang === "id" ? tabItem.labelId : tabItem.labelEn}</div>
+          <div style={{ fontSize: 12, color: "var(--t3)", lineHeight: 1.4 }}>{lang === "id" ? tabItem.descId : tabItem.descEn}</div>
+        </div>
+      </button>
+    );
   }
 
   return (
     <div style={{ padding: 24 }}>
-      <div style={{ marginBottom: 20 }}>
-        <div style={{ fontSize: 12, color: "var(--t3)", marginBottom: 4 }}>{lang === "en" ? "Home" : "Halaman Utama"}</div>
-        <div style={{ fontSize: 22, fontWeight: 800, color: "var(--t1)" }}>{lang === "en" ? "What would you like to do?" : "Mau kerjakan apa hari ini?"}</div>
-      </div>
-
-      {/* Pill kategori — quick-scroll ke bagiannya, sinkron dengan sidebar */}
-      <div style={{ display: "flex", gap: 8, overflowX: "auto", paddingBottom: 16, marginBottom: 26, borderBottom: "1px solid var(--border)", position: "sticky", top: 0, background: "var(--bg)", zIndex: 5 }}>
-        {visibleGroups.map((g) => (
-          <button
-            key={g.id}
-            onClick={() => scrollToGroup(g.id)}
-            style={{
-              padding: "9px 18px", borderRadius: "var(--pill)", border: "none", cursor: "pointer", fontSize: 13, fontWeight: 700, whiteSpace: "nowrap",
-              background: activeGroupId === g.id ? "var(--accent-solid)" : "var(--bg2)",
-              color: activeGroupId === g.id ? "var(--accent-solid-text)" : "var(--t2)",
-            }}
-          >
-            {g.icon} {lang === "id" ? g.labelId : g.labelEn}
-          </button>
-        ))}
-      </div>
-
-      {/* Semua modul, dikelompokkan per kategori sebagai section — tidak perlu klik dulu untuk melihat */}
-      {visibleGroups.map((group) => (
-        <div key={group.id} id={`home-group-${group.id}`} style={{ marginBottom: 34, scrollMarginTop: 90 }}>
-          <div style={{ fontSize: 14, fontWeight: 800, color: "var(--t1)", marginBottom: 14, display: "flex", alignItems: "center", gap: 8 }}>
-            <span>{group.icon}</span> {lang === "id" ? group.labelId : group.labelEn}
+      <div style={{ marginBottom: 28, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <div>
+          <div style={{ fontSize: 12, color: "var(--t3)", marginBottom: 4 }}>
+            {filteredGroup
+              ? `${lang === "en" ? "Home" : "Halaman Utama"} / ${lang === "id" ? filteredGroup.labelId : filteredGroup.labelEn}`
+              : (lang === "en" ? "Home" : "Halaman Utama")}
           </div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: 16 }}>
-            {group.tabs.map((tabItem, i) => (
-              <button
-                key={tabItem.id}
-                onClick={() => setActiveTab(tabItem.id)}
-                className="statPop"
-                style={{
-                  textAlign: "left", cursor: "pointer", border: "1px solid var(--border2)", borderRadius: "var(--r2)",
-                  padding: 20, display: "flex", flexDirection: "column", gap: 12, background: "var(--surface)",
-                }}
-              >
-                <div style={{ width: 52, height: 52, borderRadius: 16, background: cardColors[i % cardColors.length], display: "flex", alignItems: "center", justifyContent: "center", fontSize: 26 }}>
-                  {tabItem.icon}
-                </div>
-                <div>
-                  <div style={{ fontSize: 15, fontWeight: 800, color: "var(--t1)", marginBottom: 3 }}>{lang === "id" ? tabItem.labelId : tabItem.labelEn}</div>
-                  <div style={{ fontSize: 12, color: "var(--t3)", lineHeight: 1.4 }}>{lang === "id" ? tabItem.descId : tabItem.descEn}</div>
-                </div>
-              </button>
-            ))}
+          <div style={{ fontSize: 22, fontWeight: 800, color: "var(--t1)" }}>
+            {filteredGroup ? (lang === "id" ? filteredGroup.labelId : filteredGroup.labelEn) : (lang === "en" ? "What would you like to do?" : "Mau kerjakan apa hari ini?")}
           </div>
         </div>
-      ))}
+        {filteredGroup && (
+          <button
+            onClick={() => setActiveGroupId(undefined)}
+            style={{ padding: "8px 16px", borderRadius: "var(--pill)", border: "1px solid var(--border2)", background: "var(--bg2)", color: "var(--t2)", fontWeight: 700, fontSize: 12.5, cursor: "pointer" }}
+          >
+            ← {lang === "en" ? "All Modules" : "Semua Modul"}
+          </button>
+        )}
+      </div>
+
+      {filteredGroup ? (
+        // Mode filter — cuma 1 kategori, tanpa header section (sudah jelas dari judul di atas)
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, 200px)", gap: 16 }}>
+          {filteredGroup.tabs.map((tabItem, i) => renderCard(tabItem, i))}
+        </div>
+      ) : (
+        // Mode overview — semua kategori sekaligus, dengan header section
+        groupsToShow.map((group) => (
+          <div key={group.id} style={{ marginBottom: 34 }}>
+            <div style={{ fontSize: 14, fontWeight: 800, color: "var(--t1)", marginBottom: 14, display: "flex", alignItems: "center", gap: 8 }}>
+              <span>{group.icon}</span> {lang === "id" ? group.labelId : group.labelEn}
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, 200px)", gap: 16 }}>
+              {group.tabs.map((tabItem, i) => renderCard(tabItem, i))}
+            </div>
+          </div>
+        ))
+      )}
     </div>
   );
 }
