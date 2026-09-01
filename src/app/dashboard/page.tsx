@@ -248,8 +248,8 @@ function SidebarIconButton({ icon, label, active, onClick, danger }: { icon: str
         style={{
           width: 46, height: 46, borderRadius: 14, border: "none", cursor: "pointer",
           display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20,
-          background: active ? "linear-gradient(135deg, var(--brand), var(--brand2))" : "transparent",
-          color: danger ? "var(--red)" : active ? "#fff" : "var(--t2)",
+          background: active ? "var(--accent-solid)" : "transparent",
+          color: danger ? "var(--red)" : active ? "var(--accent-solid-text)" : "var(--t2)",
           transition: "background 0.15s ease",
         }}
       >
@@ -2401,8 +2401,8 @@ function HomeTab({ setActiveTab, myProfile, initialGroupId }: { setActiveTab: (t
             onClick={() => setActiveGroupId(g.id)}
             style={{
               padding: "9px 18px", borderRadius: "var(--pill)", border: "none", cursor: "pointer", fontSize: 13, fontWeight: 700, whiteSpace: "nowrap",
-              background: activeGroupId === g.id ? "linear-gradient(135deg, var(--brand), var(--brand2))" : "var(--bg2)",
-              color: activeGroupId === g.id ? "#fff" : "var(--t2)",
+              background: activeGroupId === g.id ? "var(--accent-solid)" : "var(--bg2)",
+              color: activeGroupId === g.id ? "var(--accent-solid-text)" : "var(--t2)",
             }}
           >
             {lang === "id" ? g.labelId : g.labelEn}
