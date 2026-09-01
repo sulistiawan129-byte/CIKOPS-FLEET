@@ -330,7 +330,7 @@ export default function DashboardPage() {
    }, [user?.id]);
   const isMobile = useIsMobile();
   const [activeTab, setActiveTab] = useState<DashboardTab>("home");
-  const [pendingHomeGroup, setPendingHomeGroup] = useState<string | undefined>(undefined);
+  const [activeHomeGroup, setActiveHomeGroup] = useState<string | undefined>(undefined);
   const [globalSearch, setGlobalSearch] = useState("");
   const [showSearchDropdown, setShowSearchDropdown] = useState(false);
   const searchBoxRef = useRef<HTMLDivElement>(null);
@@ -639,7 +639,7 @@ const [masterDataInitialSub, setMasterDataInitialSub] = useState<"drivers" | "em
           <nav style={{ flex: 1, overflowY: "auto", padding: "10px 10px" }}>
             <button
               className={`navItem ${activeTab === "home" ? "navItemActive" : ""}`}
-              onClick={() => { setActiveTab("home"); setPendingHomeGroup(undefined); setSidebarOpen(false); }}
+              onClick={() => { setActiveTab("home"); setActiveHomeGroup(undefined); setSidebarOpen(false); }}
             >
               <span>🏠</span>
               {lang === "id" ? "Dashboard" : "Dashboard"}
@@ -681,7 +681,7 @@ const [masterDataInitialSub, setMasterDataInitialSub] = useState<"drivers" | "em
               icon="🏠"
               label={lang === "id" ? "Dashboard" : "Dashboard"}
               active={activeTab === "home"}
-              onClick={() => { setActiveTab("home"); setPendingHomeGroup(undefined); }}
+              onClick={() => { setActiveTab("home"); setActiveHomeGroup(undefined); }}
             />
             <SidebarIconButton
               icon="📊"
@@ -693,14 +693,14 @@ const [masterDataInitialSub, setMasterDataInitialSub] = useState<"drivers" | "em
             {NAV_GROUPS.map((group) => {
               const visibleTabs = group.tabs.filter((tabItem) => canAccessTab(myProfile, tabItem.id));
               if (visibleTabs.length === 0) return null;
-              const groupActive = activeTab === "home" ? false : visibleTabs.some((tb) => tb.id === activeTab);
+              const groupActive = activeTab === "home" ? activeHomeGroup === group.id : visibleTabs.some((tb) => tb.id === activeTab);
               return (
                 <SidebarIconButton
                   key={group.id}
                   icon={group.icon}
                   label={lang === "id" ? group.labelId : group.labelEn}
                   active={groupActive}
-                  onClick={() => { setActiveTab("home"); setPendingHomeGroup(group.id); }}
+                  onClick={() => { setActiveTab("home"); setActiveHomeGroup(group.id); }}
                 />
               );
             })}
@@ -978,7 +978,7 @@ const [masterDataInitialSub, setMasterDataInitialSub] = useState<"drivers" | "em
       {activeTab !== "tasks" && (
         <div key={activeTab} className="tabContent">
           <TabErrorBoundary label={activeTab}>
-          {activeTab === "home" && <HomeTab setActiveTab={setActiveTab} myProfile={myProfile} initialGroupId={pendingHomeGroup} />}
+          {activeTab === "home" && <HomeTab setActiveTab={setActiveTab} myProfile={myProfile} activeGroupId={activeHomeGroup} setActiveGroupId={setActiveHomeGroup} />}
           {activeTab === "overview" && <OverviewTab setActiveTab={setActiveTab} myProfile={myProfile} />}
           {activeTab === "vehicles" && <VehiclesTab myProfile={myProfile} />}
           {activeTab === "claims" && <ClaimsTab myProfile={myProfile} />}
@@ -2382,17 +2382,25 @@ async function getOverviewKantong(profile: MyProfile | null): Promise<Kantong | 
    tanpa kehilangan kemudahan navigasi. Konten "Ringkasan" (KPI dsb.)
    yang lama tetap ada terpisah, tidak diganti.
 ════════════════════════════════════════════════════════════ */
-function HomeTab({ setActiveTab, myProfile, initialGroupId }: { setActiveTab: (t: DashboardTab) => void; myProfile: MyProfile | null; initialGroupId?: string }) {
+function HomeTab({
+  setActiveTab,
+  myProfile,
+  activeGroupId,
+  setActiveGroupId,
+}: {
+  setActiveTab: (t: DashboardTab) => void;
+  myProfile: MyProfile | null;
+  activeGroupId?: string;
+  setActiveGroupId: (id: string | undefined) => void;
+}) {
   const { lang } = useLang();
   const visibleGroups = NAV_GROUPS.map((g) => ({ ...g, tabs: g.tabs.filter((t) => canAccessTab(myProfile, t.id)) })).filter((g) => g.tabs.length > 0);
-  const [activeGroupId, setActiveGroupId] = useState(initialGroupId && visibleGroups.some((g) => g.id === initialGroupId) ? initialGroupId : (visibleGroups[0]?.id ?? ""));
-  useEffect(() => {
-    if (initialGroupId && visibleGroups.some((g) => g.id === initialGroupId)) setActiveGroupId(initialGroupId);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [initialGroupId]);
-  const activeGroup = visibleGroups.find((g) => g.id === activeGroupId) ?? visibleGroups[0];
-
   const cardColors = ["#EEF3FF", "#E8F8F2", "#FFF1EC", "#F5F0FF", "#FFF8E6", "#EFFAF6"];
+
+  function scrollToGroup(groupId: string) {
+    setActiveGroupId(groupId);
+    document.getElementById(`home-group-${groupId}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
 
   return (
     <div style={{ padding: 24 }}>
@@ -2401,45 +2409,52 @@ function HomeTab({ setActiveTab, myProfile, initialGroupId }: { setActiveTab: (t
         <div style={{ fontSize: 22, fontWeight: 800, color: "var(--t1)" }}>{lang === "en" ? "What would you like to do?" : "Mau kerjakan apa hari ini?"}</div>
       </div>
 
-      <div style={{ display: "flex", gap: 8, overflowX: "auto", paddingBottom: 16, marginBottom: 22, borderBottom: "1px solid var(--border)" }}>
+      {/* Pill kategori — quick-scroll ke bagiannya, sinkron dengan sidebar */}
+      <div style={{ display: "flex", gap: 8, overflowX: "auto", paddingBottom: 16, marginBottom: 26, borderBottom: "1px solid var(--border)", position: "sticky", top: 0, background: "var(--bg)", zIndex: 5 }}>
         {visibleGroups.map((g) => (
           <button
             key={g.id}
-            onClick={() => setActiveGroupId(g.id)}
+            onClick={() => scrollToGroup(g.id)}
             style={{
               padding: "9px 18px", borderRadius: "var(--pill)", border: "none", cursor: "pointer", fontSize: 13, fontWeight: 700, whiteSpace: "nowrap",
               background: activeGroupId === g.id ? "var(--accent-solid)" : "var(--bg2)",
               color: activeGroupId === g.id ? "var(--accent-solid-text)" : "var(--t2)",
             }}
           >
-            {lang === "id" ? g.labelId : g.labelEn}
+            {g.icon} {lang === "id" ? g.labelId : g.labelEn}
           </button>
         ))}
       </div>
 
-      {activeGroup && (
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: 16 }}>
-          {activeGroup.tabs.map((tabItem, i) => (
-            <button
-              key={tabItem.id}
-              onClick={() => setActiveTab(tabItem.id)}
-              className="statPop"
-              style={{
-                textAlign: "left", cursor: "pointer", border: "1px solid var(--border2)", borderRadius: "var(--r2)",
-                padding: 20, display: "flex", flexDirection: "column", gap: 12, background: "var(--surface)",
-              }}
-            >
-              <div style={{ width: 52, height: 52, borderRadius: 16, background: cardColors[i % cardColors.length], display: "flex", alignItems: "center", justifyContent: "center", fontSize: 26 }}>
-                {tabItem.icon}
-              </div>
-              <div>
-                <div style={{ fontSize: 15, fontWeight: 800, color: "var(--t1)", marginBottom: 3 }}>{lang === "id" ? tabItem.labelId : tabItem.labelEn}</div>
-                <div style={{ fontSize: 12, color: "var(--t3)", lineHeight: 1.4 }}>{lang === "id" ? tabItem.descId : tabItem.descEn}</div>
-              </div>
-            </button>
-          ))}
+      {/* Semua modul, dikelompokkan per kategori sebagai section — tidak perlu klik dulu untuk melihat */}
+      {visibleGroups.map((group) => (
+        <div key={group.id} id={`home-group-${group.id}`} style={{ marginBottom: 34, scrollMarginTop: 90 }}>
+          <div style={{ fontSize: 14, fontWeight: 800, color: "var(--t1)", marginBottom: 14, display: "flex", alignItems: "center", gap: 8 }}>
+            <span>{group.icon}</span> {lang === "id" ? group.labelId : group.labelEn}
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: 16 }}>
+            {group.tabs.map((tabItem, i) => (
+              <button
+                key={tabItem.id}
+                onClick={() => setActiveTab(tabItem.id)}
+                className="statPop"
+                style={{
+                  textAlign: "left", cursor: "pointer", border: "1px solid var(--border2)", borderRadius: "var(--r2)",
+                  padding: 20, display: "flex", flexDirection: "column", gap: 12, background: "var(--surface)",
+                }}
+              >
+                <div style={{ width: 52, height: 52, borderRadius: 16, background: cardColors[i % cardColors.length], display: "flex", alignItems: "center", justifyContent: "center", fontSize: 26 }}>
+                  {tabItem.icon}
+                </div>
+                <div>
+                  <div style={{ fontSize: 15, fontWeight: 800, color: "var(--t1)", marginBottom: 3 }}>{lang === "id" ? tabItem.labelId : tabItem.labelEn}</div>
+                  <div style={{ fontSize: 12, color: "var(--t3)", lineHeight: 1.4 }}>{lang === "id" ? tabItem.descId : tabItem.descEn}</div>
+                </div>
+              </button>
+            ))}
+          </div>
         </div>
-      )}
+      ))}
     </div>
   );
 }
