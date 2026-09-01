@@ -20,6 +20,8 @@
   --brand: #2f5fe0;
   --brand2: #1f44b8;
   --navy: #0f2847;
+  --accent-solid: var(--navy);
+  --accent-solid-text: #ffffff;
   --neon: #0090c9;
   --green: #17a673;
   --green-soft: #e5f7ef;
@@ -90,6 +92,8 @@
   --brand: #5b8cff;
   --brand2: #85a8ff;
   --navy: #0a1930;
+  --accent-solid: var(--brand);
+  --accent-solid-text: #ffffff;
   --neon: #22c1ff;
   --green: #2fd894;
   --green-soft: rgba(47, 216, 148, 0.12);
