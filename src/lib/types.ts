@@ -148,6 +148,27 @@ export interface AtkRestock {
   createdAt: string;
 }
 
+/** Agenda/Kalender & Pengumuman — widget Dashboard. */
+export interface AgendaEvent {
+  id: string;
+  title: string;
+  location: string;
+  eventDate: string; // yyyy-mm-dd
+  eventTime: string; // "HH:MM" bebas teks
+  color: string;
+  createdBy: string;
+  createdAt: string;
+}
+
+export interface Announcement {
+  id: string;
+  title: string;
+  body: string;
+  isActive: boolean;
+  createdBy: string;
+  createdAt: string;
+}
+
 export interface Printer {
   id: string;
   noEq: string;

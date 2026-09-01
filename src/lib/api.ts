@@ -31,6 +31,8 @@ import type {
   AtkItem,
   AtkRequest,
   AtkRestock,
+  AgendaEvent,
+  Announcement,
 } from "./types";
 
 /* ════════════════════════════════════════════════════════════
@@ -1227,6 +1229,62 @@ export async function getAtkRestocks(params?: { dateFrom?: string; dateTo?: stri
   const { data, error } = await q;
   if (error) throw error;
   return (data as AtkRestockRow[] ?? []).map(mapAtkRestockRow);
+}
+
+/* ════════════════════════════════════════════════════════════
+   AGENDA & PENGUMUMAN — widget Dashboard (Kalender, Agenda
+   Mendatang, Pengumuman).
+════════════════════════════════════════════════════════════ */
+
+interface AgendaEventRow {
+  id: string; title: string; location: string | null; event_date: string; event_time: string | null; color: string | null; created_by: string | null; created_at: string;
+}
+function mapAgendaEventRow(r: AgendaEventRow): AgendaEvent {
+  return { id: r.id, title: r.title, location: r.location ?? "", eventDate: r.event_date, eventTime: r.event_time ?? "", color: r.color ?? "blue", createdBy: r.created_by ?? "", createdAt: r.created_at };
+}
+export async function getAgendaEvents(params?: { from?: string; to?: string }): Promise<AgendaEvent[]> {
+  let q = supabase.from("agenda_events").select("*").order("event_date", { ascending: true }).order("event_time", { ascending: true });
+  if (params?.from) q = q.gte("event_date", params.from);
+  if (params?.to) q = q.lte("event_date", params.to);
+  const { data, error } = await q;
+  if (error) throw error;
+  return (data as AgendaEventRow[] ?? []).map(mapAgendaEventRow);
+}
+export async function addAgendaEvent(input: { title: string; location?: string; eventDate: string; eventTime?: string; color?: string; createdBy?: string }): Promise<void> {
+  const { error } = await supabase.from("agenda_events").insert({
+    title: input.title, location: input.location || "", event_date: input.eventDate, event_time: input.eventTime || "", color: input.color || "blue", created_by: input.createdBy || "",
+  });
+  if (error) throw error;
+}
+export async function deleteAgendaEvent(id: string): Promise<void> {
+  const { error } = await supabase.from("agenda_events").delete().eq("id", id);
+  if (error) throw error;
+}
+
+interface AnnouncementRow {
+  id: string; title: string; body: string; is_active: boolean; created_by: string | null; created_at: string;
+}
+function mapAnnouncementRow(r: AnnouncementRow): Announcement {
+  return { id: r.id, title: r.title, body: r.body, isActive: r.is_active, createdBy: r.created_by ?? "", createdAt: r.created_at };
+}
+export async function getAnnouncements(activeOnly = true): Promise<Announcement[]> {
+  let q = supabase.from("announcements").select("*").order("created_at", { ascending: false });
+  if (activeOnly) q = q.eq("is_active", true);
+  const { data, error } = await q;
+  if (error) throw error;
+  return (data as AnnouncementRow[] ?? []).map(mapAnnouncementRow);
+}
+export async function addAnnouncement(input: { title: string; body: string; createdBy?: string }): Promise<void> {
+  const { error } = await supabase.from("announcements").insert({ title: input.title, body: input.body, created_by: input.createdBy || "" });
+  if (error) throw error;
+}
+export async function setAnnouncementActive(id: string, isActive: boolean): Promise<void> {
+  const { error } = await supabase.from("announcements").update({ is_active: isActive }).eq("id", id);
+  if (error) throw error;
+}
+export async function deleteAnnouncement(id: string): Promise<void> {
+  const { error } = await supabase.from("announcements").delete().eq("id", id);
+  if (error) throw error;
 }
 
 /* ════════════════════════════════════════════════════════════
