@@ -178,11 +178,12 @@ export type DashboardTab =
   | "activitylog";
 
 interface NavTab { id: DashboardTab; icon: string; labelId: string; labelEn: string; descId?: string; descEn?: string }
-interface NavGroup { id: string; labelId: string; labelEn: string; tabs: NavTab[] }
+interface NavGroup { id: string; icon: string; labelId: string; labelEn: string; tabs: NavTab[] }
 
 const NAV_GROUPS: NavGroup[] = [
   {
     id: "fleet",
+    icon: "🚚",
     labelId: "Fleet & Kendaraan",
     labelEn: "Fleet & Vehicles",
     tabs: [
@@ -193,6 +194,7 @@ const NAV_GROUPS: NavGroup[] = [
   },
   {
     id: "finance",
+    icon: "💵",
     labelId: "Finance",
     labelEn: "Finance",
     tabs: [
@@ -204,6 +206,7 @@ const NAV_GROUPS: NavGroup[] = [
   },
   {
     id: "facility",
+    icon: "🏢",
     labelId: "Fasilitas",
     labelEn: "Facility",
     tabs: [
@@ -217,6 +220,7 @@ const NAV_GROUPS: NavGroup[] = [
   },
   {
     id: "system",
+    icon: "⚙️",
     labelId: "Sistem",
     labelEn: "System",
     tabs: [
@@ -229,6 +233,44 @@ const NAV_GROUPS: NavGroup[] = [
 
 /** Hook sederhana untuk deteksi viewport mobile vs desktop, dipakai untuk
  *  memilih presentasi yang berbeda (tabel di PC, kartu di HP) dari data yang sama. */
+/** Tombol ikon ramping untuk sidebar desktop — tampilkan label sebagai
+ *  tooltip kecil saat hover, supaya sidebar tetap sempit tapi tidak
+ *  kehilangan kejelasan tentang menu apa yang diwakili tiap ikon. */
+function SidebarIconButton({ icon, label, active, onClick, danger }: { icon: string; label: string; active: boolean; onClick: () => void; danger?: boolean }) {
+  const [hover, setHover] = useState(false);
+  return (
+    <div style={{ position: "relative", width: "100%", display: "flex", justifyContent: "center" }}>
+      <button
+        onClick={onClick}
+        onMouseEnter={() => setHover(true)}
+        onMouseLeave={() => setHover(false)}
+        title={label}
+        style={{
+          width: 46, height: 46, borderRadius: 14, border: "none", cursor: "pointer",
+          display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20,
+          background: active ? "linear-gradient(135deg, var(--brand), var(--brand2))" : "transparent",
+          color: danger ? "var(--red)" : active ? "#fff" : "var(--t2)",
+          transition: "background 0.15s ease",
+        }}
+      >
+        {icon}
+      </button>
+      {hover && (
+        <div
+          style={{
+            position: "absolute", left: "calc(100% + 8px)", top: "50%", transform: "translateY(-50%)",
+            background: "var(--t1)", color: "var(--surface)", fontSize: 12, fontWeight: 700,
+            padding: "6px 12px", borderRadius: 8, whiteSpace: "nowrap", zIndex: 400, pointerEvents: "none",
+            boxShadow: "var(--shadow-lg)",
+          }}
+        >
+          {label}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function useIsMobile(breakpoint = 860) {
   const [isMobile, setIsMobile] = useState(false);
 
@@ -288,6 +330,7 @@ export default function DashboardPage() {
    }, [user?.id]);
   const isMobile = useIsMobile();
   const [activeTab, setActiveTab] = useState<DashboardTab>("home");
+  const [pendingHomeGroup, setPendingHomeGroup] = useState<string | undefined>(undefined);
   const [globalSearch, setGlobalSearch] = useState("");
   const [showSearchDropdown, setShowSearchDropdown] = useState(false);
   const searchBoxRef = useRef<HTMLDivElement>(null);
@@ -560,12 +603,13 @@ const [masterDataInitialSub, setMasterDataInitialSub] = useState<"drivers" | "em
       {/* ── Sidebar ── */}
       <aside
         style={{
-          width: 240,
+          width: isMobile ? 240 : 72,
           flexShrink: 0,
           background: "var(--surface)",
           borderRight: "1px solid var(--border)",
           display: "flex",
           flexDirection: "column",
+          alignItems: isMobile ? "stretch" : "center",
           position: isMobile ? "fixed" : "sticky",
           top: 0,
           left: isMobile ? (sidebarOpen ? 0 : -260) : "auto",
@@ -574,64 +618,105 @@ const [masterDataInitialSub, setMasterDataInitialSub] = useState<"drivers" | "em
           transition: "left 0.25s ease",
         }}
       >
-        <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "18px" }}>
+        <div style={{ display: "flex", alignItems: isMobile ? "center" : "column", flexDirection: isMobile ? "row" : "column", gap: 10, padding: isMobile ? "18px" : "18px 0 14px" }}>
           <img src="/logo.png" alt="CIKOPS" style={{ width: 38, height: 38, filter: "drop-shadow(0 4px 10px rgba(47,95,224,0.35))" }} />
-          <div>
-            <div style={{ fontSize: 14, fontWeight: 800, color: "var(--t1)" }}>{t.appName}</div>
-            <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
-              <span className={liveConnected ? styles.livePulseDot : undefined} style={liveConnected ? undefined : { width: 7, height: 7, borderRadius: "50%", background: "var(--t3)" }} />
-              <span style={{ fontSize: 11, fontWeight: 700, color: liveConnected ? "var(--green)" : "var(--t3)", letterSpacing: "0.02em" }}>
-                {liveConnected ? "LIVE" : (lang === "en" ? "Connecting…" : "Menyambungkan…")}
-              </span>
-            </div>
-          </div>
-        </div>
-       <nav style={{ flex: 1, overflowY: "auto", padding: "10px 10px" }}>
-          <button
-            className={`navItem ${activeTab === "home" ? "navItemActive" : ""}`}
-            onClick={() => { setActiveTab("home"); setSidebarOpen(false); }}
-          >
-            <span>🏠</span>
-            {lang === "id" ? "Dashboard" : "Dashboard"}
-          </button>
-          <button
-            className={`navItem ${activeTab === "overview" ? "navItemActive" : ""}`}
-            onClick={() => { setActiveTab("overview"); setSidebarOpen(false); }}
-            style={{ marginBottom: 16 }}
-          >
-            <span>📊</span>
-            {lang === "id" ? "Ringkasan" : "Overview"}
-          </button>
-
-          {NAV_GROUPS.map((group) => {
-            const visibleTabs = group.tabs.filter((tabItem) => canAccessTab(myProfile, tabItem.id));
-            if (visibleTabs.length === 0) return null;
-            return (
-              <div key={group.id}>
-                <div className="navSectionLabel">
-                  {lang === "id" ? group.labelId : group.labelEn}
-                </div>
-                {visibleTabs.map((tabItem) => (
-                  <button
-                    key={tabItem.id}
-                    className={`navItem ${activeTab === tabItem.id ? "navItemActive" : ""}`}
-                    onClick={() => { setActiveTab(tabItem.id); setSidebarOpen(false); }}
-                  >
-                    <span>{tabItem.icon}</span>
-                    {lang === "id" ? tabItem.labelId : tabItem.labelEn}
-                  </button>
-                ))}
+          {isMobile && (
+            <div>
+              <div style={{ fontSize: 14, fontWeight: 800, color: "var(--t1)" }}>{t.appName}</div>
+              <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+                <span className={liveConnected ? styles.livePulseDot : undefined} style={liveConnected ? undefined : { width: 7, height: 7, borderRadius: "50%", background: "var(--t3)" }} />
+                <span style={{ fontSize: 11, fontWeight: 700, color: liveConnected ? "var(--green)" : "var(--t3)", letterSpacing: "0.02em" }}>
+                  {liveConnected ? "LIVE" : (lang === "en" ? "Connecting…" : "Menyambungkan…")}
+                </span>
               </div>
-            );
-          })}
-        </nav>
-        <div style={{ padding: "10px", borderTop: "1px solid var(--border)" }}>
-          <button
-            onClick={() => signOut()}
-            style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", padding: "9px 14px", borderRadius: 10, border: "none", background: "transparent", color: "var(--red)", cursor: "pointer", fontSize: 13, fontWeight: 600, fontFamily: "var(--font)" }}
-          >
-            🚪 {t.actionSignOut}
-          </button>
+            </div>
+          )}
+        </div>
+
+        {isMobile ? (
+          // ── Mobile: drawer sementara, jadi daftar lengkap dengan label tidak masalah ──
+          <nav style={{ flex: 1, overflowY: "auto", padding: "10px 10px" }}>
+            <button
+              className={`navItem ${activeTab === "home" ? "navItemActive" : ""}`}
+              onClick={() => { setActiveTab("home"); setPendingHomeGroup(undefined); setSidebarOpen(false); }}
+            >
+              <span>🏠</span>
+              {lang === "id" ? "Dashboard" : "Dashboard"}
+            </button>
+            <button
+              className={`navItem ${activeTab === "overview" ? "navItemActive" : ""}`}
+              onClick={() => { setActiveTab("overview"); setSidebarOpen(false); }}
+              style={{ marginBottom: 16 }}
+            >
+              <span>📊</span>
+              {lang === "id" ? "Ringkasan" : "Overview"}
+            </button>
+            {NAV_GROUPS.map((group) => {
+              const visibleTabs = group.tabs.filter((tabItem) => canAccessTab(myProfile, tabItem.id));
+              if (visibleTabs.length === 0) return null;
+              return (
+                <div key={group.id}>
+                  <div className="navSectionLabel">{lang === "id" ? group.labelId : group.labelEn}</div>
+                  {visibleTabs.map((tabItem) => (
+                    <button
+                      key={tabItem.id}
+                      className={`navItem ${activeTab === tabItem.id ? "navItemActive" : ""}`}
+                      onClick={() => { setActiveTab(tabItem.id); setSidebarOpen(false); }}
+                    >
+                      <span>{tabItem.icon}</span>
+                      {lang === "id" ? tabItem.labelId : tabItem.labelEn}
+                    </button>
+                  ))}
+                </div>
+              );
+            })}
+          </nav>
+        ) : (
+          // ── Desktop: rail ikon ramping — panjangnya TETAP walau modul bertambah,
+          // karena cuma nampilkan kategori (4), bukan setiap tab satu-satu (15+).
+          // Navigasi detail per-modul dilakukan lewat Halaman Utama (kartu ikon).
+          <nav style={{ flex: 1, overflowY: "auto", display: "flex", flexDirection: "column", alignItems: "center", gap: 6, padding: "4px 0" }}>
+            <SidebarIconButton
+              icon="🏠"
+              label={lang === "id" ? "Dashboard" : "Dashboard"}
+              active={activeTab === "home"}
+              onClick={() => { setActiveTab("home"); setPendingHomeGroup(undefined); }}
+            />
+            <SidebarIconButton
+              icon="📊"
+              label={lang === "id" ? "Ringkasan" : "Overview"}
+              active={activeTab === "overview"}
+              onClick={() => setActiveTab("overview")}
+            />
+            <div style={{ width: 32, height: 1, background: "var(--border)", margin: "8px 0" }} />
+            {NAV_GROUPS.map((group) => {
+              const visibleTabs = group.tabs.filter((tabItem) => canAccessTab(myProfile, tabItem.id));
+              if (visibleTabs.length === 0) return null;
+              const groupActive = activeTab === "home" ? false : visibleTabs.some((tb) => tb.id === activeTab);
+              return (
+                <SidebarIconButton
+                  key={group.id}
+                  icon={group.icon}
+                  label={lang === "id" ? group.labelId : group.labelEn}
+                  active={groupActive}
+                  onClick={() => { setActiveTab("home"); setPendingHomeGroup(group.id); }}
+                />
+              );
+            })}
+          </nav>
+        )}
+
+        <div style={{ padding: isMobile ? "10px" : "10px 0 16px", borderTop: isMobile ? "1px solid var(--border)" : "none", width: "100%", display: "flex", justifyContent: "center" }}>
+          {isMobile ? (
+            <button
+              onClick={() => signOut()}
+              style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", padding: "9px 14px", borderRadius: 10, border: "none", background: "transparent", color: "var(--red)", cursor: "pointer", fontSize: 13, fontWeight: 600, fontFamily: "var(--font)" }}
+            >
+              🚪 {t.actionSignOut}
+            </button>
+          ) : (
+            <SidebarIconButton icon="🚪" label={t.actionSignOut} active={false} onClick={() => signOut()} danger />
+          )}
         </div>
       </aside>
 
@@ -886,7 +971,7 @@ const [masterDataInitialSub, setMasterDataInitialSub] = useState<"drivers" | "em
       {activeTab !== "tasks" && (
         <div key={activeTab} className="tabContent">
           <TabErrorBoundary label={activeTab}>
-          {activeTab === "home" && <HomeTab setActiveTab={setActiveTab} myProfile={myProfile} />}
+          {activeTab === "home" && <HomeTab setActiveTab={setActiveTab} myProfile={myProfile} initialGroupId={pendingHomeGroup} />}
           {activeTab === "overview" && <OverviewTab setActiveTab={setActiveTab} myProfile={myProfile} />}
           {activeTab === "vehicles" && <VehiclesTab myProfile={myProfile} />}
           {activeTab === "claims" && <ClaimsTab myProfile={myProfile} />}
@@ -2290,10 +2375,14 @@ async function getOverviewKantong(profile: MyProfile | null): Promise<Kantong | 
    tanpa kehilangan kemudahan navigasi. Konten "Ringkasan" (KPI dsb.)
    yang lama tetap ada terpisah, tidak diganti.
 ════════════════════════════════════════════════════════════ */
-function HomeTab({ setActiveTab, myProfile }: { setActiveTab: (t: DashboardTab) => void; myProfile: MyProfile | null }) {
+function HomeTab({ setActiveTab, myProfile, initialGroupId }: { setActiveTab: (t: DashboardTab) => void; myProfile: MyProfile | null; initialGroupId?: string }) {
   const { lang } = useLang();
   const visibleGroups = NAV_GROUPS.map((g) => ({ ...g, tabs: g.tabs.filter((t) => canAccessTab(myProfile, t.id)) })).filter((g) => g.tabs.length > 0);
-  const [activeGroupId, setActiveGroupId] = useState(visibleGroups[0]?.id ?? "");
+  const [activeGroupId, setActiveGroupId] = useState(initialGroupId && visibleGroups.some((g) => g.id === initialGroupId) ? initialGroupId : (visibleGroups[0]?.id ?? ""));
+  useEffect(() => {
+    if (initialGroupId && visibleGroups.some((g) => g.id === initialGroupId)) setActiveGroupId(initialGroupId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialGroupId]);
   const activeGroup = visibleGroups.find((g) => g.id === activeGroupId) ?? visibleGroups[0];
 
   const cardColors = ["#EEF3FF", "#E8F8F2", "#FFF1EC", "#F5F0FF", "#FFF8E6", "#EFFAF6"];
