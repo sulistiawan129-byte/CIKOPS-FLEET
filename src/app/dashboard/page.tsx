@@ -2391,7 +2391,7 @@ async function getOverviewKantong(profile: MyProfile | null): Promise<Kantong | 
    WIDGET — Kalender bulan interaktif, titik penanda di tanggal yang
    ada agenda-nya.
 ════════════════════════════════════════════════════════════ */
-function CalendarWidget({ events, onPickDate }: { events: AgendaEvent[]; onPickDate?: (dateStr: string) => void }) {
+function CalendarWidget({ events, onPickDate, selectedDate }: { events: AgendaEvent[]; onPickDate?: (dateStr: string) => void; selectedDate?: string | null }) {
   const { lang } = useLang();
   const [viewDate, setViewDate] = useState(new Date());
   const todayStr = new Date().toISOString().slice(0, 10);
@@ -2421,28 +2421,38 @@ function CalendarWidget({ events, onPickDate }: { events: AgendaEvent[]; onPickD
           <div key={d} style={{ textAlign: "center", fontSize: 10.5, fontWeight: 700, color: "var(--t3)", padding: "4px 0" }}>{d}</div>
         ))}
       </div>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 2 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 3 }}>
         {cells.map((d, i) => {
           if (d === null) return <div key={i} />;
           const dateStr = `${year}-${String(month + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
           const isToday = dateStr === todayStr;
           const hasEvent = eventDates.has(dateStr);
+          const isSelected = selectedDate === dateStr;
           return (
             <button
               key={i}
               onClick={() => onPickDate?.(dateStr)}
+              title={hasEvent ? (lang === "en" ? "Has agenda — click to view" : "Ada agenda — klik untuk lihat") : undefined}
               style={{
-                position: "relative", aspectRatio: "1", border: "none", borderRadius: 8, cursor: "pointer",
-                background: isToday ? "var(--accent-solid)" : "transparent",
-                color: isToday ? "var(--accent-solid-text)" : "var(--t2)",
-                fontSize: 12, fontWeight: isToday ? 800 : 500,
+                position: "relative", aspectRatio: "1", borderRadius: 8, cursor: "pointer",
+                border: isSelected ? "2px solid var(--brand)" : "2px solid transparent",
+                background: isToday ? "var(--accent-solid)" : hasEvent ? "var(--orange-soft)" : "transparent",
+                color: isToday ? "var(--accent-solid-text)" : hasEvent ? "var(--orange-text)" : "var(--t2)",
+                fontSize: 12, fontWeight: isToday || hasEvent ? 800 : 500,
               }}
             >
               {d}
-              {hasEvent && !isToday && <span style={{ position: "absolute", bottom: 3, left: "50%", transform: "translateX(-50%)", width: 4, height: 4, borderRadius: "50%", background: "var(--brand)" }} />}
             </button>
           );
         })}
+      </div>
+      <div style={{ display: "flex", gap: 14, marginTop: 12, fontSize: 10.5, color: "var(--t3)" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+          <span style={{ width: 10, height: 10, borderRadius: 3, background: "var(--accent-solid)", display: "inline-block" }} /> {lang === "en" ? "Today" : "Hari ini"}
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+          <span style={{ width: 10, height: 10, borderRadius: 3, background: "var(--orange-soft)", border: "1px solid var(--orange-text)", display: "inline-block" }} /> {lang === "en" ? "Has agenda" : "Ada agenda"}
+        </div>
       </div>
     </div>
   );
@@ -2453,23 +2463,56 @@ function CalendarWidget({ events, onPickDate }: { events: AgendaEvent[]; onPickD
 ════════════════════════════════════════════════════════════ */
 const AGENDA_COLORS: Record<string, string> = { blue: "var(--brand)", green: "var(--green)", orange: "var(--orange)", red: "var(--red)", purple: "#8b5cf6" };
 
-function AgendaWidget({ events, onAdd, onDelete }: { events: AgendaEvent[]; onAdd: (e: { title: string; location: string; eventDate: string; eventTime: string }) => void; onDelete: (id: string) => void }) {
+function AgendaWidget({
+  events, onAdd, onDelete, filterDate, onClearFilter,
+}: {
+  events: AgendaEvent[];
+  onAdd: (e: { title: string; location: string; eventDate: string; eventTime: string }) => void;
+  onDelete: (id: string) => void;
+  filterDate?: string | null;
+  onClearFilter?: () => void;
+}) {
   const { lang } = useLang();
   const [showForm, setShowForm] = useState(false);
   const [title, setTitle] = useState("");
   const [location, setLocation] = useState("");
-  const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
+  const [date, setDate] = useState(filterDate || new Date().toISOString().slice(0, 10));
   const [time, setTime] = useState("09:00");
-  const upcoming = events.filter((e) => e.eventDate >= new Date().toISOString().slice(0, 10)).slice(0, 5);
+
+  useEffect(() => { if (filterDate) setDate(filterDate); }, [filterDate]);
+
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const list = filterDate
+    ? events.filter((e) => e.eventDate === filterDate)
+    : events.filter((e) => e.eventDate >= todayStr).slice(0, 5);
+
+  function formatDateLabelShort(d: string) {
+    const dt = new Date(d + "T00:00:00");
+    return dt.toLocaleDateString(lang === "en" ? "en-US" : "id-ID", { weekday: "short", day: "2-digit", month: "short", year: "numeric" });
+  }
 
   return (
     <div className="neonCard" style={{ padding: 18 }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
-        <div style={{ fontSize: 13.5, fontWeight: 800, color: "var(--t1)" }}>{lang === "en" ? "Upcoming Agenda" : "Agenda Mendatang"}</div>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
+        <div style={{ fontSize: 13.5, fontWeight: 800, color: "var(--t1)" }}>
+          {filterDate ? (lang === "en" ? "Agenda" : "Agenda") : (lang === "en" ? "Upcoming Agenda" : "Agenda Mendatang")}
+        </div>
         <button onClick={() => setShowForm((v) => !v)} style={{ background: "none", border: "none", color: "var(--brand)", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
           {showForm ? (lang === "en" ? "Cancel" : "Batal") : `+ ${lang === "en" ? "Add" : "Tambah"}`}
         </button>
       </div>
+
+      {filterDate && (
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
+          <div style={{ fontSize: 12, fontWeight: 700, color: "var(--orange-text)", background: "var(--orange-soft)", padding: "4px 10px", borderRadius: "var(--pill)" }}>
+            📅 {formatDateLabelShort(filterDate)}
+          </div>
+          <button onClick={onClearFilter} style={{ background: "none", border: "none", color: "var(--t3)", fontSize: 11.5, fontWeight: 700, cursor: "pointer" }}>
+            {lang === "en" ? "Show all" : "Tampilkan semua"} ✕
+          </button>
+        </div>
+      )}
+      {!filterDate && <div style={{ marginBottom: 14 }} />}
 
       {showForm && (
         <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 14, padding: 12, borderRadius: 10, background: "var(--bg2)" }}>
@@ -2489,15 +2532,19 @@ function AgendaWidget({ events, onAdd, onDelete }: { events: AgendaEvent[]; onAd
         </div>
       )}
 
-      {upcoming.length === 0 ? (
-        <div style={{ fontSize: 12.5, color: "var(--t3)", textAlign: "center", padding: "12px 0" }}>{lang === "en" ? "No upcoming agenda." : "Belum ada agenda mendatang."}</div>
+      {list.length === 0 ? (
+        <div style={{ fontSize: 12.5, color: "var(--t3)", textAlign: "center", padding: "12px 0" }}>
+          {filterDate ? (lang === "en" ? "No agenda on this date." : "Tidak ada agenda di tanggal ini.") : (lang === "en" ? "No upcoming agenda." : "Belum ada agenda mendatang.")}
+        </div>
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-          {upcoming.map((e) => (
+          {list.map((e) => (
             <div key={e.id} style={{ display: "flex", gap: 10, alignItems: "flex-start", position: "relative" }}>
               <div style={{ width: 3, alignSelf: "stretch", borderRadius: 2, background: AGENDA_COLORS[e.color] ?? "var(--brand)", flexShrink: 0 }} />
-              <div style={{ fontSize: 11.5, fontWeight: 700, color: "var(--t3)", width: 42, flexShrink: 0, paddingTop: 1 }}>{e.eventTime || "-"}</div>
+              {!filterDate && <div style={{ fontSize: 11.5, fontWeight: 700, color: "var(--t3)", width: 42, flexShrink: 0, paddingTop: 1 }}>{e.eventTime || "-"}</div>}
               <div style={{ flex: 1, minWidth: 0 }}>
+                {filterDate && <div style={{ fontSize: 11, fontWeight: 700, color: "var(--brand)", marginBottom: 2 }}>{e.eventTime || "-"}</div>}
+                {!filterDate && <div style={{ fontSize: 10.5, color: "var(--t3)", marginBottom: 2 }}>{formatDateLabelShort(e.eventDate)}</div>}
                 <div style={{ fontSize: 13, fontWeight: 700, color: "var(--t1)" }}>{e.title}</div>
                 {e.location && <div style={{ fontSize: 11.5, color: "var(--t3)" }}>{e.location}</div>}
               </div>
@@ -2611,6 +2658,7 @@ function HomeTab({
 
   const [agendaEvents, setAgendaEvents] = useState<AgendaEvent[]>([]);
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
+  const [selectedAgendaDate, setSelectedAgendaDate] = useState<string | null>(null);
   const [kpi, setKpi] = useState<{
     claimWeekTotal: number;
     tasksToday: number;
@@ -2786,8 +2834,8 @@ function HomeTab({
 
       {/* ── Kolom kanan: Kalender, Agenda, Aksi Cepat, Pengumuman ── */}
       <div style={{ display: "flex", flexDirection: "column", gap: 18, minWidth: 0 }}>
-        <CalendarWidget events={agendaEvents} />
-        <AgendaWidget events={agendaEvents} onAdd={handleAddAgenda} onDelete={handleDeleteAgenda} />
+        <CalendarWidget events={agendaEvents} selectedDate={selectedAgendaDate} onPickDate={(d) => setSelectedAgendaDate(d === selectedAgendaDate ? null : d)} />
+        <AgendaWidget events={agendaEvents} onAdd={handleAddAgenda} onDelete={handleDeleteAgenda} filterDate={selectedAgendaDate} onClearFilter={() => setSelectedAgendaDate(null)} />
         <QuickActionsWidget setActiveTab={setActiveTab} />
         <AnnouncementWidget announcements={announcements} onAdd={handleAddAnnouncement} canManage={myProfile?.role === "admin"} />
       </div>
