@@ -606,6 +606,33 @@ h1, h2, h3 {
   margin-top: 4px;
 }
 
+/* ════════════════════════════════════════════════════════════
+   PREMIUM CHROME — sidebar & topbar navy solid. Meng-override
+   variabel warna secara LOKAL di dalam elemen berclass ini, jadi
+   semua elemen turunan (navItem, iconBtn, dll) otomatis ikut
+   menyesuaikan tanpa perlu diubah satu-satu. Berlaku sama di kedua
+   tema karena --navy sendiri sudah gelap di keduanya.
+════════════════════════════════════════════════════════════ */
+.premiumChrome {
+  --surface: var(--navy);
+  --surface2: rgba(255, 255, 255, 0.06);
+  --bg2: rgba(255, 255, 255, 0.08);
+  --bg3: rgba(255, 255, 255, 0.12);
+  --border: rgba(255, 255, 255, 0.14);
+  --border2: rgba(255, 255, 255, 0.22);
+  --t1: #ffffff;
+  --t2: rgba(255, 255, 255, 0.78);
+  --t3: rgba(255, 255, 255, 0.55);
+}
+.premiumChrome .navItemActive {
+  background: rgba(255, 255, 255, 0.14);
+  color: #ffffff;
+}
+.premiumChrome .navItemActive::before {
+  background: #ffffff;
+  box-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
+}
+
 .topbarIconBtn {
   width: 36px;
   height: 36px;
