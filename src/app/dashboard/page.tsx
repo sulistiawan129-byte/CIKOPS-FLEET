@@ -5860,6 +5860,33 @@ function OpFundTab({ myProfile }: { myProfile: MyProfile | null }) {
   const animatedOutstanding = useCountUp(outstandingPre);
   const animatedGapAbs = useCountUp(Math.abs(gapPre));
 
+  // ⚠️ Hook laporan ini WAJIB ada di sini (sebelum return awal loading/
+  // error/belum-ada-data di bawah) — kalau dipindah ke bawah lagi,
+  // jumlah hook yang dipanggil beda antar render dan bikin React error
+  // #310 ("Rendered more hooks than during the previous render").
+  const kantongColumns: ReportColumn<Kantong>[] = [
+    { key: "period", labelId: "Periode", labelEn: "Period", get: (k) => k.period },
+    { key: "plant", labelId: "Plant", labelEn: "Plant", get: (k) => k.plant },
+    { key: "budget", labelId: "Total Budget (Rp)", labelEn: "Total Budget (Rp)", get: (k) => k.totalBudget, align: "right" },
+    { key: "opDriver", labelId: "Alokasi OP Driver (Rp)", labelEn: "OP Driver Allocation (Rp)", get: (k) => k.allocOpDriver, align: "right" },
+    { key: "emergency", labelId: "Alokasi Darurat (Rp)", labelEn: "Emergency Allocation (Rp)", get: (k) => k.allocEmergency, align: "right" },
+    { key: "cash", labelId: "Kas Tersedia (Rp)", labelEn: "Cash Available (Rp)", get: (k) => k.cashAvailable, align: "right" },
+    { key: "submitted", labelId: "Klaim Diajukan (Rp)", labelEn: "Claims Submitted (Rp)", get: (k) => k.claimSubmitted, align: "right" },
+    { key: "paid", labelId: "Klaim Dibayar (Rp)", labelEn: "Claims Paid (Rp)", get: (k) => k.claimPaid, align: "right" },
+    { key: "unsubmitted", labelId: "Belum Diajukan (Rp)", labelEn: "Not Yet Submitted (Rp)", get: (k) => k.unsubmittedClaim, align: "right" },
+  ];
+  const opFundExportPicker = useExportLanguagePicker((format, exportLang) => {
+    const opts = {
+      rows: history, columns: kantongColumns, lang: exportLang,
+      titleId: `Laporan Dana Operasional — ${viewPlant}`, titleEn: `Operational Fund Report — ${viewPlant}`,
+      periodLabel: history.length > 0 ? `${history[history.length - 1].period} s/d ${history[0].period}` : "-",
+      filename: `Laporan_OpFund_${viewPlant}`,
+    };
+    if (format === "csv") exportGenericCsv(opts);
+    else if (format === "excel") exportGenericExcel(opts);
+    else exportGenericPdf(opts);
+  });
+
   useEffect(() => {
     if (!loading && kantong) {
       const timer = setTimeout(() => setGaugeReady(true), 80);
@@ -6058,29 +6085,6 @@ gap: h.allocOpDriver + h.allocEmergency + h.cashAvailable + h.claimSubmitted + h
     const y = midY - (d.gap / maxAbsGap) * (midY - chartPad / 2);
     return `${x.toFixed(1)},${y.toFixed(1)}`;
   }).join(" ");
-
-  const kantongColumns: ReportColumn<Kantong>[] = [
-    { key: "period", labelId: "Periode", labelEn: "Period", get: (k) => k.period },
-    { key: "plant", labelId: "Plant", labelEn: "Plant", get: (k) => k.plant },
-    { key: "budget", labelId: "Total Budget (Rp)", labelEn: "Total Budget (Rp)", get: (k) => k.totalBudget, align: "right" },
-    { key: "opDriver", labelId: "Alokasi OP Driver (Rp)", labelEn: "OP Driver Allocation (Rp)", get: (k) => k.allocOpDriver, align: "right" },
-    { key: "emergency", labelId: "Alokasi Darurat (Rp)", labelEn: "Emergency Allocation (Rp)", get: (k) => k.allocEmergency, align: "right" },
-    { key: "cash", labelId: "Kas Tersedia (Rp)", labelEn: "Cash Available (Rp)", get: (k) => k.cashAvailable, align: "right" },
-    { key: "submitted", labelId: "Klaim Diajukan (Rp)", labelEn: "Claims Submitted (Rp)", get: (k) => k.claimSubmitted, align: "right" },
-    { key: "paid", labelId: "Klaim Dibayar (Rp)", labelEn: "Claims Paid (Rp)", get: (k) => k.claimPaid, align: "right" },
-    { key: "unsubmitted", labelId: "Belum Diajukan (Rp)", labelEn: "Not Yet Submitted (Rp)", get: (k) => k.unsubmittedClaim, align: "right" },
-  ];
-  const opFundExportPicker = useExportLanguagePicker((format, exportLang) => {
-    const opts = {
-      rows: history, columns: kantongColumns, lang: exportLang,
-      titleId: `Laporan Dana Operasional — ${viewPlant}`, titleEn: `Operational Fund Report — ${viewPlant}`,
-      periodLabel: history.length > 0 ? `${history[history.length - 1].period} s/d ${history[0].period}` : "-",
-      filename: `Laporan_OpFund_${viewPlant}`,
-    };
-    if (format === "csv") exportGenericCsv(opts);
-    else if (format === "excel") exportGenericExcel(opts);
-    else exportGenericPdf(opts);
-  });
 
   return (
     <div style={{ padding: 20 }}>
